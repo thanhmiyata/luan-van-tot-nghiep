@@ -135,6 +135,24 @@ For each question, provide this JSON structure:
 - EN: "Monthly revenue for year 2005"
 - SQL: `SELECT DATE_TRUNC('month', p.payment_date) as month, SUM(p.amount) FROM payment p WHERE EXTRACT(year FROM p.payment_date) = 2005 GROUP BY month ORDER BY month;`
 
+### Level 4 Examples:
+- VI: "Xếp hạng khách hàng theo tổng chi tiêu với window function"
+- EN: "Rank customers by total spending using window functions"
+- SQL: `SELECT c.first_name, c.last_name, SUM(p.amount) as total_spent, RANK() OVER (ORDER BY SUM(p.amount) DESC) as customer_rank FROM customer c JOIN payment p ON c.customer_id = p.customer_id GROUP BY c.customer_id, c.first_name, c.last_name ORDER BY total_spent DESC;`
+
+- VI: "Tìm phim có giá thuê cao hơn trung bình của thể loại"
+- EN: "Find films with rental rate above category average"
+- SQL: `SELECT f.title, f.rental_rate, AVG(f.rental_rate) OVER (PARTITION BY fc.category_id) as avg_category_rate FROM film f JOIN film_category fc ON f.film_id = fc.film_id WHERE f.rental_rate > (SELECT AVG(f2.rental_rate) FROM film f2 JOIN film_category fc2 ON f2.film_id = fc2.film_id WHERE fc2.category_id = fc.category_id) ORDER BY f.title;`
+
+### Level 5 Examples:
+- VI: "Phân tích cohort khách hàng theo tháng đăng ký và hành vi thuê phim"
+- EN: "Customer cohort analysis by registration month and rental behavior"
+- SQL: `WITH customer_stats AS (SELECT c.customer_id, c.first_name, c.last_name, COUNT(r.rental_id) as rental_count, SUM(p.amount) as total_spent, DATE_TRUNC('month', c.create_date) as cohort_month FROM customer c LEFT JOIN rental r ON c.customer_id = r.customer_id LEFT JOIN payment p ON c.customer_id = p.customer_id GROUP BY c.customer_id, c.first_name, c.last_name, c.create_date) SELECT cohort_month, customer_id, first_name, last_name, rental_count, total_spent, NTILE(4) OVER (ORDER BY total_spent) as quartile FROM customer_stats ORDER BY cohort_month, total_spent DESC;`
+
+- VI: "Tính revenue growth rate theo tháng với LAG function"
+- EN: "Calculate monthly revenue growth rate using LAG function"
+- SQL: `WITH monthly_revenue AS (SELECT DATE_TRUNC('month', payment_date) as month, SUM(amount) as revenue FROM payment GROUP BY month) SELECT month, revenue, LAG(revenue) OVER (ORDER BY month) as prev_month_revenue, CASE WHEN LAG(revenue) OVER (ORDER BY month) IS NOT NULL THEN ROUND(((revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month) * 100)::numeric, 2) ELSE 0 END as growth_rate_percent FROM monthly_revenue ORDER BY month;`
+
 ## 🚀 GENERATION INSTRUCTIONS
 
 1. **Start with Level 1** and progress to Level 5
