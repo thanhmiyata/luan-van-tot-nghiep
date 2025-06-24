@@ -1,0 +1,1934 @@
+[
+    {
+        "question_id": "Q801",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Perform a cohort analysis to track the monthly retention rate of customers based on their registration month.",
+        "sql_query": "WITH customer_cohorts AS (SELECT customer_id, DATE_TRUNC('month', create_date) AS cohort_month FROM customer), rental_activity AS (SELECT customer_id, DATE_TRUNC('month', rental_date) AS rental_month FROM rental), cohort_monthly_activity AS (SELECT c.cohort_month, EXTRACT(YEAR FROM r.rental_month) * 12 + EXTRACT(MONTH FROM r.rental_month) - (EXTRACT(YEAR FROM c.cohort_month) * 12 + EXTRACT(MONTH FROM c.cohort_month)) AS month_number, COUNT(DISTINCT r.customer_id) AS active_customers FROM customer_cohorts c JOIN rental_activity r ON c.customer_id = r.customer_id GROUP BY 1, 2), cohort_size AS (SELECT cohort_month, COUNT(1) AS total_customers FROM customer_cohorts GROUP BY 1) SELECT cs.cohort_month::date, cma.month_number, cs.total_customers, cma.active_customers, (cma.active_customers::decimal * 100 / cs.total_customers) as retention_rate FROM cohort_monthly_activity cma JOIN cohort_size cs ON cma.cohort_month = cs.cohort_month WHERE cma.month_number >= 0 ORDER BY 1, 2;",
+        "explanation": "This query uses multiple CTEs to perform cohort analysis. It first establishes customer cohorts by registration month, tracks their rental activity in subsequent months, calculates the number of active customers from each cohort over time, and finally computes the monthly retention rate.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "multi_table_join",
+            "date_trunc",
+            "date_arithmetic",
+            "count_distinct",
+            "group_by",
+            "arithmetic_calculation"
+        ],
+        "business_context": "cohort_analysis"
+    },
+    {
+        "question_id": "Q802",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Thực hiện phân tích cohort để theo dõi tỷ lệ giữ chân khách hàng hàng tháng dựa trên tháng đăng ký của họ.",
+        "sql_query": "WITH nhom_khach_hang AS (SELECT customer_id, DATE_TRUNC('month', create_date) AS thang_nhom FROM customer), hoat_dong_thue AS (SELECT customer_id, DATE_TRUNC('month', rental_date) AS thang_thue FROM rental), hoat_dong_nhom_thang AS (SELECT nkh.thang_nhom, EXTRACT(YEAR FROM hdt.thang_thue) * 12 + EXTRACT(MONTH FROM hdt.thang_thue) - (EXTRACT(YEAR FROM nkh.thang_nhom) * 12 + EXTRACT(MONTH FROM nkh.thang_nhom)) AS so_thang, COUNT(DISTINCT hdt.customer_id) AS kh_hoat_dong FROM nhom_khach_hang nkh JOIN hoat_dong_thue hdt ON nkh.customer_id = hdt.customer_id GROUP BY 1, 2), kich_thuoc_nhom AS (SELECT thang_nhom, COUNT(1) AS tong_khach_hang FROM nhom_khach_hang GROUP BY 1) SELECT ktn.thang_nhom::date, hdnt.so_thang, ktn.tong_khach_hang, hdnt.kh_hoat_dong, (hdnt.kh_hoat_dong::decimal * 100 / ktn.tong_khach_hang) as ty_le_giu_chan FROM hoat_dong_nhom_thang hdnt JOIN kich_thuoc_nhom ktn ON hdnt.thang_nhom = ktn.thang_nhom WHERE hdnt.so_thang >= 0 ORDER BY 1, 2;",
+        "explanation": "Truy vấn này sử dụng nhiều CTE để thực hiện phân tích cohort. Đầu tiên nó thiết lập các nhóm khách hàng theo tháng đăng ký, theo dõi hoạt động thuê của họ trong các tháng tiếp theo, tính toán số lượng khách hàng hoạt động từ mỗi nhóm theo thời gian, và cuối cùng tính toán tỷ lệ giữ chân hàng tháng.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "multi_table_join",
+            "date_trunc",
+            "date_arithmetic",
+            "count_distinct",
+            "group_by",
+            "arithmetic_calculation"
+        ],
+        "business_context": "cohort_analysis"
+    },
+    {
+        "question_id": "Q803",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Calculate the Customer Lifetime Value (LTV) for each customer, defined as their total spending, and show their LTV rank.",
+        "sql_query": "WITH customer_ltv AS (SELECT customer_id, SUM(amount) as ltv FROM payment GROUP BY customer_id) SELECT c.first_name, c.last_name, cl.ltv, RANK() OVER (ORDER BY cl.ltv DESC) as ltv_rank FROM customer_ltv cl JOIN customer c ON cl.customer_id = c.customer_id ORDER BY ltv_rank;",
+        "explanation": "A CTE first calculates the historical lifetime value (total payments) for each customer. The main query then joins this to the customer table and uses a window function to rank all customers by their LTV.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "rank_function",
+            "group_by",
+            "sum_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "customer_lifetime_value"
+    },
+    {
+        "question_id": "Q804",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tính Giá trị Vòng đời Khách hàng (LTV) cho mỗi khách hàng, được định nghĩa là tổng chi tiêu của họ, và hiển thị thứ hạng LTV của họ.",
+        "sql_query": "WITH ltv_khach_hang AS (SELECT customer_id, SUM(amount) as ltv FROM payment GROUP BY customer_id) SELECT c.first_name, c.last_name, lkh.ltv, RANK() OVER (ORDER BY lkh.ltv DESC) as hang_ltv FROM ltv_khach_hang lkh JOIN customer c ON lkh.customer_id = c.customer_id ORDER BY hang_ltv;",
+        "explanation": "Một CTE trước tiên tính toán giá trị vòng đời lịch sử (tổng số tiền thanh toán) cho mỗi khách hàng. Sau đó, truy vấn chính kết nối với bảng khách hàng và sử dụng hàm cửa sổ để xếp hạng tất cả khách hàng theo LTV của họ.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "rank_function",
+            "group_by",
+            "sum_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "customer_lifetime_value"
+    },
+    {
+        "question_id": "Q805",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Identify 'binge-watching' sessions, defined as a customer renting 3 or more films within any 24-hour period, and list the customer and films.",
+        "sql_query": "WITH RentalSessions AS (SELECT customer_id, film_id, rental_date, COUNT(*) OVER (PARTITION BY customer_id ORDER BY rental_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as session_id FROM (SELECT r.customer_id, i.film_id, r.rental_date, r.rental_date - LAG(r.rental_date, 1, r.rental_date) OVER (PARTITION BY r.customer_id ORDER BY r.rental_date) as time_diff FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id) as diffs WHERE time_diff > '24 hours'), BingeSessions AS (SELECT session_id, customer_id, COUNT(film_id) as binge_count FROM RentalSessions GROUP BY session_id, customer_id HAVING COUNT(film_id) >= 3) SELECT c.first_name, c.last_name, bs.binge_count, STRING_AGG(f.title, ', ') as binged_films FROM BingeSessions bs JOIN RentalSessions rs ON bs.session_id = rs.session_id AND bs.customer_id = rs.customer_id JOIN customer c ON bs.customer_id = c.customer_id JOIN film f ON rs.film_id = f.film_id GROUP BY c.first_name, c.last_name, bs.binge_count;",
+        "explanation": "This is highly complex. It attempts to identify rental sessions by checking the time between a customer's consecutive rentals. A session starts when the gap is > 24 hours. It then counts films within these defined sessions and filters for 'binges' (3+ films). Note: This is a simplified sessionization logic.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "rows_between",
+            "self_join_logic",
+            "string_agg_aggregate",
+            "group_by",
+            "having"
+        ],
+        "business_context": "binge_watching_behavior"
+    },
+    {
+        "question_id": "Q806",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Xác định các 'phiên xem liên tục', được định nghĩa là một khách hàng thuê 3 phim trở lên trong bất kỳ khoảng thời gian 24 giờ nào, và liệt kê khách hàng và các phim đó.",
+        "sql_query": "WITH PhienThue AS (SELECT customer_id, film_id, rental_date, COUNT(*) OVER (PARTITION BY customer_id ORDER BY rental_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as phien_id FROM (SELECT r.customer_id, i.film_id, r.rental_date, r.rental_date - LAG(r.rental_date, 1, r.rental_date) OVER (PARTITION BY r.customer_id ORDER BY r.rental_date) as khoang_cach_tg FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id) as khoang_cach WHERE khoang_cach_tg > '24 hours'), PhienXemLienTuc AS (SELECT phien_id, customer_id, COUNT(film_id) as so_phim_xem FROM PhienThue GROUP BY phien_id, customer_id HAVING COUNT(film_id) >= 3) SELECT c.first_name, c.last_name, pxlt.so_phim_xem, STRING_AGG(f.title, ', ') as cac_phim_da_xem FROM PhienXemLienTuc pxlt JOIN PhienThue pt ON pxlt.phien_id = pt.phien_id AND pxlt.customer_id = pt.customer_id JOIN customer c ON pxlt.customer_id = c.customer_id JOIN film f ON pt.film_id = f.film_id GROUP BY c.first_name, c.last_name, pxlt.so_phim_xem;",
+        "explanation": "Câu này rất phức tạp. Nó cố gắng xác định các phiên thuê bằng cách kiểm tra thời gian giữa các lần thuê liên tiếp của khách hàng. Một phiên bắt đầu khi khoảng cách > 24 giờ. Sau đó, nó đếm các phim trong các phiên được xác định này và lọc ra các 'phiên xem liên tục' (3+ phim). Lưu ý: Đây là logic phân chia phiên đơn giản hóa.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "rows_between",
+            "self_join_logic",
+            "string_agg_aggregate",
+            "group_by",
+            "having"
+        ],
+        "business_context": "hanh_vi_xem_phim_lien_tuc"
+    },
+    {
+        "question_id": "Q807",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "For customers who rented 'AGENT TRUMAN', what other film did they rent most frequently?",
+        "sql_query": "WITH AgentTrumanRenters AS (SELECT DISTINCT r.customer_id FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE f.title = 'AGENT TRUMAN') SELECT f.title, COUNT(*) as rental_count FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE r.customer_id IN (SELECT customer_id FROM AgentTrumanRenters) AND f.title <> 'AGENT TRUMAN' GROUP BY f.title ORDER BY rental_count DESC LIMIT 1;",
+        "explanation": "A CTE first identifies all customers who rented a specific film. The main query then finds all other films rented by this group of customers, counts their frequency, and returns the most popular one, simulating a market basket analysis.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "subquery_in",
+            "multi_table_join",
+            "group_by",
+            "count_aggregate",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "market_basket_analysis"
+    },
+    {
+        "question_id": "Q808",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Đối với những khách hàng đã thuê 'AGENT TRUMAN', họ đã thuê phim nào khác thường xuyên nhất?",
+        "sql_query": "WITH NguoiThueAgentTruman AS (SELECT DISTINCT r.customer_id FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE f.title = 'AGENT TRUMAN') SELECT f.title, COUNT(*) as so_luot_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE r.customer_id IN (SELECT customer_id FROM NguoiThueAgentTruman) AND f.title <> 'AGENT TRUMAN' GROUP BY f.title ORDER BY so_luot_thue DESC LIMIT 1;",
+        "explanation": "Một CTE trước tiên xác định tất cả các khách hàng đã thuê một bộ phim cụ thể. Sau đó, truy vấn chính tìm tất cả các phim khác được thuê bởi nhóm khách hàng này, đếm tần suất của chúng và trả về phim phổ biến nhất, mô phỏng một phân tích giỏ hàng.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "subquery_in",
+            "multi_table_join",
+            "group_by",
+            "count_aggregate",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "market_basket_analysis"
+    },
+    {
+        "question_id": "Q809",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Identify overstocked films: films with more than 7 copies in inventory that have not been rented in the last 6 months.",
+        "sql_query": "WITH LastRental AS (SELECT i.film_id, MAX(r.rental_date) as last_rental_date FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY i.film_id), InventoryCount AS (SELECT film_id, COUNT(*) as copy_count FROM inventory GROUP BY film_id) SELECT f.title, ic.copy_count, lr.last_rental_date FROM film f JOIN InventoryCount ic ON f.film_id = ic.film_id LEFT JOIN LastRental lr ON f.film_id = lr.film_id WHERE ic.copy_count > 7 AND (lr.last_rental_date IS NULL OR lr.last_rental_date < NOW() - INTERVAL '6 months');",
+        "explanation": "Uses two CTEs to get the last rental date and inventory count for each film. The main query then joins them to filter for films that are both highly stocked and have not been rented recently (or ever).",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "max_aggregate",
+            "count_aggregate",
+            "left_join",
+            "date_arithmetic",
+            "logical_or"
+        ],
+        "business_context": "overstock_identification"
+    },
+    {
+        "question_id": "Q810",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Xác định các phim tồn kho quá nhiều: phim có hơn 7 bản sao trong kho mà không được thuê trong 6 tháng qua.",
+        "sql_query": "WITH ThueCuoi AS (SELECT i.film_id, MAX(r.rental_date) as ngay_thue_cuoi FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY i.film_id), DemTonKho AS (SELECT film_id, COUNT(*) as so_ban_sao FROM inventory GROUP BY film_id) SELECT f.title, dtk.so_ban_sao, tc.ngay_thue_cuoi FROM film f JOIN DemTonKho dtk ON f.film_id = dtk.film_id LEFT JOIN ThueCuoi tc ON f.film_id = tc.film_id WHERE dtk.so_ban_sao > 7 AND (tc.ngay_thue_cuoi IS NULL OR tc.ngay_thue_cuoi < NOW() - INTERVAL '6 months');",
+        "explanation": "Sử dụng hai CTE để lấy ngày thuê cuối cùng và số lượng tồn kho cho mỗi phim. Sau đó, truy vấn chính kết nối chúng để lọc ra các phim vừa có số lượng tồn kho cao vừa không được thuê gần đây (hoặc chưa bao giờ).",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "max_aggregate",
+            "count_aggregate",
+            "left_join",
+            "date_arithmetic",
+            "logical_or"
+        ],
+        "business_context": "xac_dinh_ton_kho_thua"
+    },
+    {
+        "question_id": "Q811",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "For each store, find the percentage of total revenue that comes from its top 20% of customers.",
+        "sql_query": "WITH CustomerSpendingByStore AS (SELECT p.customer_id, c.store_id, SUM(p.amount) as total_spent FROM payment p JOIN customer c ON p.customer_id = c.customer_id GROUP BY 1, 2), RankedCustomerSpending AS (SELECT *, NTILE(5) OVER (PARTITION BY store_id ORDER BY total_spent DESC) as quintile FROM CustomerSpendingByStore) SELECT store_id, (SUM(total_spent) FILTER (WHERE quintile = 1)) * 100.0 / SUM(total_spent) as pct_rev_from_top_20_pct FROM RankedCustomerSpending GROUP BY store_id;",
+        "explanation": "A CTE first gets customer spending per store. A second CTE uses NTILE(5) to divide customers in each store into five quintiles (20% groups). The final query uses conditional aggregation with the FILTER clause to calculate the revenue from the top quintile (quintile=1) as a percentage of the total.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "ntile_function",
+            "partition_by",
+            "conditional_aggregation",
+            "filter_clause",
+            "group_by"
+        ],
+        "business_context": "pareto_analysis_by_store"
+    },
+    {
+        "question_id": "Q812",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Đối với mỗi cửa hàng, hãy tìm phần trăm tổng doanh thu đến từ 20% khách hàng hàng đầu.",
+        "sql_query": "WITH ChiTieuTheoCuaHang AS (SELECT p.customer_id, c.store_id, SUM(p.amount) as tong_chi_tieu FROM payment p JOIN customer c ON p.customer_id = c.customer_id GROUP BY 1, 2), ChiTieuXepHang AS (SELECT *, NTILE(5) OVER (PARTITION BY store_id ORDER BY tong_chi_tieu DESC) as ngu_phan_vi FROM ChiTieuTheoCuaHang) SELECT store_id, (SUM(tong_chi_tieu) FILTER (WHERE ngu_phan_vi = 1)) * 100.0 / SUM(tong_chi_tieu) as pct_dt_tu_top_20_pct FROM ChiTieuXepHang GROUP BY store_id;",
+        "explanation": "Một CTE trước tiên lấy chi tiêu của khách hàng theo cửa hàng. Một CTE thứ hai sử dụng NTILE(5) để chia khách hàng trong mỗi cửa hàng thành năm nhóm (mỗi nhóm 20%). Truy vấn cuối cùng sử dụng tổng hợp có điều kiện với mệnh đề FILTER để tính doanh thu từ nhóm cao nhất (ngu_phan_vi=1) dưới dạng phần trăm của tổng số.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "ntile_function",
+            "partition_by",
+            "conditional_aggregation",
+            "filter_clause",
+            "group_by"
+        ],
+        "business_context": "phan_tich_pareto_theo_cua_hang"
+    },
+    {
+        "question_id": "Q813",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Find 'power-renters' who rented more than 3 films in a single day.",
+        "sql_query": "WITH DailyRentals AS (SELECT customer_id, rental_date::date as day, COUNT(rental_id) as daily_count FROM rental GROUP BY 1, 2) SELECT c.first_name, c.last_name, dr.day, dr.daily_count FROM DailyRentals dr JOIN customer c ON dr.customer_id = c.customer_id WHERE dr.daily_count > 3 ORDER BY dr.daily_count DESC;",
+        "explanation": "A CTE aggregates rentals by customer and by day. The main query then filters this result to find instances where a customer's daily rental count exceeded 3.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by_multiple",
+            "count_aggregate",
+            "date_casting",
+            "join_with_cte"
+        ],
+        "business_context": "high_volume_customer_behavior"
+    },
+    {
+        "question_id": "Q814",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Tìm những 'người thuê năng nổ' đã thuê hơn 3 phim trong một ngày.",
+        "sql_query": "WITH ThueHangNgay AS (SELECT customer_id, rental_date::date as ngay, COUNT(rental_id) as so_luong_ngay FROM rental GROUP BY 1, 2) SELECT c.first_name, c.last_name, thn.ngay, thn.so_luong_ngay FROM ThueHangNgay thn JOIN customer c ON thn.customer_id = c.customer_id WHERE thn.so_luong_ngay > 3 ORDER BY thn.so_luong_ngay DESC;",
+        "explanation": "Một CTE tổng hợp các lượt thuê theo khách hàng và theo ngày. Sau đó, truy vấn chính lọc kết quả này để tìm các trường hợp mà số lượt thuê hàng ngày của khách hàng vượt quá 3.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by_multiple",
+            "count_aggregate",
+            "date_casting",
+            "join_with_cte"
+        ],
+        "business_context": "hanh_vi_khach_hang_so_luong_lon"
+    },
+    {
+        "question_id": "Q815",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Find pairs of films that are frequently rented together by the same customer on the same day.",
+        "sql_query": "WITH DailyCustomerRentals AS (SELECT r.customer_id, r.rental_date::date as rental_day, i.film_id FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id) SELECT f1.title, f2.title, COUNT(*) as pair_count FROM DailyCustomerRentals dcr1 JOIN DailyCustomerRentals dcr2 ON dcr1.customer_id = dcr2.customer_id AND dcr1.rental_day = dcr2.rental_day AND dcr1.film_id < dcr2.film_id JOIN film f1 ON dcr1.film_id = f1.film_id JOIN film f2 ON dcr2.film_id = f2.film_id GROUP BY f1.title, f2.title HAVING COUNT(*) > 5 ORDER BY pair_count DESC;",
+        "explanation": "A CTE simplifies the rental data. The main query then performs a self-join on this CTE, matching on customer and day, to find pairs of films rented together. It then counts how often each pair occurs.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "self_join_on_cte",
+            "group_by",
+            "having",
+            "count_aggregate",
+            "multi_table_join"
+        ],
+        "business_context": "rental_pattern_discovery"
+    },
+    {
+        "question_id": "Q816",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Tìm các cặp phim thường được thuê cùng nhau bởi cùng một khách hàng trong cùng một ngày.",
+        "sql_query": "WITH ThueHangNgayKH AS (SELECT r.customer_id, r.rental_date::date as ngay_thue, i.film_id FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id) SELECT f1.title, f2.title, COUNT(*) as so_lan_thue_cap FROM ThueHangNgayKH thnkh1 JOIN ThueHangNgayKH thnkh2 ON thnkh1.customer_id = thnkh2.customer_id AND thnkh1.ngay_thue = thnkh2.ngay_thue AND thnkh1.film_id < thnkh2.film_id JOIN film f1 ON thnkh1.film_id = f1.film_id JOIN film f2 ON thnkh2.film_id = f2.film_id GROUP BY f1.title, f2.title HAVING COUNT(*) > 5 ORDER BY so_lan_thue_cap DESC;",
+        "explanation": "Một CTE đơn giản hóa dữ liệu thuê. Sau đó, truy vấn chính thực hiện một tự nối trên CTE này, khớp trên khách hàng và ngày, để tìm các cặp phim được thuê cùng nhau. Sau đó, nó đếm tần suất xuất hiện của mỗi cặp.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "self_join_on_cte",
+            "group_by",
+            "having",
+            "count_aggregate",
+            "multi_table_join"
+        ],
+        "business_context": "kham_pha_mau_hinh_thue"
+    },
+    {
+        "question_id": "Q817",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Calculate the Customer Lifetime Value for customers acquired by each staff member.",
+        "sql_query": "WITH StaffAcquiredCustomers AS (SELECT r.staff_id, r.customer_id, MIN(r.rental_date) as first_contact FROM rental r GROUP BY 1, 2), FirstContactStaff AS (SELECT customer_id, staff_id FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY first_contact) as rn FROM StaffAcquiredCustomers) as ranked_contact WHERE rn = 1) SELECT s.first_name, s.last_name, SUM(p.amount) as total_ltv_acquired FROM payment p JOIN FirstContactStaff fcs ON p.customer_id = fcs.customer_id JOIN staff s ON fcs.staff_id = s.staff_id GROUP BY s.staff_id, s.first_name, s.last_name ORDER BY total_ltv_acquired DESC;",
+        "explanation": "This is a complex attribution model. It uses CTEs to determine the 'first contact' staff member for each customer (based on their first rental), then joins to the payment table to sum up the entire lifetime value of all customers attributed to each staff member.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "group_by",
+            "sum_aggregate",
+            "min_aggregate"
+        ],
+        "business_context": "staff_acquisition_value"
+    },
+    {
+        "question_id": "Q818",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tính Giá trị Vòng đời Khách hàng cho các khách hàng được mỗi nhân viên thu hút.",
+        "sql_query": "WITH KHThuHutBoiNV AS (SELECT r.staff_id, r.customer_id, MIN(r.rental_date) as lien_he_dau FROM rental r GROUP BY 1, 2), NVLienHeDau AS (SELECT customer_id, staff_id FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY lien_he_dau) as stt FROM KHThuHutBoiNV) as xep_hang_lh WHERE stt = 1) SELECT s.first_name, s.last_name, SUM(p.amount) as tong_ltv_thu_hut FROM payment p JOIN NVLienHeDau nvlhd ON p.customer_id = nvlhd.customer_id JOIN staff s ON nvlhd.staff_id = s.staff_id GROUP BY s.staff_id, s.first_name, s.last_name ORDER BY tong_ltv_thu_hut DESC;",
+        "explanation": "Đây là một mô hình phân bổ phức tạp. Nó sử dụng CTE để xác định nhân viên 'liên hệ đầu tiên' cho mỗi khách hàng (dựa trên lần thuê đầu tiên của họ), sau đó kết nối với bảng thanh toán để tính tổng giá trị vòng đời của tất cả các khách hàng được quy cho mỗi nhân viên.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "group_by",
+            "sum_aggregate",
+            "min_aggregate"
+        ],
+        "business_context": "gia_tri_thu_hut_cua_nhan_vien"
+    },
+    {
+        "question_id": "Q819",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Find the second most recent rental for each customer.",
+        "sql_query": "WITH NumberedRentals AS (SELECT customer_id, rental_date, inventory_id, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY rental_date DESC) as rn FROM rental) SELECT c.first_name, c.last_name, f.title, nr.rental_date FROM NumberedRentals nr JOIN customer c ON nr.customer_id = c.customer_id JOIN inventory i ON nr.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE nr.rn = 2;",
+        "explanation": "Uses a CTE with the ROW_NUMBER() window function to rank a customer's rentals in descending chronological order. The main query then simply filters for the row where the rank is 2.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "multi_table_join",
+            "join_with_cte"
+        ],
+        "business_context": "customer_behavior_pattern"
+    },
+    {
+        "question_id": "Q820",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Tìm lượt thuê gần đây thứ hai của mỗi khách hàng.",
+        "sql_query": "WITH ThueDaSo AS (SELECT customer_id, rental_date, inventory_id, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY rental_date DESC) as stt FROM rental) SELECT c.first_name, c.last_name, f.title, tds.rental_date FROM ThueDaSo tds JOIN customer c ON tds.customer_id = c.customer_id JOIN inventory i ON tds.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE tds.stt = 2;",
+        "explanation": "Sử dụng CTE với hàm cửa sổ ROW_NUMBER() để xếp hạng các lượt thuê của khách hàng theo thứ tự thời gian giảm dần. Sau đó, truy vấn chính chỉ đơn giản là lọc hàng có thứ hạng là 2.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "multi_table_join",
+            "join_with_cte"
+        ],
+        "business_context": "mau_hinh_hanh_vi_khach_hang"
+    },
+    {
+        "question_id": "Q821",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Using a recursive CTE, find all actors who are connected to 'CUBA GOLDBERG' through a chain of co-starring in films (up to 3 degrees of separation).",
+        "sql_query": "WITH RECURSIVE actor_network(start_actor, end_actor, depth) AS ( SELECT fa1.actor_id, fa2.actor_id, 1 FROM film_actor fa1 JOIN film_actor fa2 ON fa1.film_id = fa2.film_id AND fa1.actor_id <> fa2.actor_id WHERE fa1.actor_id = (SELECT actor_id FROM actor WHERE first_name = 'CUBA' and last_name = 'GOLDBERG') UNION ALL SELECT an.start_actor, fa2.actor_id, an.depth + 1 FROM actor_network an JOIN film_actor fa1 ON an.end_actor = fa1.actor_id JOIN film_actor fa2 ON fa1.film_id = fa2.film_id AND an.start_actor <> fa2.actor_id AND an.end_actor <> fa2.actor_id WHERE an.depth < 3) SELECT DISTINCT a.first_name, a.last_name, an.depth FROM actor_network an JOIN actor a ON an.end_actor = a.actor_id;",
+        "explanation": "This is a true recursive query. The base case finds immediate co-stars of 'CUBA GOLDBERG'. The recursive step finds co-stars of those co-stars, increasing the depth. It stops at a depth of 3 to prevent an infinite loop and limit complexity.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "recursive_cte",
+            "union_all",
+            "self_join_logic",
+            "multi_table_join"
+        ],
+        "business_context": "network_analysis"
+    },
+    {
+        "question_id": "Q822",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Sử dụng CTE đệ quy, hãy tìm tất cả các diễn viên được kết nối với 'CUBA GOLDBERG' thông qua một chuỗi các phim đóng chung (tối đa 3 bậc tách biệt).",
+        "sql_query": "WITH RECURSIVE mang_luoi_dien_vien(dv_bat_dau, dv_ket_thuc, do_sau) AS ( SELECT fa1.actor_id, fa2.actor_id, 1 FROM film_actor fa1 JOIN film_actor fa2 ON fa1.film_id = fa2.film_id AND fa1.actor_id <> fa2.actor_id WHERE fa1.actor_id = (SELECT actor_id FROM actor WHERE first_name = 'CUBA' and last_name = 'GOLDBERG') UNION ALL SELECT mldv.dv_bat_dau, fa2.actor_id, mldv.do_sau + 1 FROM mang_luoi_dien_vien mldv JOIN film_actor fa1 ON mldv.dv_ket_thuc = fa1.actor_id JOIN film_actor fa2 ON fa1.film_id = fa2.film_id AND mldv.dv_bat_dau <> fa2.actor_id AND mldv.dv_ket_thuc <> fa2.actor_id WHERE mldv.do_sau < 3) SELECT DISTINCT a.first_name, a.last_name, mldv.do_sau FROM mang_luoi_dien_vien mldv JOIN actor a ON mldv.dv_ket_thuc = a.actor_id;",
+        "explanation": "Đây là một truy vấn đệ quy thực sự. Trường hợp cơ sở tìm các bạn diễn ngay lập tức của 'CUBA GOLDBERG'. Bước đệ quy tìm các bạn diễn của những bạn diễn đó, tăng độ sâu. Nó dừng lại ở độ sâu 3 để ngăn vòng lặp vô hạn và hạn chế độ phức tạp.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "recursive_cte",
+            "union_all",
+            "self_join_logic",
+            "multi_table_join"
+        ],
+        "business_context": "phan_tich_mang_luoi"
+    },
+    {
+        "question_id": "Q823",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "For each category, show its total revenue and its percentage of the total revenue of all categories.",
+        "sql_query": "WITH CategoryRevenue AS (SELECT c.name, SUM(p.amount) as category_revenue FROM category c JOIN film_category fc ON c.category_id = fc.category_id JOIN inventory i ON fc.film_id = i.film_id JOIN rental r ON i.inventory_id = r.inventory_id JOIN payment p ON r.rental_id = p.rental_id GROUP BY c.name) SELECT name, category_revenue, category_revenue * 100.0 / SUM(category_revenue) OVER () as percentage_of_total FROM CategoryRevenue;",
+        "explanation": "A CTE calculates revenue per category. The main query then uses a window function SUM() OVER() to get the grand total revenue across all categories, allowing for an efficient percentage calculation without another join or subquery.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "sum_aggregate_window",
+            "group_by",
+            "multi_table_join"
+        ],
+        "business_context": "category_revenue_distribution"
+    },
+    {
+        "question_id": "Q824",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Đối với mỗi thể loại, hãy hiển thị tổng doanh thu và tỷ lệ phần trăm của nó trong tổng doanh thu của tất cả các thể loại.",
+        "sql_query": "WITH DoanhThuTheLoai AS (SELECT c.name, SUM(p.amount) as doanh_thu_the_loai FROM category c JOIN film_category fc ON c.category_id = fc.category_id JOIN inventory i ON fc.film_id = i.film_id JOIN rental r ON i.inventory_id = r.inventory_id JOIN payment p ON r.rental_id = p.rental_id GROUP BY c.name) SELECT name, doanh_thu_the_loai, doanh_thu_the_loai * 100.0 / SUM(doanh_thu_the_loai) OVER () as phan_tram_tong FROM DoanhThuTheLoai;",
+        "explanation": "Một CTE tính toán doanh thu cho mỗi thể loại. Sau đó, truy vấn chính sử dụng hàm cửa sổ SUM() OVER() để lấy tổng doanh thu trên tất cả các thể loại, cho phép tính toán phần trăm hiệu quả mà không cần một phép nối hoặc truy vấn con khác.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "sum_aggregate_window",
+            "group_by",
+            "multi_table_join"
+        ],
+        "business_context": "phan_bo_doanh_thu_the_loai"
+    },
+    {
+        "question_id": "Q825",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Find the top 3 films rented by customers in the top 10% of total spending.",
+        "sql_query": "WITH TopSpenders AS (SELECT customer_id FROM payment GROUP BY customer_id ORDER BY SUM(amount) DESC LIMIT (SELECT COUNT(*) / 10 FROM customer)) SELECT f.title, COUNT(r.rental_id) as rental_count FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE r.customer_id IN (SELECT customer_id FROM TopSpenders) GROUP BY f.title ORDER BY rental_count DESC LIMIT 3;",
+        "explanation": "A CTE identifies the top 10% of customers by spending. The main query then finds all rentals by this group of customers, aggregates them by film title, and returns the top 3 most popular films among this VIP segment.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by",
+            "sum_aggregate",
+            "limit_with_subquery",
+            "subquery_in",
+            "three_table_join",
+            "count_aggregate",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "vip_customer_preferences"
+    },
+    {
+        "question_id": "Q826",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Tìm 3 phim hàng đầu được thuê bởi các khách hàng trong top 10% chi tiêu nhiều nhất.",
+        "sql_query": "WITH NguoiChiTieuNhieu AS (SELECT customer_id FROM payment GROUP BY customer_id ORDER BY SUM(amount) DESC LIMIT (SELECT COUNT(*) / 10 FROM customer)) SELECT f.title, COUNT(r.rental_id) as so_luot_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE r.customer_id IN (SELECT customer_id FROM NguoiChiTieuNhieu) GROUP BY f.title ORDER BY so_luot_thue DESC LIMIT 3;",
+        "explanation": "Một CTE xác định 10% khách hàng chi tiêu nhiều nhất. Sau đó, truy vấn chính tìm tất cả các lượt thuê của nhóm khách hàng này, tổng hợp chúng theo tựa phim, và trả về 3 phim phổ biến nhất trong phân khúc VIP này.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by",
+            "sum_aggregate",
+            "limit_with_subquery",
+            "subquery_in",
+            "three_table_join",
+            "count_aggregate",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "so_thich_cua_khach_hang_vip"
+    },
+    {
+        "question_id": "Q827",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Calculate the inventory turnover ratio for each store, defined as (total rentals in a period / average inventory during the period).",
+        "sql_query": "WITH TotalRentals AS (SELECT i.store_id, COUNT(r.rental_id) as total_rentals FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY i.store_id), TotalInventory AS (SELECT store_id, COUNT(inventory_id) as total_inventory FROM inventory GROUP BY store_id) SELECT tr.store_id, tr.total_rentals, ti.total_inventory, tr.total_rentals::decimal / ti.total_inventory as turnover_ratio FROM TotalRentals tr JOIN TotalInventory ti ON tr.store_id = ti.store_id;",
+        "explanation": "This query simplifies the turnover ratio concept. It uses two CTEs to get the total number of rentals and the total number of inventory items for each store, then calculates their ratio. A true average inventory over time would be even more complex.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte",
+            "arithmetic_calculation"
+        ],
+        "business_context": "store_inventory_efficiency"
+    },
+    {
+        "question_id": "Q828",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Tính tỷ lệ vòng quay hàng tồn kho cho mỗi cửa hàng, được định nghĩa là (tổng số lượt thuê trong một kỳ / hàng tồn kho trung bình trong kỳ).",
+        "sql_query": "WITH TongSoThue AS (SELECT i.store_id, COUNT(r.rental_id) as tong_so_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY i.store_id), TongTonKho AS (SELECT store_id, COUNT(inventory_id) as tong_ton_kho FROM inventory GROUP BY store_id) SELECT tst.store_id, tst.tong_so_thue, ttk.tong_ton_kho, tst.tong_so_thue::decimal / ttk.tong_ton_kho as ty_le_vong_quay FROM TongSoThue tst JOIN TongTonKho ttk ON tst.store_id = ttk.store_id;",
+        "explanation": "Truy vấn này đơn giản hóa khái niệm tỷ lệ vòng quay. Nó sử dụng hai CTE để lấy tổng số lượt thuê và tổng số mặt hàng tồn kho cho mỗi cửa hàng, sau đó tính toán tỷ lệ của chúng. Hàng tồn kho trung bình thực sự theo thời gian sẽ còn phức tạp hơn.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte",
+            "arithmetic_calculation"
+        ],
+        "business_context": "hieu_qua_ton_kho_cua_hang"
+    },
+    {
+        "question_id": "Q829",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Find the first payment amount for each customer.",
+        "sql_query": "WITH FirstPayment AS (SELECT customer_id, amount, ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY payment_date) as rn FROM payment) SELECT c.first_name, c.last_name, fp.amount FROM FirstPayment fp JOIN customer c ON fp.customer_id = c.customer_id WHERE fp.rn = 1;",
+        "explanation": "Uses a CTE with the ROW_NUMBER() window function to identify the very first payment made by each customer based on date.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "join_with_cte"
+        ],
+        "business_context": "first_payment_analysis"
+    },
+    {
+        "question_id": "Q830",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tìm số tiền thanh toán đầu tiên của mỗi khách hàng.",
+        "sql_query": "WITH ThanhToanDauTien AS (SELECT customer_id, amount, ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY payment_date) as stt FROM payment) SELECT c.first_name, c.last_name, ttdt.amount FROM ThanhToanDauTien ttdt JOIN customer c ON ttdt.customer_id = c.customer_id WHERE ttdt.stt = 1;",
+        "explanation": "Sử dụng CTE với hàm cửa sổ ROW_NUMBER() để xác định khoản thanh toán đầu tiên được thực hiện bởi mỗi khách hàng dựa trên ngày.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "join_with_cte"
+        ],
+        "business_context": "phan_tich_thanh_toan_dau_tien"
+    },
+    {
+        "question_id": "Q831",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "For each customer, compare their rental count this month to their rental count last month.",
+        "sql_query": "WITH MonthlyRentals AS (SELECT customer_id, DATE_TRUNC('month', rental_date)::date as rental_month, COUNT(*) as rental_count FROM rental GROUP BY 1, 2) SELECT mr.customer_id, mr.rental_month, mr.rental_count, LAG(mr.rental_count, 1, 0) OVER (PARTITION BY mr.customer_id ORDER BY mr.rental_month) as last_month_count FROM MonthlyRentals mr;",
+        "explanation": "A CTE calculates monthly rental counts for each customer. The main query then uses the LAG window function, partitioned by customer, to retrieve the previous month's count for direct comparison.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "date_functions"
+        ],
+        "business_context": "customer_activity_trends"
+    },
+    {
+        "question_id": "Q832",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Đối với mỗi khách hàng, hãy so sánh số lượt thuê của họ trong tháng này với số lượt thuê của họ vào tháng trước.",
+        "sql_query": "WITH ThueHangThang AS (SELECT customer_id, DATE_TRUNC('month', rental_date)::date as thang_thue, COUNT(*) as so_luong_thue FROM rental GROUP BY 1, 2) SELECT tht.customer_id, tht.thang_thue, tht.so_luong_thue, LAG(tht.so_luong_thue, 1, 0) OVER (PARTITION BY tht.customer_id ORDER BY tht.thang_thue) as so_luong_thang_truoc FROM ThueHangThang tht;",
+        "explanation": "Một CTE tính toán số lượt thuê hàng tháng cho mỗi khách hàng. Sau đó, truy vấn chính sử dụng hàm cửa sổ LAG, được phân vùng theo khách hàng, để lấy số liệu của tháng trước để so sánh trực tiếp.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "date_functions"
+        ],
+        "business_context": "xu_huong_hoat_dong_cua_kh"
+    },
+    {
+        "question_id": "Q833",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Identify 'niche' films: those with fewer than 50 total rentals but an average payment per rental higher than the overall average.",
+        "sql_query": "WITH FilmStats AS (SELECT i.film_id, COUNT(r.rental_id) as rental_count, SUM(p.amount) / COUNT(r.rental_id) as avg_payment_per_rental FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN payment p ON r.rental_id = p.rental_id GROUP BY 1) SELECT f.title, fs.rental_count, fs.avg_payment_per_rental FROM FilmStats fs JOIN film f ON fs.film_id = f.film_id WHERE fs.rental_count < 50 AND fs.avg_payment_per_rental > (SELECT AVG(amount) FROM payment);",
+        "explanation": "A CTE calculates key stats (rental count, average payment) per film. The main query then filters this data based on two conditions, one of which requires a subquery to get the global average payment, to find films that are not popular but are profitable per rental.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by",
+            "count_aggregate",
+            "sum_aggregate",
+            "arithmetic_calculation",
+            "join_with_cte",
+            "scalar_subquery",
+            "avg_aggregate"
+        ],
+        "business_context": "niche_market_analysis"
+    },
+    {
+        "question_id": "Q834",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Xác định các phim 'thị trường ngách': những phim có tổng số lượt thuê dưới 50 nhưng có số tiền thanh toán trung bình mỗi lượt thuê cao hơn mức trung bình chung.",
+        "sql_query": "WITH ThongKePhim AS (SELECT i.film_id, COUNT(r.rental_id) as so_luot_thue, SUM(p.amount) / COUNT(r.rental_id) as tt_tb_moi_lan_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN payment p ON r.rental_id = p.rental_id GROUP BY 1) SELECT f.title, tkp.so_luot_thue, tkp.tt_tb_moi_lan_thue FROM ThongKePhim tkp JOIN film f ON tkp.film_id = f.film_id WHERE tkp.so_luot_thue < 50 AND tkp.tt_tb_moi_lan_thue > (SELECT AVG(amount) FROM payment);",
+        "explanation": "Một CTE tính toán các chỉ số chính (số lượt thuê, thanh toán trung bình) cho mỗi phim. Sau đó, truy vấn chính lọc dữ liệu này dựa trên hai điều kiện, một trong số đó yêu cầu một truy vấn con để lấy mức thanh toán trung bình toàn cầu, để tìm những phim không phổ biến nhưng lại có lợi nhuận trên mỗi lượt thuê.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by",
+            "count_aggregate",
+            "sum_aggregate",
+            "arithmetic_calculation",
+            "join_with_cte",
+            "scalar_subquery",
+            "avg_aggregate"
+        ],
+        "business_context": "phan_tich_thi_truong_ngach"
+    },
+    {
+        "question_id": "Q835",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "What is the maximum number of films rented by a single customer in one transaction (same rental date and customer)?",
+        "sql_query": "SELECT MAX(rental_count) FROM (SELECT customer_id, rental_date, COUNT(*) as rental_count FROM rental GROUP BY 1, 2) as daily_rentals;",
+        "explanation": "A subquery first groups by customer and rental_date to count the number of films in each rental event. The outer query then simply finds the maximum value from these counts.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "subquery_from",
+            "group_by_multiple",
+            "count_aggregate",
+            "max_aggregate"
+        ],
+        "business_context": "max_transaction_size"
+    },
+    {
+        "question_id": "Q836",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Số lượng phim tối đa được một khách hàng thuê trong một giao dịch (cùng ngày thuê và khách hàng) là bao nhiêu?",
+        "sql_query": "SELECT MAX(so_luong_thue) FROM (SELECT customer_id, rental_date, COUNT(*) as so_luong_thue FROM rental GROUP BY 1, 2) as thue_hang_ngay;",
+        "explanation": "Một truy vấn con trước tiên nhóm theo khách hàng và ngày thuê để đếm số lượng phim trong mỗi sự kiện thuê. Sau đó, truy vấn bên ngoài chỉ đơn giản là tìm giá trị tối đa từ các số đếm này.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "subquery_from",
+            "group_by_multiple",
+            "count_aggregate",
+            "max_aggregate"
+        ],
+        "business_context": "quy_mo_giao_dich_toi_da"
+    },
+    {
+        "question_id": "Q837",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "For each customer, find the category they rent from most often.",
+        "sql_query": "WITH CustomerCategoryRentals AS (SELECT r.customer_id, fc.category_id, COUNT(*) as rental_count, RANK() OVER (PARTITION BY r.customer_id ORDER BY COUNT(*) DESC) as rnk FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id GROUP BY 1, 2) SELECT c.first_name, c.last_name, cat.name as favorite_category, ccr.rental_count FROM CustomerCategoryRentals ccr JOIN customer c ON ccr.customer_id = c.customer_id JOIN category cat ON ccr.category_id = cat.category_id WHERE ccr.rnk = 1;",
+        "explanation": "A CTE counts the number of rentals a customer has made in each category, and then uses a window function to rank these categories for each customer. The final query selects the top-ranked category for each person.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by_multiple",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "customer_favorite_genre"
+    },
+    {
+        "question_id": "Q838",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Đối với mỗi khách hàng, hãy tìm thể loại mà họ thuê thường xuyên nhất.",
+        "sql_query": "WITH ThueTheLoaiKH AS (SELECT r.customer_id, fc.category_id, COUNT(*) as so_luong_thue, RANK() OVER (PARTITION BY r.customer_id ORDER BY COUNT(*) DESC) as hang FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id GROUP BY 1, 2) SELECT c.first_name, c.last_name, cat.name as the_loai_yeu_thich, ttlkh.so_luong_thue FROM ThueTheLoaiKH ttlkh JOIN customer c ON ttlkh.customer_id = c.customer_id JOIN category cat ON ttlkh.category_id = cat.category_id WHERE ttlkh.hang = 1;",
+        "explanation": "Một CTE đếm số lượt thuê mà một khách hàng đã thực hiện trong mỗi thể loại, và sau đó sử dụng một hàm cửa sổ để xếp hạng các thể loại này cho mỗi khách hàng. Truy vấn cuối cùng chọn thể loại được xếp hạng cao nhất cho mỗi người.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by_multiple",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "the_loai_yeu_thich_cua_kh"
+    },
+    {
+        "question_id": "Q839",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Identify any inconsistencies where a rental has a return date before its rental date.",
+        "sql_query": "SELECT rental_id, customer_id, rental_date, return_date FROM rental WHERE return_date < rental_date;",
+        "explanation": "A simple but critical data integrity check that looks for logical impossibilities in the data, which is an expert-level concern.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "single_table",
+            "where_clause",
+            "date_comparison"
+        ],
+        "business_context": "data_integrity_audit"
+    },
+    {
+        "question_id": "Q840",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Xác định bất kỳ sự không nhất quán nào khi một lượt thuê có ngày trả trước ngày thuê.",
+        "sql_query": "SELECT rental_id, customer_id, rental_date, return_date FROM rental WHERE return_date < rental_date;",
+        "explanation": "Một kiểm tra tính toàn vẹn dữ liệu đơn giản nhưng quan trọng, tìm kiếm những điều không thể về mặt logic trong dữ liệu, đây là một mối quan tâm ở cấp độ chuyên gia.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "single_table",
+            "where_clause",
+            "date_comparison"
+        ],
+        "business_context": "kiem_toan_toan_ven_du_lieu"
+    },
+    {
+        "question_id": "Q841",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Calculate the total revenue generated from films starring 'KEVIN BLOOM'.",
+        "sql_query": "WITH KevinBloomFilms AS (SELECT fa.film_id FROM film_actor fa JOIN actor a ON fa.actor_id = a.actor_id WHERE a.first_name = 'KEVIN' AND a.last_name = 'BLOOM') SELECT SUM(p.amount) FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id WHERE i.film_id IN (SELECT film_id FROM KevinBloomFilms);",
+        "explanation": "A CTE first identifies all film_ids associated with a specific actor. The main query then joins payment, rental, and inventory tables and filters for rentals of films that are in the CTE's list, finally summing their payments.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "cte",
+            "subquery_in",
+            "multi_table_join",
+            "sum_aggregate"
+        ],
+        "business_context": "actor_revenue_generation"
+    },
+    {
+        "question_id": "Q842",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tính tổng doanh thu được tạo ra từ các phim có sự tham gia của 'KEVIN BLOOM'.",
+        "sql_query": "WITH PhimCuaKevinBloom AS (SELECT fa.film_id FROM film_actor fa JOIN actor a ON fa.actor_id = a.actor_id WHERE a.first_name = 'KEVIN' AND a.last_name = 'BLOOM') SELECT SUM(p.amount) FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id WHERE i.film_id IN (SELECT film_id FROM PhimCuaKevinBloom);",
+        "explanation": "Một CTE trước tiên xác định tất cả các film_id liên quan đến một diễn viên cụ thể. Sau đó, truy vấn chính kết nối các bảng thanh toán, thuê và tồn kho và lọc các lượt thuê phim có trong danh sách của CTE, cuối cùng tính tổng các khoản thanh toán của chúng.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "cte",
+            "subquery_in",
+            "multi_table_join",
+            "sum_aggregate"
+        ],
+        "business_context": "doanh_thu_tao_ra_boi_dien_vien"
+    },
+    {
+        "question_id": "Q843",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Find customers whose rental frequency has increased over the last two months.",
+        "sql_query": "WITH MonthlyCounts AS (SELECT customer_id, DATE_TRUNC('month', rental_date) as rental_month, COUNT(*) as monthly_rentals FROM rental WHERE rental_date >= NOW() - INTERVAL '2 months' GROUP BY 1, 2), LaggedCounts AS (SELECT customer_id, rental_month, monthly_rentals, LAG(monthly_rentals, 1, 0) OVER (PARTITION BY customer_id ORDER BY rental_month) as prev_month_rentals FROM MonthlyCounts) SELECT DISTINCT lc.customer_id, c.first_name FROM LaggedCounts lc JOIN customer c ON lc.customer_id = c.customer_id WHERE lc.monthly_rentals > lc.prev_month_rentals AND lc.rental_month = DATE_TRUNC('month', NOW());",
+        "explanation": "This query uses CTEs to count monthly rentals and then the LAG function to compare the most recent month's count to the previous month's count for each customer, identifying those with increasing activity.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "date_functions"
+        ],
+        "business_context": "positive_engagement_trends"
+    },
+    {
+        "question_id": "Q844",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Tìm những khách hàng có tần suất thuê tăng trong hai tháng qua.",
+        "sql_query": "WITH DemHangThang AS (SELECT customer_id, DATE_TRUNC('month', rental_date) as thang_thue, COUNT(*) as so_luong_thue_thang FROM rental WHERE rental_date >= NOW() - INTERVAL '2 months' GROUP BY 1, 2), DemCoDoTre AS (SELECT customer_id, thang_thue, so_luong_thue_thang, LAG(so_luong_thue_thang, 1, 0) OVER (PARTITION BY customer_id ORDER BY thang_thue) as so_luong_thang_truoc FROM DemHangThang) SELECT DISTINCT dcdt.customer_id, c.first_name FROM DemCoDoTre dcdt JOIN customer c ON dcdt.customer_id = c.customer_id WHERE dcdt.so_luong_thue_thang > dcdt.so_luong_thang_truoc AND dcdt.thang_thue = DATE_TRUNC('month', NOW());",
+        "explanation": "Truy vấn này sử dụng CTE để đếm số lượt thuê hàng tháng và sau đó sử dụng hàm LAG để so sánh số lượng của tháng gần đây nhất với số lượng của tháng trước cho mỗi khách hàng, xác định những người có hoạt động tăng lên.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "date_functions"
+        ],
+        "business_context": "xu_huong_tuong_tac_tich_cuc"
+    },
+    {
+        "question_id": "Q845",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "For each film, determine the maximum number of days it was continuously out on rent.",
+        "sql_query": "WITH RentalEvents AS (SELECT inventory_id, rental_date, return_date, return_date - rental_date as duration FROM rental) SELECT f.title, MAX(re.duration) as max_continuous_rental FROM RentalEvents re JOIN inventory i ON re.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id GROUP BY f.title ORDER BY max_continuous_rental DESC NULLS LAST;",
+        "explanation": "A CTE calculates the duration of each individual rental. The main query then groups by film title and finds the maximum of these durations, indicating the longest a single copy of that film has been rented out for.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "date_arithmetic",
+            "group_by",
+            "max_aggregate",
+            "multi_table_join"
+        ],
+        "business_context": "long_rental_analysis"
+    },
+    {
+        "question_id": "Q846",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Đối với mỗi bộ phim, hãy xác định số ngày tối đa mà nó được cho thuê liên tục.",
+        "sql_query": "WITH SuKienThue AS (SELECT inventory_id, rental_date, return_date, return_date - rental_date as thoi_gian FROM rental) SELECT f.title, MAX(skt.thoi_gian) as thoi_gian_thue_lien_tuc_max FROM SuKienThue skt JOIN inventory i ON skt.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id GROUP BY f.title ORDER BY thoi_gian_thue_lien_tuc_max DESC NULLS LAST;",
+        "explanation": "Một CTE tính toán thời gian của mỗi lần thuê riêng lẻ. Sau đó, truy vấn chính nhóm theo tựa phim và tìm giá trị tối đa của các khoảng thời gian này, cho biết thời gian dài nhất mà một bản sao duy nhất của bộ phim đó đã được cho thuê.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "date_arithmetic",
+            "group_by",
+            "max_aggregate",
+            "multi_table_join"
+        ],
+        "business_context": "phan_tich_thue_dai_han"
+    },
+    {
+        "question_id": "Q847",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Find the payment with the biggest percentage increase from the customer's previous payment.",
+        "sql_query": "WITH PaymentLags AS (SELECT payment_id, customer_id, amount, LAG(amount, 1) OVER (PARTITION BY customer_id ORDER BY payment_date) as prev_amount FROM payment) SELECT pl.payment_id, c.first_name, pl.amount, pl.prev_amount, (pl.amount - pl.prev_amount) * 100.0 / pl.prev_amount as pct_increase FROM PaymentLags pl JOIN customer c ON pl.customer_id = c.customer_id WHERE pl.prev_amount IS NOT NULL AND pl.amount > pl.prev_amount ORDER BY pct_increase DESC LIMIT 1;",
+        "explanation": "A CTE uses LAG() to get the previous payment amount for a customer. The main query then calculates the percentage increase for each payment and finds the one with the highest increase.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "arithmetic_calculation",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "spending_spike_analysis"
+    },
+    {
+        "question_id": "Q848",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tìm khoản thanh toán có tỷ lệ phần trăm tăng lớn nhất so với khoản thanh toán trước đó của khách hàng.",
+        "sql_query": "WITH ThanhToanTruoc AS (SELECT payment_id, customer_id, amount, LAG(amount, 1) OVER (PARTITION BY customer_id ORDER BY payment_date) as so_tien_truoc FROM payment) SELECT ttt.payment_id, c.first_name, ttt.amount, ttt.so_tien_truoc, (ttt.amount - ttt.so_tien_truoc) * 100.0 / ttt.so_tien_truoc as phan_tram_tang FROM ThanhToanTruoc ttt JOIN customer c ON ttt.customer_id = c.customer_id WHERE ttt.so_tien_truoc IS NOT NULL AND ttt.amount > ttt.so_tien_truoc ORDER BY phan_tram_tang DESC LIMIT 1;",
+        "explanation": "Một CTE sử dụng LAG() để lấy số tiền thanh toán trước đó của một khách hàng. Sau đó, truy vấn chính tính toán phần trăm tăng cho mỗi khoản thanh toán và tìm khoản có mức tăng cao nhất.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "arithmetic_calculation",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "phan_tich_su_tang_vot_chi_tieu"
+    },
+    {
+        "question_id": "Q849",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Find customers whose rental history consists of films from only one category.",
+        "sql_query": "SELECT c.first_name, c.last_name, MIN(cat.name) as single_category FROM customer c JOIN rental r ON c.customer_id = r.customer_id JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id JOIN category cat ON fc.category_id = cat.category_id GROUP BY c.customer_id, c.first_name, c.last_name HAVING COUNT(DISTINCT fc.category_id) = 1;",
+        "explanation": "This query joins all the way from customer to category, then groups by customer and filters for those where the count of distinct categories they've rented from is exactly 1.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "multi_table_join",
+            "group_by",
+            "having",
+            "count_distinct"
+        ],
+        "business_context": "specialist_customer_segmentation"
+    },
+    {
+        "question_id": "Q850",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Tìm những khách hàng có lịch sử thuê phim chỉ từ một thể loại duy nhất.",
+        "sql_query": "SELECT c.first_name, c.last_name, MIN(cat.name) as mot_the_loai FROM customer c JOIN rental r ON c.customer_id = r.customer_id JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id JOIN category cat ON fc.category_id = cat.category_id GROUP BY c.customer_id, c.first_name, c.last_name HAVING COUNT(DISTINCT fc.category_id) = 1;",
+        "explanation": "Truy vấn này kết nối từ khách hàng đến thể loại, sau đó nhóm theo khách hàng và lọc những người có số lượng thể loại riêng biệt mà họ đã thuê chính xác là 1.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "multi_table_join",
+            "group_by",
+            "having",
+            "count_distinct"
+        ],
+        "business_context": "phan_khuc_khach_hang_chuyen_biet"
+    },
+    {
+        "question_id": "Q851",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "List all films and their percentile rank for rental count.",
+        "sql_query": "WITH FilmRentalCounts AS (SELECT i.film_id, COUNT(r.rental_id) as rental_count FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1) SELECT f.title, frc.rental_count, PERCENT_RANK() OVER (ORDER BY frc.rental_count) as percentile_rank FROM FilmRentalCounts frc JOIN film f ON frc.film_id = f.film_id ORDER BY percentile_rank DESC;",
+        "explanation": "A CTE calculates rental counts per film. The main query then uses the PERCENT_RANK window function to determine the relative rank of each film (from 0 to 1) based on its popularity.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "percent_rank_function",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "film_popularity_ranking"
+    },
+    {
+        "question_id": "Q852",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Liệt kê tất cả các phim và thứ hạng phần trăm của chúng về số lượt thuê.",
+        "sql_query": "WITH DemLuotThuePhim AS (SELECT i.film_id, COUNT(r.rental_id) as so_luot_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1) SELECT f.title, dltp.so_luot_thue, PERCENT_RANK() OVER (ORDER BY dltp.so_luot_thue) as hang_phan_tram FROM DemLuotThuePhim dltp JOIN film f ON dltp.film_id = f.film_id ORDER BY hang_phan_tram DESC;",
+        "explanation": "Một CTE tính toán số lượt thuê cho mỗi phim. Sau đó, truy vấn chính sử dụng hàm cửa sổ PERCENT_RANK để xác định thứ hạng tương đối của mỗi phim (từ 0 đến 1) dựa trên mức độ phổ biến của nó.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "percent_rank_function",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "xep_hang_do_pho_bien_phim"
+    },
+    {
+        "question_id": "Q853",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "For each store, find the month with the largest percentage growth in revenue compared to the previous month.",
+        "sql_query": "WITH MonthlyRevenue AS (SELECT i.store_id, DATE_TRUNC('month', p.payment_date) as month, SUM(p.amount) as revenue FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1, 2), GrowthCalc AS (SELECT store_id, month, (revenue - LAG(revenue, 1, 0) OVER (PARTITION BY store_id ORDER BY month)) * 100.0 / LAG(revenue, 1, 1) OVER (PARTITION BY store_id ORDER BY month) as growth_pct FROM MonthlyRevenue), RankedGrowth AS (SELECT *, RANK() OVER (PARTITION BY store_id ORDER BY growth_pct DESC) as rnk FROM GrowthCalc) SELECT store_id, month::date, growth_pct FROM RankedGrowth WHERE rnk = 1;",
+        "explanation": "This multi-CTE query first calculates monthly revenue per store, then calculates the percentage growth for each month, and finally ranks these growth percentages to find the top month for each store.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "rank_function",
+            "partition_by",
+            "group_by",
+            "sum_aggregate"
+        ],
+        "business_context": "peak_growth_period_analysis"
+    },
+    {
+        "question_id": "Q854",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Đối với mỗi cửa hàng, hãy tìm tháng có mức tăng trưởng doanh thu theo tỷ lệ phần trăm lớn nhất so với tháng trước.",
+        "sql_query": "WITH DoanhThuThang AS (SELECT i.store_id, DATE_TRUNC('month', p.payment_date) as thang, SUM(p.amount) as doanh_thu FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1, 2), TinhTangTruong AS (SELECT store_id, thang, (doanh_thu - LAG(doanh_thu, 1, 0) OVER (PARTITION BY store_id ORDER BY thang)) * 100.0 / LAG(doanh_thu, 1, 1) OVER (PARTITION BY store_id ORDER BY thang) as pct_tang_truong FROM DoanhThuThang), TangTruongXepHang AS (SELECT *, RANK() OVER (PARTITION BY store_id ORDER BY pct_tang_truong DESC) as hang FROM TinhTangTruong) SELECT store_id, thang::date, pct_tang_truong FROM TangTruongXepHang WHERE hang = 1;",
+        "explanation": "Truy vấn đa CTE này trước tiên tính toán doanh thu hàng tháng cho mỗi cửa hàng, sau đó tính toán phần trăm tăng trưởng cho mỗi tháng, và cuối cùng xếp hạng các phần trăm tăng trưởng này để tìm tháng cao nhất cho mỗi cửa hàng.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "rank_function",
+            "partition_by",
+            "group_by",
+            "sum_aggregate"
+        ],
+        "business_context": "phan_tich_giai_doan_tang_truong_dinh_diem"
+    },
+    {
+        "question_id": "Q855",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Which customers have a 'zig-zag' rental pattern (rented, then stopped for a month, then rented again)?",
+        "sql_query": "WITH MonthlyActivity AS (SELECT DISTINCT customer_id, DATE_TRUNC('month', rental_date) as rental_month FROM rental), CustomerActivityGaps AS (SELECT customer_id, rental_month, EXTRACT(EPOCH FROM rental_month - LAG(rental_month) OVER (PARTITION BY customer_id ORDER BY rental_month)) / (3600*24*30) as month_gap FROM MonthlyActivity) SELECT DISTINCT c.first_name, c.last_name FROM CustomerActivityGaps cag JOIN customer c ON cag.customer_id = c.customer_id WHERE cag.month_gap >= 2;",
+        "explanation": "Identifies distinct months a customer was active. It then uses LAG to find the gap between active months. A gap of 2 or more months indicates they stopped and then came back.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "date_functions",
+            "date_arithmetic"
+        ],
+        "business_context": "win_back_customer_analysis"
+    },
+    {
+        "question_id": "Q856",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Những khách hàng nào có mô hình thuê 'zic-zắc' (thuê, rồi dừng một tháng, rồi lại thuê)?",
+        "sql_query": "WITH HoatDongThang AS (SELECT DISTINCT customer_id, DATE_TRUNC('month', rental_date) as thang_thue FROM rental), KhoangCachHoatDongKH AS (SELECT customer_id, thang_thue, EXTRACT(EPOCH FROM thang_thue - LAG(thang_thue) OVER (PARTITION BY customer_id ORDER BY thang_thue)) / (3600*24*30) as khoang_cach_thang FROM HoatDongThang) SELECT DISTINCT c.first_name, c.last_name FROM KhoangCachHoatDongKH kchdkh JOIN customer c ON kchdkh.customer_id = c.customer_id WHERE kchdkh.khoang_cach_thang >= 2;",
+        "explanation": "Xác định các tháng riêng biệt mà một khách hàng đã hoạt động. Sau đó, nó sử dụng LAG để tìm khoảng cách giữa các tháng hoạt động. Khoảng cách từ 2 tháng trở lên cho thấy họ đã dừng lại và sau đó quay lại.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "date_functions",
+            "date_arithmetic"
+        ],
+        "business_context": "phan_tich_khach_hang_quay_lai"
+    },
+    {
+        "question_id": "Q857",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Find the top 3 most rented films that do not star any of the top 10 most popular actors.",
+        "sql_query": "WITH TopActors AS (SELECT fa.actor_id FROM film_actor fa GROUP BY fa.actor_id ORDER BY COUNT(fa.film_id) DESC LIMIT 10), FilmRentals AS (SELECT i.film_id, COUNT(r.rental_id) as rental_count FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id WHERE NOT EXISTS (SELECT 1 FROM film_actor fa WHERE fa.film_id = i.film_id AND fa.actor_id IN (SELECT actor_id FROM TopActors)) GROUP BY i.film_id) SELECT f.title, fr.rental_count FROM FilmRentals fr JOIN film f ON fr.film_id = f.film_id ORDER BY fr.rental_count DESC LIMIT 3;",
+        "explanation": "A very complex query. One CTE identifies the top 10 actors. Another CTE counts rentals for films, but uses a NOT EXISTS clause to exclude any film starring one of the top actors. The final query then finds the top 3 films from this filtered list.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "not_exists_clause",
+            "subquery_in",
+            "group_by",
+            "count_aggregate",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "hidden_gem_discovery"
+    },
+    {
+        "question_id": "Q858",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Tìm 3 phim được thuê nhiều nhất không có sự tham gia của bất kỳ diễn viên nào trong top 10 diễn viên nổi tiếng nhất.",
+        "sql_query": "WITH TopDienVien AS (SELECT fa.actor_id FROM film_actor fa GROUP BY fa.actor_id ORDER BY COUNT(fa.film_id) DESC LIMIT 10), ThuePhim AS (SELECT i.film_id, COUNT(r.rental_id) as so_luot_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id WHERE NOT EXISTS (SELECT 1 FROM film_actor fa WHERE fa.film_id = i.film_id AND fa.actor_id IN (SELECT actor_id FROM TopDienVien)) GROUP BY i.film_id) SELECT f.title, tp.so_luot_thue FROM ThuePhim tp JOIN film f ON tp.film_id = f.film_id ORDER BY tp.so_luot_thue DESC LIMIT 3;",
+        "explanation": "Một truy vấn rất phức tạp. Một CTE xác định 10 diễn viên hàng đầu. Một CTE khác đếm số lượt thuê cho các phim, nhưng sử dụng mệnh đề NOT EXISTS để loại trừ bất kỳ phim nào có sự tham gia của một trong những diễn viên hàng đầu. Sau đó, truy vấn cuối cùng tìm ra 3 phim hàng đầu từ danh sách đã lọc này.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "not_exists_clause",
+            "subquery_in",
+            "group_by",
+            "count_aggregate",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "kham_pha_phim_tiem_nang"
+    },
+    {
+        "question_id": "Q859",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Calculate the total revenue from each customer, and also show the revenue from just their first rental.",
+        "sql_query": "WITH FirstRentalPayment AS (SELECT p.customer_id, p.amount as first_rental_payment FROM payment p JOIN (SELECT customer_id, MIN(rental_date) as first_rental_date FROM rental GROUP BY 1) as fr ON p.customer_id = fr.customer_id JOIN rental r ON p.customer_id = r.customer_id AND r.rental_date = fr.first_rental_date), TotalPayments AS (SELECT customer_id, SUM(amount) as total_payment FROM payment GROUP BY 1) SELECT tp.customer_id, c.first_name, tp.total_payment, frp.first_rental_payment FROM TotalPayments tp JOIN FirstRentalPayment frp ON tp.customer_id = frp.customer_id JOIN customer c ON tp.customer_id = c.customer_id;",
+        "explanation": "This uses two CTEs to independently find the payment for each customer's first rental and their total payments. The final query joins these two summaries together.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "sum_aggregate",
+            "min_aggregate",
+            "subquery_from",
+            "join_with_cte"
+        ],
+        "business_context": "first_transaction_value_analysis"
+    },
+    {
+        "question_id": "Q860",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tính tổng doanh thu từ mỗi khách hàng, và cũng hiển thị doanh thu chỉ từ lần thuê đầu tiên của họ.",
+        "sql_query": "WITH ThanhToanThueDau AS (SELECT p.customer_id, p.amount as tt_thue_dau FROM payment p JOIN (SELECT customer_id, MIN(rental_date) as ngay_thue_dau FROM rental GROUP BY 1) as td ON p.customer_id = td.customer_id JOIN rental r ON p.customer_id = r.customer_id AND r.rental_date = td.ngay_thue_dau), TongThanhToan AS (SELECT customer_id, SUM(amount) as tong_tt FROM payment GROUP BY 1) SELECT ttt.customer_id, c.first_name, ttt.tong_tt, tttd.tt_thue_dau FROM TongThanhToan ttt JOIN ThanhToanThueDau tttd ON ttt.customer_id = tttd.customer_id JOIN customer c ON ttt.customer_id = c.customer_id;",
+        "explanation": "Truy vấn này sử dụng hai CTE để tìm độc lập khoản thanh toán cho lần thuê đầu tiên của mỗi khách hàng và tổng các khoản thanh toán của họ. Truy vấn cuối cùng kết nối hai bản tóm tắt này lại với nhau.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "sum_aggregate",
+            "min_aggregate",
+            "subquery_from",
+            "join_with_cte"
+        ],
+        "business_context": "phan_tich_gia_tri_giao_dich_dau_tien"
+    },
+    {
+        "question_id": "Q861",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "For each category, find the customer who rents from it the most.",
+        "sql_query": "WITH CustomerCategoryCounts AS (SELECT r.customer_id, fc.category_id, COUNT(r.rental_id) as rental_count FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id GROUP BY 1, 2), RankedCustomers AS (SELECT *, RANK() OVER (PARTITION BY category_id ORDER BY rental_count DESC) as rnk FROM CustomerCategoryCounts) SELECT c.name as category, cust.first_name, cust.last_name, rc.rental_count FROM RankedCustomers rc JOIN category c ON rc.category_id = c.category_id JOIN customer cust ON rc.customer_id = cust.customer_id WHERE rc.rnk = 1;",
+        "explanation": "A CTE counts rentals per customer per category. A second CTE ranks customers within each category. The final query selects the top-ranked customer for each category.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "genre_superfan_identification"
+    },
+    {
+        "question_id": "Q862",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Đối với mỗi thể loại, hãy tìm khách hàng thuê nhiều nhất từ thể loại đó.",
+        "sql_query": "WITH DemThueTheLoaiKH AS (SELECT r.customer_id, fc.category_id, COUNT(r.rental_id) as so_luot_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id GROUP BY 1, 2), KhachHangXepHang AS (SELECT *, RANK() OVER (PARTITION BY category_id ORDER BY so_luot_thue DESC) as hang FROM DemThueTheLoaiKH) SELECT c.name as the_loai, cust.first_name, cust.last_name, khxh.so_luot_thue FROM KhachHangXepHang khxh JOIN category c ON khxh.category_id = c.category_id JOIN customer cust ON khxh.customer_id = cust.customer_id WHERE khxh.hang = 1;",
+        "explanation": "Một CTE đếm số lượt thuê mỗi khách hàng mỗi thể loại. Một CTE thứ hai xếp hạng khách hàng trong mỗi thể loại. Truy vấn cuối cùng chọn khách hàng được xếp hạng cao nhất cho mỗi thể loại.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "xac_dinh_fan_cuong_the_loai"
+    },
+    {
+        "question_id": "Q863",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Check for data integrity: Do any films exist in film_actor or film_category that are not in the film table?",
+        "sql_query": "(SELECT 'film_actor' as table_name, fa.film_id FROM film_actor fa LEFT JOIN film f ON fa.film_id = f.film_id WHERE f.film_id IS NULL) UNION ALL (SELECT 'film_category' as table_name, fc.film_id FROM film_category fc LEFT JOIN film f ON fc.film_id = f.film_id WHERE f.film_id IS NULL);",
+        "explanation": "This query uses LEFT JOINs from junction tables to the main film table. If a film_id exists in a junction table but not the film table, the join will produce a NULL, which the WHERE clause filters for. UNION ALL combines results from checking both tables. This identifies 'orphan' records.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "left_join",
+            "where_clause",
+            "is_null_check",
+            "union_all"
+        ],
+        "business_context": "database_referential_integrity_check"
+    },
+    {
+        "question_id": "Q864",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Kiểm tra tính toàn vẹn dữ liệu: Có phim nào tồn tại trong film_actor hoặc film_category mà không có trong bảng film không?",
+        "sql_query": "(SELECT 'film_actor' as ten_bang, fa.film_id FROM film_actor fa LEFT JOIN film f ON fa.film_id = f.film_id WHERE f.film_id IS NULL) UNION ALL (SELECT 'film_category' as ten_bang, fc.film_id FROM film_category fc LEFT JOIN film f ON fc.film_id = f.film_id WHERE f.film_id IS NULL);",
+        "explanation": "Truy vấn này sử dụng LEFT JOIN từ các bảng nối đến bảng film chính. Nếu một film_id tồn tại trong một bảng nối nhưng không có trong bảng film, phép nối sẽ tạo ra một giá trị NULL, mà mệnh đề WHERE sẽ lọc. UNION ALL kết hợp kết quả từ việc kiểm tra cả hai bảng. Điều này xác định các bản ghi 'mồ côi'.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "left_join",
+            "where_clause",
+            "is_null_check",
+            "union_all"
+        ],
+        "business_context": "kiem_tra_toan_ven_tham_chieu_csdl"
+    },
+    {
+        "question_id": "Q865",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "What is the ratio of each customer's total spending to the total spending of all customers in their store?",
+        "sql_query": "WITH CustomerSpending AS (SELECT customer_id, store_id, SUM(amount) as customer_total FROM payment p JOIN customer c ON p.customer_id = c.customer_id GROUP BY 1, 2), StoreSpending AS (SELECT store_id, SUM(amount) as store_total FROM payment p JOIN customer c ON p.customer_id = c.customer_id GROUP BY 1) SELECT cs.customer_id, cs.customer_total, ss.store_total, cs.customer_total * 100.0 / ss.store_total as pct_of_store_total FROM CustomerSpending cs JOIN StoreSpending ss ON cs.store_id = ss.store_id;",
+        "explanation": "Two CTEs calculate total spending per customer and total spending per store. The main query joins them to find what percentage of their store's revenue each customer is responsible for.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "sum_aggregate",
+            "join_with_cte",
+            "arithmetic_calculation"
+        ],
+        "business_context": "customer_value_contribution"
+    },
+    {
+        "question_id": "Q866",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tỷ lệ giữa tổng chi tiêu của mỗi khách hàng so với tổng chi tiêu của tất cả khách hàng trong cửa hàng của họ là bao nhiêu?",
+        "sql_query": "WITH ChiTieuKH AS (SELECT p.customer_id, c.store_id, SUM(amount) as tong_kh FROM payment p JOIN customer c ON p.customer_id = c.customer_id GROUP BY 1, 2), ChiTieuCH AS (SELECT c.store_id, SUM(amount) as tong_ch FROM payment p JOIN customer c ON p.customer_id = c.customer_id GROUP BY 1) SELECT ctkh.customer_id, ctkh.tong_kh, ctch.tong_ch, ctkh.tong_kh * 100.0 / ctch.tong_ch as pct_tong_ch FROM ChiTieuKH ctkh JOIN ChiTieuCH ctch ON ctkh.store_id = ctch.store_id;",
+        "explanation": "Hai CTE tính toán tổng chi tiêu cho mỗi khách hàng và tổng chi tiêu cho mỗi cửa hàng. Truy vấn chính kết nối chúng để tìm ra phần trăm doanh thu của cửa hàng mà mỗi khách hàng chịu trách nhiệm.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "sum_aggregate",
+            "join_with_cte",
+            "arithmetic_calculation"
+        ],
+        "business_context": "dong_gop_gia_tri_cua_khach_hang"
+    },
+    {
+        "question_id": "Q867",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "For each customer, what's the average number of days between their rentals?",
+        "sql_query": "WITH RentalGaps AS (SELECT customer_id, rental_date, (rental_date - LAG(rental_date, 1) OVER (PARTITION BY customer_id ORDER BY rental_date)) as gap FROM rental) SELECT c.first_name, c.last_name, AVG(rg.gap) as avg_rental_gap FROM RentalGaps rg JOIN customer c ON rg.customer_id = c.customer_id WHERE rg.gap IS NOT NULL GROUP BY c.customer_id, c.first_name, c.last_name;",
+        "explanation": "A CTE uses the LAG window function to calculate the time difference between each consecutive rental for a customer. The main query then averages these time differences to find each customer's typical rental frequency.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "date_arithmetic",
+            "avg_aggregate",
+            "group_by"
+        ],
+        "business_context": "customer_rental_cadence"
+    },
+    {
+        "question_id": "Q868",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Đối với mỗi khách hàng, số ngày trung bình giữa các lần thuê của họ là bao nhiêu?",
+        "sql_query": "WITH KhoangCachThue AS (SELECT customer_id, rental_date, (rental_date - LAG(rental_date, 1) OVER (PARTITION BY customer_id ORDER BY rental_date)) as khoang_cach FROM rental) SELECT c.first_name, c.last_name, AVG(kct.khoang_cach) as khoang_cach_thue_tb FROM KhoangCachThue kct JOIN customer c ON kct.customer_id = c.customer_id WHERE kct.khoang_cach IS NOT NULL GROUP BY c.customer_id, c.first_name, c.last_name;",
+        "explanation": "Một CTE sử dụng hàm cửa sổ LAG để tính toán chênh lệch thời gian giữa mỗi lần thuê liên tiếp của một khách hàng. Sau đó, truy vấn chính tính trung bình các chênh lệch thời gian này để tìm tần suất thuê điển hình của mỗi khách hàng.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "lag_function",
+            "partition_by",
+            "date_arithmetic",
+            "avg_aggregate",
+            "group_by"
+        ],
+        "business_context": "nhip_do_thue_cua_khach_hang"
+    },
+    {
+        "question_id": "Q869",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Which actors have starred in more 'Action' films than 'Comedy' films?",
+        "sql_query": "WITH ActorGenreCounts AS (SELECT fa.actor_id, SUM(CASE WHEN c.name = 'Action' THEN 1 ELSE 0 END) as action_films, SUM(CASE WHEN c.name = 'Comedy' THEN 1 ELSE 0 END) as comedy_films FROM film_actor fa JOIN film_category fc ON fa.film_id = fc.film_id JOIN category c ON fc.category_id = c.category_id GROUP BY fa.actor_id) SELECT a.first_name, a.last_name, agc.action_films, agc.comedy_films FROM ActorGenreCounts agc JOIN actor a ON agc.actor_id = a.actor_id WHERE agc.action_films > agc.comedy_films;",
+        "explanation": "A CTE uses conditional aggregation (SUM with CASE) to count the number of Action and Comedy films for each actor in a single pass. The main query then filters for actors where the action count is higher.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "conditional_aggregation",
+            "case_statement",
+            "group_by",
+            "sum_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "actor_genre_specialization"
+    },
+    {
+        "question_id": "Q870",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Diễn viên nào đã đóng nhiều phim 'Hành động' hơn phim 'Hài'?",
+        "sql_query": "WITH DemTheLoaiDienVien AS (SELECT fa.actor_id, SUM(CASE WHEN c.name = 'Action' THEN 1 ELSE 0 END) as phim_hanh_dong, SUM(CASE WHEN c.name = 'Comedy' THEN 1 ELSE 0 END) as phim_hai FROM film_actor fa JOIN film_category fc ON fa.film_id = fc.film_id JOIN category c ON fc.category_id = c.category_id GROUP BY fa.actor_id) SELECT a.first_name, a.last_name, dtldv.phim_hanh_dong, dtldv.phim_hai FROM DemTheLoaiDienVien dtldv JOIN actor a ON dtldv.actor_id = a.actor_id WHERE dtldv.phim_hanh_dong > dtldv.phim_hai;",
+        "explanation": "Một CTE sử dụng tổng hợp có điều kiện (SUM với CASE) để đếm số lượng phim Hành động và Hài cho mỗi diễn viên trong một lần duyệt. Sau đó, truy vấn chính lọc các diễn viên có số lượng phim hành động cao hơn.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "conditional_aggregation",
+            "case_statement",
+            "group_by",
+            "sum_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "chuyen_mon_hoa_the_loai_dien_vien"
+    },
+    {
+        "question_id": "Q871",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Find the running total of rentals per day.",
+        "sql_query": "WITH daily_counts AS (SELECT rental_date::date as day, COUNT(rental_id) as num_rentals FROM rental GROUP BY 1) SELECT day, num_rentals, SUM(num_rentals) OVER (ORDER BY day) as cumulative_rentals FROM daily_counts;",
+        "explanation": "A CTE first counts rentals per day. The main query then uses a window function to calculate the cumulative sum of rentals over time.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "sum_aggregate_window",
+            "group_by",
+            "count_aggregate",
+            "date_casting"
+        ],
+        "business_context": "cumulative_activity_tracking"
+    },
+    {
+        "question_id": "Q872",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tìm tổng số lượt thuê cộng dồn mỗi ngày.",
+        "sql_query": "WITH dem_hang_ngay AS (SELECT rental_date::date as ngay, COUNT(rental_id) as so_luong_thue FROM rental GROUP BY 1) SELECT ngay, so_luong_thue, SUM(so_luong_thue) OVER (ORDER BY ngay) as thue_luy_ke FROM dem_hang_ngay;",
+        "explanation": "Một CTE trước tiên đếm số lượt thuê mỗi ngày. Sau đó, truy vấn chính sử dụng một hàm cửa sổ để tính tổng lũy kế của các lượt thuê theo thời gian.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "sum_aggregate_window",
+            "group_by",
+            "count_aggregate",
+            "date_casting"
+        ],
+        "business_context": "theo_doi_hoat_dong_luy_ke"
+    },
+    {
+        "question_id": "Q873",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "Which customer had the longest streak of consecutive rental months?",
+        "sql_query": "WITH MonthlyActivity AS (SELECT DISTINCT customer_id, DATE_TRUNC('month', rental_date) as rental_month), MonthGroups AS (SELECT customer_id, rental_month, rental_month - (ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY rental_month) * INTERVAL '1 month') as month_group FROM MonthlyActivity), StreakCounts AS (SELECT customer_id, month_group, COUNT(*) as streak_length FROM MonthGroups GROUP BY 1, 2) SELECT c.first_name, c.last_name, MAX(sc.streak_length) as longest_streak FROM StreakCounts sc JOIN customer c ON sc.customer_id = c.customer_id GROUP BY 1, 2 ORDER BY longest_streak DESC LIMIT 1;",
+        "explanation": "This advanced query identifies consecutive monthly activity by subtracting a row number (as months) from the rental month. Consecutive months will have the same 'month_group'. It then counts the length of these groups to find the longest streak.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "date_functions",
+            "date_arithmetic",
+            "interval",
+            "group_by",
+            "max_aggregate",
+            "limit"
+        ],
+        "business_context": "customer_loyalty_streak"
+    },
+    {
+        "question_id": "Q874",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Khách hàng nào có chuỗi tháng thuê liên tiếp dài nhất?",
+        "sql_query": "WITH HoatDongThang AS (SELECT DISTINCT customer_id, DATE_TRUNC('month', rental_date) as thang_thue FROM rental), NhomThang AS (SELECT customer_id, thang_thue, thang_thue - (ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY thang_thue) * INTERVAL '1 month') as nhom_thang FROM HoatDongThang), DemChuoi AS (SELECT customer_id, nhom_thang, COUNT(*) as do_dai_chuoi FROM NhomThang GROUP BY 1, 2) SELECT c.first_name, c.last_name, MAX(dc.do_dai_chuoi) as chuoi_dai_nhat FROM DemChuoi dc JOIN customer c ON dc.customer_id = c.customer_id GROUP BY 1, 2 ORDER BY chuoi_dai_nhat DESC LIMIT 1;",
+        "explanation": "Truy vấn nâng cao này xác định hoạt động hàng tháng liên tiếp bằng cách trừ một số hàng (dưới dạng tháng) khỏi tháng thuê. Các tháng liên tiếp sẽ có cùng một 'nhom_thang'. Sau đó, nó đếm độ dài của các nhóm này để tìm chuỗi dài nhất.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "row_number",
+            "partition_by",
+            "date_functions",
+            "date_arithmetic",
+            "interval",
+            "group_by",
+            "max_aggregate",
+            "limit"
+        ],
+        "business_context": "chuoi_trung_thanh_cua_kh"
+    },
+    {
+        "question_id": "Q875",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "For each film, what is the average number of rentals per month since its first rental?",
+        "sql_query": "WITH FilmFirstRental AS (SELECT i.film_id, MIN(r.rental_date) as first_rental_date FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1), FilmTotalRentals AS (SELECT i.film_id, COUNT(*) as total_rentals FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1) SELECT f.title, ftr.total_rentals / (EXTRACT(YEAR FROM AGE(NOW(), ffr.first_rental_date)) * 12 + EXTRACT(MONTH FROM AGE(NOW(), ffr.first_rental_date)) + 1) as avg_rentals_per_month FROM FilmFirstRental ffr JOIN FilmTotalRentals ftr ON ffr.film_id = ftr.film_id JOIN film f ON ffr.film_id = f.film_id;",
+        "explanation": "This query uses two CTEs to get the first rental date and total rentals. It then calculates the number of months a film has been available (since its first rental) and divides the total rentals by this number to get a monthly average.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "min_aggregate",
+            "count_aggregate",
+            "date_functions",
+            "age",
+            "extract",
+            "arithmetic_calculation"
+        ],
+        "business_context": "film_long_term_performance"
+    },
+    {
+        "question_id": "Q876",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Đối với mỗi bộ phim, số lượt thuê trung bình mỗi tháng kể từ lần thuê đầu tiên là bao nhiêu?",
+        "sql_query": "WITH ThueDauTienPhim AS (SELECT i.film_id, MIN(r.rental_date) as ngay_thue_dau FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1), TongSoThuePhim AS (SELECT i.film_id, COUNT(*) as tong_so_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1) SELECT f.title, tstp.tong_so_thue / (EXTRACT(YEAR FROM AGE(NOW(), tdtp.ngay_thue_dau)) * 12 + EXTRACT(MONTH FROM AGE(NOW(), tdtp.ngay_thue_dau)) + 1) as thue_tb_moi_thang FROM ThueDauTienPhim tdtp JOIN TongSoThuePhim tstp ON tdtp.film_id = tstp.film_id JOIN film f ON tdtp.film_id = f.film_id;",
+        "explanation": "Truy vấn này sử dụng hai CTE để lấy ngày thuê đầu tiên và tổng số lượt thuê. Sau đó, nó tính toán số tháng một bộ phim đã có sẵn (kể từ lần thuê đầu tiên) và chia tổng số lượt thuê cho con số này để có được mức trung bình hàng tháng.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "min_aggregate",
+            "count_aggregate",
+            "date_functions",
+            "age",
+            "extract",
+            "arithmetic_calculation"
+        ],
+        "business_context": "hieu_suat_dai_han_cua_phim"
+    },
+    {
+        "question_id": "Q877",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Using a recursive CTE, calculate the total payments for a customer and all customers they might have referred (not possible with schema, so simulate by finding all customers served by the same staff as customer 1).",
+        "sql_query": "WITH RECURSIVE referral_chain(customer_id, staff_id, depth) AS ( SELECT customer_id, staff_id, 0 FROM rental WHERE customer_id = 1 LIMIT 1 UNION ALL SELECT r.customer_id, r.staff_id, rc.depth + 1 FROM rental r JOIN referral_chain rc ON r.staff_id = rc.staff_id AND r.customer_id <> rc.customer_id WHERE rc.depth < 1 ) SELECT SUM(p.amount) FROM payment p WHERE p.customer_id IN (SELECT customer_id FROM referral_chain);",
+        "explanation": "This query simulates a referral chain. The base case is customer 1. The recursive step finds other customers served by the same staff member. The final query then sums all payments from everyone in this simulated 'chain'. This demonstrates complex recursive logic even if the business case is hypothetical.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "recursive_cte",
+            "union_all",
+            "subquery_in"
+        ],
+        "business_context": "network_value_simulation"
+    },
+    {
+        "question_id": "Q878",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Sử dụng CTE đệ quy, hãy tính tổng các khoản thanh toán cho một khách hàng và tất cả các khách hàng mà họ có thể đã giới thiệu (không thể với lược đồ, vì vậy mô phỏng bằng cách tìm tất cả các khách hàng được phục vụ bởi cùng một nhân viên với khách hàng 1).",
+        "sql_query": "WITH RECURSIVE chuoi_gioi_thieu(customer_id, staff_id, do_sau) AS ( SELECT customer_id, staff_id, 0 FROM rental WHERE customer_id = 1 LIMIT 1 UNION ALL SELECT r.customer_id, r.staff_id, cgt.do_sau + 1 FROM rental r JOIN chuoi_gioi_thieu cgt ON r.staff_id = cgt.staff_id AND r.customer_id <> cgt.customer_id WHERE cgt.do_sau < 1 ) SELECT SUM(p.amount) FROM payment p WHERE p.customer_id IN (SELECT customer_id FROM chuoi_gioi_thieu);",
+        "explanation": "Truy vấn này mô phỏng một chuỗi giới thiệu. Trường hợp cơ sở là khách hàng 1. Bước đệ quy tìm các khách hàng khác được phục vụ bởi cùng một nhân viên. Sau đó, truy vấn cuối cùng tính tổng tất cả các khoản thanh toán từ mọi người trong 'chuỗi' mô phỏng này. Điều này thể hiện logic đệ quy phức tạp ngay cả khi trường hợp kinh doanh là giả định.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "recursive_cte",
+            "union_all",
+            "subquery_in"
+        ],
+        "business_context": "mo_phong_gia_tri_mang_luoi"
+    },
+    {
+        "question_id": "Q879",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "What is each customer's favorite language, based on rental counts?",
+        "sql_query": "WITH CustomerLangRentals AS (SELECT r.customer_id, f.language_id, COUNT(*) as rental_count, RANK() OVER (PARTITION BY r.customer_id ORDER BY COUNT(*) DESC) as rnk FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id GROUP BY 1, 2) SELECT c.first_name, c.last_name, l.name as favorite_language, clr.rental_count FROM CustomerLangRentals clr JOIN customer c ON clr.customer_id = c.customer_id JOIN language l ON clr.language_id = l.language_id WHERE clr.rnk = 1;",
+        "explanation": "A CTE counts rentals per language for each customer, and ranks them. The main query then selects the top-ranked language for each customer.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "customer_language_preference"
+    },
+    {
+        "question_id": "Q880",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Ngôn ngữ yêu thích của mỗi khách hàng là gì, dựa trên số lượt thuê?",
+        "sql_query": "WITH ThueNgonNguKH AS (SELECT r.customer_id, f.language_id, COUNT(*) as so_luot_thue, RANK() OVER (PARTITION BY r.customer_id ORDER BY COUNT(*) DESC) as hang FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id GROUP BY 1, 2) SELECT c.first_name, c.last_name, l.name as ngon_ngu_yeu_thich, tnnkh.so_luot_thue FROM ThueNgonNguKH tnnkh JOIN customer c ON tnnkh.customer_id = c.customer_id JOIN language l ON tnnkh.language_id = l.language_id WHERE tnnkh.hang = 1;",
+        "explanation": "Một CTE đếm số lượt thuê mỗi ngôn ngữ cho mỗi khách hàng và xếp hạng chúng. Sau đó, truy vấn chính chọn ngôn ngữ được xếp hạng cao nhất cho mỗi khách hàng.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "so_thich_ngon_ngu_cua_kh"
+    },
+    {
+        "question_id": "Q881",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Find the top 3 actors whose films have the highest average rental revenue.",
+        "sql_query": "WITH FilmRevenue AS (SELECT i.film_id, SUM(p.amount) as total_revenue FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1), ActorAvgRevenue AS (SELECT fa.actor_id, AVG(fr.total_revenue) as avg_film_revenue FROM film_actor fa JOIN FilmRevenue fr ON fa.film_id = fr.film_id GROUP BY 1) SELECT a.first_name, a.last_name, aar.avg_film_revenue FROM ActorAvgRevenue aar JOIN actor a ON aar.actor_id = a.actor_id ORDER BY aar.avg_film_revenue DESC LIMIT 3;",
+        "explanation": "Two CTEs are used: one to calculate the total revenue for each film, and a second to calculate the average revenue of films for each actor. The final query finds the top 3 actors based on this metric.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "sum_aggregate",
+            "avg_aggregate",
+            "join_with_cte",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "actor_bankability_analysis"
+    },
+    {
+        "question_id": "Q882",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Tìm 3 diễn viên hàng đầu có phim đạt doanh thu cho thuê trung bình cao nhất.",
+        "sql_query": "WITH DoanhThuPhim AS (SELECT i.film_id, SUM(p.amount) as tong_doanh_thu FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1), DoanhThuTBDienVien AS (SELECT fa.actor_id, AVG(dtp.tong_doanh_thu) as dt_tb_phim FROM film_actor fa JOIN DoanhThuPhim dtp ON fa.film_id = dtp.film_id GROUP BY 1) SELECT a.first_name, a.last_name, dttbdv.dt_tb_phim FROM DoanhThuTBDienVien dttbdv JOIN actor a ON dttbdv.actor_id = a.actor_id ORDER BY dttbdv.dt_tb_phim DESC LIMIT 3;",
+        "explanation": "Hai CTE được sử dụng: một để tính tổng doanh thu cho mỗi bộ phim, và một CTE thứ hai để tính doanh thu trung bình của các phim cho mỗi diễn viên. Truy vấn cuối cùng tìm ra 3 diễn viên hàng đầu dựa trên chỉ số này.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "group_by",
+            "sum_aggregate",
+            "avg_aggregate",
+            "join_with_cte",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "phan_tich_kha_nang_sinh_loi_cua_dien_vien"
+    },
+    {
+        "question_id": "Q883",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Calculate the median payment amount.",
+        "sql_query": "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount) as median_payment FROM payment;",
+        "explanation": "This query uses the specific aggregate function PERCENTILE_CONT to calculate the median (50th percentile) value of all payment amounts, which is more robust to outliers than the average.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "percentile_cont_aggregate"
+        ],
+        "business_context": "central_tendency_analysis"
+    },
+    {
+        "question_id": "Q884",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tính số tiền thanh toán trung vị.",
+        "sql_query": "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount) as thanh_toan_trung_vi FROM payment;",
+        "explanation": "Truy vấn này sử dụng hàm tổng hợp cụ thể PERCENTILE_CONT để tính toán giá trị trung vị (phân vị thứ 50) của tất cả các khoản thanh toán, một chỉ số ít bị ảnh hưởng bởi các giá trị ngoại lai hơn so với giá trị trung bình.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "percentile_cont_aggregate"
+        ],
+        "business_context": "phan_tich_xu_huong_trung_tam"
+    },
+    {
+        "question_id": "Q885",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "For each customer, show the difference in time between their first and last rental.",
+        "sql_query": "SELECT c.first_name, c.last_name, MAX(r.rental_date) - MIN(r.rental_date) as rental_lifespan FROM customer c JOIN rental r ON c.customer_id = r.customer_id GROUP BY c.customer_id HAVING COUNT(r.rental_id) > 1;",
+        "explanation": "This query groups by customer and uses MIN and MAX to find their first and last rental dates, then calculates the interval between them to determine their active lifespan.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "two_table_join",
+            "group_by",
+            "having",
+            "min_aggregate",
+            "max_aggregate",
+            "date_arithmetic"
+        ],
+        "business_context": "customer_active_duration"
+    },
+    {
+        "question_id": "Q886",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Đối với mỗi khách hàng, hãy hiển thị chênh lệch thời gian giữa lần thuê đầu tiên và cuối cùng của họ.",
+        "sql_query": "SELECT c.first_name, c.last_name, MAX(r.rental_date) - MIN(r.rental_date) as vong_doi_thue FROM customer c JOIN rental r ON c.customer_id = r.customer_id GROUP BY c.customer_id HAVING COUNT(r.rental_id) > 1;",
+        "explanation": "Truy vấn này nhóm theo khách hàng và sử dụng MIN và MAX để tìm ngày thuê đầu tiên và cuối cùng của họ, sau đó tính toán khoảng thời gian giữa chúng để xác định vòng đời hoạt động của họ.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "two_table_join",
+            "group_by",
+            "having",
+            "min_aggregate",
+            "max_aggregate",
+            "date_arithmetic"
+        ],
+        "business_context": "thoi_gian_hoat_dong_cua_kh"
+    },
+    {
+        "question_id": "Q887",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Identify 'orphan' actors: actors who exist in the actor table but have no films in film_actor.",
+        "sql_query": "SELECT a.first_name, a.last_name FROM actor a LEFT JOIN film_actor fa ON a.actor_id = fa.actor_id WHERE fa.film_id IS NULL;",
+        "explanation": "Uses a LEFT JOIN from the primary actor table to the junction table. Actors with no corresponding film will have a NULL in the film_actor columns, which can be filtered for.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "left_join",
+            "where_clause",
+            "is_null_check"
+        ],
+        "business_context": "data_cleanup_and_audit"
+    },
+    {
+        "question_id": "Q888",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Xác định các diễn viên 'mồ côi': những diễn viên tồn tại trong bảng diễn viên nhưng không có phim nào trong film_actor.",
+        "sql_query": "SELECT a.first_name, a.last_name FROM actor a LEFT JOIN film_actor fa ON a.actor_id = fa.actor_id WHERE fa.film_id IS NULL;",
+        "explanation": "Sử dụng LEFT JOIN từ bảng diễn viên chính đến bảng nối. Các diễn viên không có phim tương ứng sẽ có giá trị NULL trong các cột film_actor, có thể được lọc ra.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "left_join",
+            "where_clause",
+            "is_null_check"
+        ],
+        "business_context": "don_dep_va_kiem_toan_du_lieu"
+    },
+    {
+        "question_id": "Q889",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Which film generated the most revenue in a single day?",
+        "sql_query": "WITH DailyFilmRevenue AS (SELECT i.film_id, p.payment_date::date as p_date, SUM(p.amount) as daily_revenue FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1, 2) SELECT f.title, dfr.daily_revenue FROM DailyFilmRevenue dfr JOIN film f ON dfr.film_id = f.film_id ORDER BY dfr.daily_revenue DESC LIMIT 1;",
+        "explanation": "A CTE calculates the total revenue for each film on each day. The main query then finds the single highest value from this set to identify a peak performance event.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by_multiple",
+            "sum_aggregate",
+            "date_casting",
+            "join_with_cte",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "peak_daily_film_performance"
+    },
+    {
+        "question_id": "Q890",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Bộ phim nào đã tạo ra doanh thu nhiều nhất trong một ngày duy nhất?",
+        "sql_query": "WITH DoanhThuPhimNgay AS (SELECT i.film_id, p.payment_date::date as ngay_tt, SUM(p.amount) as doanh_thu_ngay FROM payment p JOIN rental r ON p.rental_id = r.rental_id JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1, 2) SELECT f.title, dtpn.doanh_thu_ngay FROM DoanhThuPhimNgay dtpn JOIN film f ON dtpn.film_id = f.film_id ORDER BY dtpn.doanh_thu_ngay DESC LIMIT 1;",
+        "explanation": "Một CTE tính toán tổng doanh thu cho mỗi bộ phim vào mỗi ngày. Sau đó, truy vấn chính tìm giá trị cao nhất duy nhất từ tập hợp này để xác định một sự kiện hiệu suất đỉnh cao.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "group_by_multiple",
+            "sum_aggregate",
+            "date_casting",
+            "join_with_cte",
+            "order_by",
+            "limit"
+        ],
+        "business_context": "hieu_suat_phim_dinh_diem_ngay"
+    },
+    {
+        "question_id": "Q891",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "For each customer, find their favorite actor based on the number of films rented starring that actor.",
+        "sql_query": "WITH CustomerActorRentals AS (SELECT r.customer_id, fa.actor_id, COUNT(*) as rental_count FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_actor fa ON i.film_id = fa.film_id GROUP BY 1, 2), RankedActors AS (SELECT customer_id, actor_id, rental_count, RANK() OVER (PARTITION BY customer_id ORDER BY rental_count DESC) as rnk FROM CustomerActorRentals) SELECT c.first_name, c.last_name, a.first_name || ' ' || a.last_name as favorite_actor FROM RankedActors ra JOIN customer c ON ra.customer_id = c.customer_id JOIN actor a ON ra.actor_id = a.actor_id WHERE ra.rnk = 1;",
+        "explanation": "This complex query first counts how many times a customer has rented a film starring each actor. It then ranks the actors for each customer and selects the top-ranked one as their favorite.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by_multiple",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "customer_actor_preference"
+    },
+    {
+        "question_id": "Q892",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Đối với mỗi khách hàng, hãy tìm diễn viên yêu thích của họ dựa trên số lượng phim đã thuê có sự tham gia của diễn viên đó.",
+        "sql_query": "WITH ThueDienVienKH AS (SELECT r.customer_id, fa.actor_id, COUNT(*) as so_luot_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_actor fa ON i.film_id = fa.film_id GROUP BY 1, 2), DienVienXepHang AS (SELECT customer_id, actor_id, so_luot_thue, RANK() OVER (PARTITION BY customer_id ORDER BY so_luot_thue DESC) as hang FROM ThueDienVienKH) SELECT c.first_name, c.last_name, a.first_name || ' ' || a.last_name as dien_vien_yeu_thich FROM DienVienXepHang dvxh JOIN customer c ON dvxh.customer_id = c.customer_id JOIN actor a ON dvxh.actor_id = a.actor_id WHERE dvxh.hang = 1;",
+        "explanation": "Truy vấn phức tạp này trước tiên đếm số lần một khách hàng đã thuê một bộ phim có sự tham gia của mỗi diễn viên. Sau đó, nó xếp hạng các diễn viên cho mỗi khách hàng và chọn người được xếp hạng cao nhất làm người yêu thích của họ.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "window_function",
+            "rank_function",
+            "partition_by",
+            "group_by_multiple",
+            "count_aggregate",
+            "join_with_cte"
+        ],
+        "business_context": "so_thich_dien_vien_cua_kh"
+    },
+    {
+        "question_id": "Q893",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Find 'underrated' films: those with a high rating (PG-13 or R) but rental counts in the bottom 25% of all films.",
+        "sql_query": "WITH FilmRentalCounts AS (SELECT i.film_id, COUNT(r.rental_id) as rental_count, NTILE(4) OVER (ORDER BY COUNT(r.rental_id)) as quartile FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1) SELECT f.title, f.rating, frc.rental_count FROM FilmRentalCounts frc JOIN film f ON frc.film_id = f.film_id WHERE frc.quartile = 1 AND f.rating IN ('PG-13', 'R');",
+        "explanation": "A CTE calculates rental counts and divides all films into quartiles using NTILE(4). The main query then filters for films that are in the bottom quartile (quartile=1) and also meet the specified rating criteria.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "ntile_function",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte",
+            "in_operator"
+        ],
+        "business_context": "underrated_film_discovery"
+    },
+    {
+        "question_id": "Q894",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Tìm các phim 'bị đánh giá thấp': những phim có xếp hạng cao (PG-13 hoặc R) nhưng số lượt thuê nằm trong 25% cuối cùng của tất cả các phim.",
+        "sql_query": "WITH DemLuotThuePhim AS (SELECT i.film_id, COUNT(r.rental_id) as so_luot_thue, NTILE(4) OVER (ORDER BY COUNT(r.rental_id)) as tu_phan_vi FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1) SELECT f.title, f.rating, dltp.so_luot_thue FROM DemLuotThuePhim dltp JOIN film f ON dltp.film_id = f.film_id WHERE dltp.tu_phan_vi = 1 AND f.rating IN ('PG-13', 'R');",
+        "explanation": "Một CTE tính toán số lượt thuê và chia tất cả các phim thành các tứ phân vị bằng cách sử dụng NTILE(4). Sau đó, truy vấn chính lọc các phim nằm trong tứ phân vị cuối cùng (tu_phan_vi=1) và cũng đáp ứng các tiêu chí xếp hạng đã chỉ định.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "ntile_function",
+            "group_by",
+            "count_aggregate",
+            "join_with_cte",
+            "in_operator"
+        ],
+        "business_context": "kham_pha_phim_bi_danh_gia_thap"
+    },
+    {
+        "question_id": "Q895",
+        "level": 5,
+        "language": "en",
+        "domain": "financial_analysis",
+        "question": "Calculate the difference between a staff member's total revenue and the revenue of the other staff member in the same store.",
+        "sql_query": "WITH StaffRevenue AS (SELECT staff_id, store_id, SUM(amount) as total_revenue FROM payment p JOIN staff s ON p.staff_id = s.staff_id GROUP BY 1, 2) SELECT sr1.staff_id as staff1, sr2.staff_id as staff2, sr1.total_revenue as revenue1, sr2.total_revenue as revenue2, sr1.total_revenue - sr2.total_revenue as difference FROM StaffRevenue sr1 JOIN StaffRevenue sr2 ON sr1.store_id = sr2.store_id AND sr1.staff_id < sr2.staff_id;",
+        "explanation": "A CTE calculates total revenue per staff. The main query then performs a self-join on this CTE, matching by store_id, to bring the two staff members from the same store onto one row for direct comparison.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "self_join_on_cte",
+            "group_by",
+            "sum_aggregate",
+            "arithmetic_calculation"
+        ],
+        "business_context": "internal_staff_competition"
+    },
+    {
+        "question_id": "Q896",
+        "level": 5,
+        "language": "vi",
+        "domain": "financial_analysis",
+        "question": "Tính chênh lệch giữa tổng doanh thu của một nhân viên và doanh thu của nhân viên kia trong cùng một cửa hàng.",
+        "sql_query": "WITH DoanhThuNV AS (SELECT staff_id, store_id, SUM(amount) as tong_doanh_thu FROM payment p JOIN staff s ON p.staff_id = s.staff_id GROUP BY 1, 2) SELECT dtnv1.staff_id as nv1, dtnv2.staff_id as nv2, dtnv1.tong_doanh_thu as doanh_thu1, dtnv2.tong_doanh_thu as doanh_thu2, dtnv1.tong_doanh_thu - dtnv2.tong_doanh_thu as chenh_lech FROM DoanhThuNV dtnv1 JOIN DoanhThuNV dtnv2 ON dtnv1.store_id = dtnv2.store_id AND dtnv1.staff_id < dtnv2.staff_id;",
+        "explanation": "Một CTE tính toán tổng doanh thu cho mỗi nhân viên. Sau đó, truy vấn chính thực hiện một tự nối trên CTE này, khớp theo store_id, để đưa hai nhân viên từ cùng một cửa hàng vào một hàng để so sánh trực tiếp.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "self_join_on_cte",
+            "group_by",
+            "sum_aggregate",
+            "arithmetic_calculation"
+        ],
+        "business_context": "canh_tranh_noi_bo_nhan_vien"
+    },
+    {
+        "question_id": "Q897",
+        "level": 5,
+        "language": "en",
+        "domain": "customer_analytics",
+        "question": "What is the average number of rentals it takes for a customer to try a new category?",
+        "sql_query": "WITH NumberedRentals AS (SELECT customer_id, category_id, ROW_NUMBER() OVER (PARTITION BY customer_id, category_id ORDER BY rental_date) as category_rental_num, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY rental_date) as overall_rental_num FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id) SELECT AVG(overall_rental_num) FROM NumberedRentals WHERE category_rental_num = 1 AND overall_rental_num > 1;",
+        "explanation": "This is very complex. It uses two window functions to number a customer's overall rentals and their rentals within each category. It then averages the overall rental number for rows where it's the first time they've rented from that category, indicating exploration.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "row_number",
+            "partition_by_multiple",
+            "avg_aggregate"
+        ],
+        "business_context": "customer_exploration_behavior"
+    },
+    {
+        "question_id": "Q898",
+        "level": 5,
+        "language": "vi",
+        "domain": "customer_analytics",
+        "question": "Số lượt thuê trung bình mà một khách hàng cần để thử một thể loại mới là bao nhiêu?",
+        "sql_query": "WITH ThueDaSo AS (SELECT customer_id, category_id, ROW_NUMBER() OVER (PARTITION BY customer_id, category_id ORDER BY rental_date) as stt_thue_the_loai, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY rental_date) as stt_thue_tong FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film_category fc ON i.film_id = fc.film_id) SELECT AVG(stt_thue_tong) FROM ThueDaSo WHERE stt_thue_the_loai = 1 AND stt_thue_tong > 1;",
+        "explanation": "Câu này rất phức tạp. Nó sử dụng hai hàm cửa sổ để đánh số các lượt thuê tổng thể của khách hàng và các lượt thuê của họ trong mỗi thể loại. Sau đó, nó tính trung bình số lượt thuê tổng thể cho các hàng mà đó là lần đầu tiên họ thuê từ thể loại đó, cho thấy sự khám phá.",
+        "expected_result_type": "single_value",
+        "complexity_features": [
+            "cte",
+            "window_function",
+            "row_number",
+            "partition_by_multiple",
+            "avg_aggregate"
+        ],
+        "business_context": "hanh_vi_kham_pha_cua_kh"
+    },
+    {
+        "question_id": "Q899",
+        "level": 5,
+        "language": "en",
+        "domain": "inventory_management",
+        "question": "Find the films that have a higher rental count than any film starring 'CUBA GOLDBERG'.",
+        "sql_query": "WITH FilmRentalCounts AS (SELECT i.film_id, COUNT(r.rental_id) as rental_count FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1), CubaGoldbergFilmRentals AS (SELECT frc.rental_count FROM FilmRentalCounts frc JOIN film_actor fa ON frc.film_id = fa.film_id JOIN actor a ON fa.actor_id = a.actor_id WHERE a.first_name = 'CUBA' AND a.last_name = 'GOLDBERG') SELECT f.title, frc.rental_count FROM FilmRentalCounts frc JOIN film f ON frc.film_id = f.film_id WHERE frc.rental_count > ALL (SELECT rental_count FROM CubaGoldbergFilmRentals);",
+        "explanation": "Two CTEs are used to get rental counts for all films and for films starring a specific actor. The final query then uses the ALL operator to find films with a rental count strictly greater than every film in the actor's list.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "all_operator",
+            "subquery_in",
+            "group_by",
+            "count_aggregate"
+        ],
+        "business_context": "comparative_film_performance"
+    },
+    {
+        "question_id": "Q900",
+        "level": 5,
+        "language": "vi",
+        "domain": "inventory_management",
+        "question": "Tìm những phim có số lượt thuê cao hơn bất kỳ phim nào có sự tham gia của 'CUBA GOLDBERG'.",
+        "sql_query": "WITH DemLuotThuePhim AS (SELECT i.film_id, COUNT(r.rental_id) as so_luot_thue FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id GROUP BY 1), ThuePhimCubaGoldberg AS (SELECT dltp.so_luot_thue FROM DemLuotThuePhim dltp JOIN film_actor fa ON dltp.film_id = fa.film_id JOIN actor a ON fa.actor_id = a.actor_id WHERE a.first_name = 'CUBA' AND a.last_name = 'GOLDBERG') SELECT f.title, dltp.so_luot_thue FROM DemLuotThuePhim dltp JOIN film f ON dltp.film_id = f.film_id WHERE dltp.so_luot_thue > ALL (SELECT so_luot_thue FROM ThuePhimCubaGoldberg);",
+        "explanation": "Hai CTE được sử dụng để lấy số lượt thuê cho tất cả các phim và cho các phim có sự tham gia của một diễn viên cụ thể. Sau đó, truy vấn cuối cùng sử dụng toán tử ALL để tìm các phim có số lượt thuê cao hơn hẳn mọi phim trong danh sách của diễn viên đó.",
+        "expected_result_type": "table",
+        "complexity_features": [
+            "cte",
+            "chained_cte",
+            "all_operator",
+            "subquery_in",
+            "group_by",
+            "count_aggregate"
+        ],
+        "business_context": "hieu_suat_phim_so_sanh"
+    }
+]
