@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database cho testing và development
+  postgres:
+    image: postgres:15-alpine
+    container_name: luan_van_postgres
+    environment:
+      POSTGRES_DB: text2sql_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./Data Set:/docker-entrypoint-initdb.d/data
+      - ./scripts/sql:/docker-entrypoint-initdb.d/scripts
+    networks:
+      - luan_van_network
+
+  # Database Downloader & Setup Service
+  db_setup:
+    build:
+      context: ./scripts
+      dockerfile: Dockerfile.db-setup
+    container_name: luan_van_db_setup
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/text2sql_db
+    volumes:
+      - ./Data Set:/app/datasets
+      - ./scripts:/app/scripts
+    depends_on:
+      - postgres
+    networks:
+      - luan_van_network
+    command: ["python", "setup_databases.py"]
+
+  # Redis cho message broker giữa các agents
+  redis:
+    image: redis:7-alpine
+    container_name: luan_van_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - luan_van_network
+
+  # Qdrant Vector Database cho conversation history và embeddings
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: luan_van_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    networks:
+      - luan_van_network
+
+  # Single-Agent Experiment Service
+  single_agent:
+    build:
+      context: ./experiments/experiment1_single_agent
+      dockerfile: Dockerfile
+    container_name: luan_van_single_agent
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/text2sql_db
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./experiments/experiment1_single_agent:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - luan_van_network
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Multi-Agent Experiment Service  
+  multi_agent:
+    build:
+      context: ./experiments/experiment2_multi_agent
+      dockerfile: Dockerfile
+    container_name: luan_van_multi_agent
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/text2sql_db
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./experiments/experiment2_multi_agent:/app
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    networks:
+      - luan_van_network
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Jupyter Notebook cho analysis và development
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: luan_van_jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./experiments:/home/jovyan/work
+      - ./Data Set:/home/jovyan/work/datasets
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    networks:
+      - luan_van_network
+
+networks:
+  luan_van_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data: 
