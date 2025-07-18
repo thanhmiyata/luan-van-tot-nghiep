@@ -12,6 +12,6 @@ if __name__ == "__main__":
                     for row_num, row in enumerate(result_reader, 1):
                         for question in questions:
                             if question['question'] == row['question']:
-                                output_gold_file.write(f"{question['query']}	  {question['db_id']}\n")
-                                output_predict_file.write(f"{row['sql']}	  {row['db_id']}\n")
+                                output_gold_file.write(f"{question['query']}	{question['db_id']}\n")
+                                output_predict_file.write(f"{row['sql']}	{row['db_id']}\n")
                                 break
