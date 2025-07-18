@@ -142,10 +142,13 @@ def process_single_question(question, tables, filename):
 def kickoff():
     filename = generate_filename()
     init_csv_file(filename)
-
+    cnt = 0
     with open('tables.json') as f:
         tables = json.load(f)
         with open('questions.json') as fq:
             questions = json.load(fq)
             for question in questions:
+               cnt += 1
+               if cnt > 50:
+                   exit(0)
                process_single_question(question, tables, filename)

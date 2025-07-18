@@ -2,7 +2,7 @@ import csv
 import json
 
 if __name__ == "__main__":
-    with open("output/nl2sql_results_20250718171820.csv", "r", encoding='utf-8') as f:
+    with open("output/nl2sql_results_20250718214534.csv", "r", encoding='utf-8') as f:
         fieldnames = ['db_id', 'question', 'sql', 'explain', 'error']
         result_reader = csv.DictReader(f, fieldnames=fieldnames)
         with open('train_spider.json', 'r', encoding='utf-8') as fq:
