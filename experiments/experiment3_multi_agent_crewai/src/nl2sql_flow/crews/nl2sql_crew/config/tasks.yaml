@@ -1,0 +1,84 @@
+select_needed_schema_task:
+  description: >
+    Analyze the natural language question and the provided JSON schema of the database to filter out irrelevant
+    tables, columns, foreign keys, and primary keys. The task aims to produce a simplified and optimized JSON schema
+    that contains only components relevant for answering the question.
+    
+    Input:
+    - question: {question}
+    - db_schema: ```{raw_db_schema}```
+
+    Input format:
+    - A natural language question describing the data query.
+    - A JSON schema object of the database containing:
+      - `db_id`: The database identifier string.
+      - `table_names_original`: A list of table names.
+        Each table has an index corresponding to its position in the list.
+      - `column_names_original`: A list of tuples. Each tuple contains:
+        - The index of the table the column belongs to.
+        - The name of the column.
+      - `column_types`: A list of column data types corresponding to the column names in the same order.
+  expected_output: >
+    A filtered JSON schema object with the same structure as the input schema but only including relevant
+    tables and columns related to the question containing:
+      - Only relevant `table_names_original`.
+      - Only relevant `column_names_original`.
+      - Updated `column_types` corresponding to the filtered `column_names_original`.
+  agent: schema_selector
+
+generate_sql_task:
+  description: >
+    Generate SQL query to answer the given natural language question using the filtered database schema.
+
+    Input:
+    - question: "{question}"
+    - schema: ```{db_schema}```
+
+    Input format:
+    - A natural language question describing the query.
+    - A filtered database schema in JSON format containing:
+      - `db_id`: The database identifier string.
+      - `table_names_original`: A list of table names relevant to the query.
+      - `column_names_original`: A list of (table_index, column_name) tuples.
+      - `column_types`: A list of column data types matching `column_names_original`.
+
+  expected_output: >
+    A JSON object containing:
+      - `sql`: The generated SQL query string, written in a single line with no line breaks.
+  
+
+  agent: sql_expert
+
+validate_sql_task:
+  description: >
+    Validate the syntax, logic, and structure of the generated SQL query.
+    If errors are detected, fix them to ensure the query is valid and logical. 
+    Otherwise, return the original query unchanged. If the query cannot be fixed,
+    provide an error message explaining the issue.
+
+    Input:
+    - sql_query: "{sql}"
+    - question: "{question}"
+    - schema: ```{db_schema}```
+
+    Input format:
+    - An SQL query string to validate.
+    - The original natural language question for reference.
+    - The filtered database schema in JSON format for understanding structure and logic:
+      - `db_id`: The database identifier string.
+      - `table_names_original`: A list of table names relevant to the query.
+      - `column_names_original`: A list of (table_index, column_name) tuples.
+      - `column_types`: A list of column data types matching `column_names_original`.
+
+  expected_output: >
+    A JSON object containing:
+      - `sql`: The finalized SQL query string, corrected if errors are found, or the original query if no errors are present. If the query cannot be fixed, this will be an empty string.
+      - `explain`: A detailed explanation of what the SQL query does and how it answers the natural language question.
+      - `error`: An error message if the SQL query cannot be fixed, otherwise an empty string.
+
+  agent: sql_validator
+
+
+
+
+
