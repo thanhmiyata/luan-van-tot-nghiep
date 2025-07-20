@@ -206,15 +206,37 @@ def run_evaluation(gold_file, predict_file):
     current_dir = Path.cwd()
     
     try:
-        os.chdir(eval_dir)
-        
-        # Copy tables.json từ experiment3 sang test-suite-sql-eval nếu chưa có
+        # Copy tables.json từ experiment3 sang test-suite-sql-eval trước khi chuyển thư mục
         tables_source = current_dir / 'experiments/experiment3_multi_agent_crewai/tables.json'
         tables_target = eval_dir / 'tables.json'
         
         if not tables_target.exists() and tables_source.exists():
             print(f"📁 Đang copy tables.json từ {tables_source} sang {tables_target}")
             shutil.copy2(tables_source, tables_target)
+        elif tables_target.exists():
+            print("✅ File tables.json đã tồn tại trong test-suite-sql-eval")
+        else:
+            print(f"⚠️ Không tìm thấy file tables.json tại {tables_source}")
+        
+        # Chuyển đến thư mục evaluation
+        os.chdir(eval_dir)
+        
+        # Kiểm tra các file cần thiết trước khi chạy evaluation
+        required_files = [
+            'evaluation.py',
+            'tables.json',
+            '../experiment3_multi_agent_crewai/gold.sql',
+            '../experiment3_multi_agent_crewai/predict.sql'
+        ]
+        
+        missing_files = []
+        for file in required_files:
+            if not Path(file).exists():
+                missing_files.append(file)
+        
+        if missing_files:
+            print(f"❌ Thiếu các file cần thiết: {missing_files}")
+            return False
         
         # Sử dụng đường dẫn tương đối như user đã chỉ ra
         cmd = [
@@ -229,17 +251,24 @@ def run_evaluation(gold_file, predict_file):
         
         print(f"🚀 Chạy lệnh: {' '.join(cmd)}")
         
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         
         print("\n📋 Kết quả đánh giá:")
         print("=" * 50)
-        print(result.stdout)
+        if result.stdout:
+            print(result.stdout)
+        else:
+            print("Không có output từ evaluation script")
         
         if result.stderr:
             print("\n⚠️ Warnings/Errors:")
             print(result.stderr)
         
-        return result.returncode == 0
+        if result.returncode != 0:
+            print(f"❌ Evaluation script kết thúc với mã lỗi: {result.returncode}")
+            return False
+        
+        return True
         
     except Exception as e:
         print(f"❌ Lỗi khi chạy đánh giá: {e}")
