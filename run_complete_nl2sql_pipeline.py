@@ -43,17 +43,38 @@ def setup_environment():
     
     return True
 
-def get_test_questions(num_questions=50):
-    """Lấy số câu hỏi test được chỉ định"""
-    questions_file = 'experiments/experiment3_multi_agent_crewai/questions.json'
+def get_test_questions(num_questions=5):
+    """Lấy số câu hỏi test từ vi_train_spider.json để có ground truth"""
+    vi_train_spider_file = 'experiments/experiment3_multi_agent_crewai/vi_train_spider.json'
+    tables_file = 'experiments/experiment3_multi_agent_crewai/tables.json'
     
-    with open(questions_file, 'r', encoding='utf-8') as f:
-        all_questions = json.load(f)
+    with open(vi_train_spider_file, 'r', encoding='utf-8') as f:
+        vi_spider_data = json.load(f)
     
-    # Lấy số câu hỏi được chỉ định
-    test_questions = all_questions[:num_questions]
+    with open(tables_file, 'r', encoding='utf-8') as f:
+        tables_data = json.load(f)
     
-    print(f"📝 Đã chọn {len(test_questions)} câu hỏi test:")
+    # Lấy num_questions câu hỏi đầu tiên và tìm schema tương ứng
+    test_questions = []
+    for i, item in enumerate(vi_spider_data[:num_questions]):
+        # Tìm schema tương ứng
+        table_schema = None
+        for table in tables_data:
+            if table['db_id'] == item['db_id']:
+                table_schema = table
+                break
+        
+        if table_schema:
+            test_questions.append({
+                'db_id': item['db_id'],
+                'question': item['question'],
+                'gold_query': item['query'],  # Thêm ground truth
+                'table_names_original': table_schema['table_names_original'],
+                'column_names_original': table_schema['column_names_original'],
+                'column_types': table_schema['column_types']
+            })
+    
+    print(f"📝 Đã chọn {len(test_questions)} câu hỏi từ vi_train_spider.json:")
     for i, q in enumerate(test_questions, 1):
         print(f"   {i}. {q['question'][:60]}... (db: {q['db_id']})")
     
@@ -72,10 +93,7 @@ def run_nl2sql_system(test_questions):
         print("💡 Hãy đảm bảo đã cài đặt crewai và các dependencies")
         return None
     
-    # Load database schemas
-    tables_file = 'experiments/experiment3_multi_agent_crewai/tables.json'
-    with open(tables_file, 'r', encoding='utf-8') as f:
-        tables = json.load(f)
+    # Schema đã được load trong test_questions
     
     # Tạo file CSV output
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -83,7 +101,7 @@ def run_nl2sql_system(test_questions):
     
     # Initialize CSV file
     with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['db_id', 'question', 'sql', 'explain', 'error']
+        fieldnames = ['db_id', 'question', 'gold_query', 'sql', 'explain', 'error']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
     
@@ -93,32 +111,22 @@ def run_nl2sql_system(test_questions):
         print(f"\n📊 Xử lý câu hỏi {i}/{len(test_questions)}: {question['question'][:50]}...")
         
         try:
-            # Tìm schema tương ứng
-            table_schema = None
-            for table in tables:
-                if table['db_id'] == question['db_id']:
-                    table_schema = table
-                    break
-            
-            if not table_schema:
-                print(f"❌ Không tìm thấy schema cho database: {question['db_id']}")
-                continue
-            
-            # Chạy NL2SQL flow
+            # Chạy NL2SQL flow với schema đã có sẵn trong question
             print("   🔄 Đang chạy multi-agent flow...")
             flow_result = NL2SQLFlow(
                 _question=NLQuestions(question=question['question'], db_id=question['db_id']),
                 _raw_schema=SQLDbSchema(
-                    db_id=table_schema['db_id'],
-                    table_names_original=table_schema['table_names_original'],
-                    column_names_original=table_schema['column_names_original'],
-                    column_types=table_schema['column_types'],
+                    db_id=question['db_id'],
+                    table_names_original=question['table_names_original'],
+                    column_names_original=question['column_names_original'],
+                    column_types=question['column_types'],
                 )
             ).kickoff()
             
             result = {
                 'db_id': flow_result.db_id,
                 'question': flow_result.question,
+                'gold_query': question['gold_query'],  # Thêm ground truth
                 'sql': flow_result.result.sql,
                 'explain': flow_result.result.explain,
                 'error': flow_result.result.error,
@@ -138,6 +146,7 @@ def run_nl2sql_system(test_questions):
             error_result = {
                 'db_id': question['db_id'],
                 'question': question['question'],
+                'gold_query': question['gold_query'],
                 'sql': '',
                 'explain': '',
                 'error': str(e),
@@ -156,23 +165,10 @@ def convert_csv_to_evaluation_format(csv_filename):
     """Convert CSV output sang format đánh giá"""
     print("\n🔄 Đang convert CSV sang format đánh giá...")
     
-    train_spider_file = 'experiments/experiment3_multi_agent_crewai/train_spider.json'
     predict_file = 'experiments/experiment3_multi_agent_crewai/predict.sql'
     gold_file = 'experiments/experiment3_multi_agent_crewai/gold.sql'
     
-    # Load train_spider.json để lấy ground truth
-    with open(train_spider_file, 'r', encoding='utf-8') as f:
-        train_questions = json.load(f)
-    
-    # Tạo dict để tra cứu nhanh ground truth
-    ground_truth_dict = {}
-    for item in train_questions:
-        ground_truth_dict[item['question']] = {
-            'query': item['query'],
-            'db_id': item['db_id']
-        }
-    
-    # Đọc CSV results
+    # Đọc CSV results (đã có ground truth trong CSV)
     with open(csv_filename, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         
@@ -181,15 +177,13 @@ def convert_csv_to_evaluation_format(csv_filename):
             
             matched_count = 0
             for row in reader:
-                question = row['question']
-                if question in ground_truth_dict:
-                    gt = ground_truth_dict[question]
+                if row['gold_query'] and row['sql']:  # Kiểm tra có ground truth và predicted SQL
                     # Format: SQL\tdb_id
-                    gold_f.write(f"{gt['query']}\t{gt['db_id']}\n")
+                    gold_f.write(f"{row['gold_query']}\t{row['db_id']}\n")
                     pred_f.write(f"{row['sql']}\t{row['db_id']}\n")
                     matched_count += 1
                 else:
-                    print(f"⚠️ Không tìm thấy ground truth cho câu hỏi: {question[:50]}...")
+                    print(f"⚠️ Thiếu ground truth hoặc predicted SQL cho: {row['question'][:50]}...")
     
     print(f"✅ Convert hoàn thành. Matched {matched_count} câu hỏi")
     print(f"   📄 Gold file: {gold_file}")
@@ -289,7 +283,7 @@ def main():
         return
     
     # 2. Lấy câu hỏi test
-    test_questions = get_test_questions(50)
+    test_questions = get_test_questions(5)
     
     # 3. Chạy NL2SQL system
     csv_filename, results = run_nl2sql_system(test_questions)
