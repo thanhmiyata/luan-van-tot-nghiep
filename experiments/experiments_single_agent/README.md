@@ -49,6 +49,18 @@ uv tool install crewai
 crewai install
 ```
 
+### 4. Configure API Keys
+
+Create a `.env` file in the project root with your API keys:
+
+```bash
+# Create .env file and add your API keys
+GOOGLE_API_KEY=your_google_api_key_here
+GEMINI_API_KEY=your_google_api_key_here  # Can be same as GOOGLE_API_KEY
+```
+
+**Note**: The single agent uses Gemini 2.0 Flash, so you only need a Google API key with Gemini access.
+
 ## Usage
 
 ### Running the NL2SQL System
@@ -83,9 +95,9 @@ python evaluation.py --gold ../experiments_single_agent/gold.sql --pred ../exper
 
 ## System Architecture
 
-The system uses **one comprehensive agent** powered by Claude 3.5 Sonnet:
+The system uses **one comprehensive agent** powered by Gemini 2.0 Flash:
 
-### **Single Agent** (Claude 3.5 Sonnet)
+### **Single Agent** (Gemini 2.0 Flash)
 - **Role**: Comprehensive Natural Language to SQL Converter
 - **Responsibilities**:
   - **Schema Selection**: Filter database schema to keep only relevant tables and columns

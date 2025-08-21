@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Pipeline hoàn chỉnh để chạy NL2SQL experiment với CrewAI và đánh giá bằng test-suite-sql-eval
 """
@@ -23,7 +24,7 @@ sys.path.append('experiments/experiment3_multi_agent_crewai/src')
 
 def setup_environment():
     """Setup môi trường và copy database cần thiết"""
-    print("🔧 Đang setup môi trường...")
+    print("[SETUP] Dang setup moi truong...")
     
     # Tạo thư mục output nếu chưa có
     os.makedirs('experiments/experiment3_multi_agent_crewai/output', exist_ok=True)
@@ -33,17 +34,17 @@ def setup_environment():
     target_db_dir = Path('experiments/test-suite-sql-eval/database')
     
     if source_db_dir.exists() and not target_db_dir.exists():
-        print(f"📁 Đang copy database từ {source_db_dir} sang {target_db_dir}")
+        print(f"📁 Dang copy database tu {source_db_dir} sang {target_db_dir}")
         shutil.copytree(source_db_dir, target_db_dir)
     elif target_db_dir.exists():
-        print("✅ Database đã tồn tại trong test-suite-sql-eval")
+        print("✅ Database da ton tai trong test-suite-sql-eval")
     else:
-        print("❌ Không tìm thấy database source")
+        print("❌ Khong tim thay database source")
         return False
     
     return True
 
-def get_test_questions(num_questions=5):
+def get_test_questions(num_questions=50):
     """Lấy số câu hỏi test từ vi_train_spider.json để có ground truth"""
     vi_train_spider_file = 'experiments/experiment3_multi_agent_crewai/vi_train_spider.json'
     tables_file = 'experiments/experiment3_multi_agent_crewai/tables.json'
@@ -283,7 +284,7 @@ def main():
         return
     
     # 2. Lấy câu hỏi test
-    test_questions = get_test_questions(5)
+    test_questions = get_test_questions(num_questions=50)
     
     # 3. Chạy NL2SQL system
     csv_filename, results = run_nl2sql_system(test_questions)

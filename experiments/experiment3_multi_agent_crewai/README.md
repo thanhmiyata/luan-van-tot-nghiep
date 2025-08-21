@@ -53,6 +53,21 @@ uv tool install crewai
 crewai install
 ```
 
+### 4. Configure API Keys
+
+Create a `.env` file in the project root with your API keys:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env file and add your API keys
+GOOGLE_API_KEY=your_google_api_key_here
+GEMINI_API_KEY=your_google_api_key_here  # Can be same as GOOGLE_API_KEY
+```
+
+**Note**: All agents now use Gemini 2.0 Flash, so you only need a Google API key with Gemini access.
+
 ## Usage
 
 ### Running the NL2SQL System
@@ -87,14 +102,14 @@ python evaluation.py --gold ../experiment3_multi_agent_crewai/gold.sql --pred ..
 
 ## System Architecture
 
-The system uses three different agents, each powered by a different LLM:
+The system uses three different agents, all powered by Gemini 2.0 Flash for consistency and optimal performance:
 
-1. **Schema Selector** (Claude 3.5 Haiku)
+1. **Schema Selector** (Gemini 2.0 Flash)
    - Analyzes the natural language question and database schema
    - Filters out irrelevant tables, columns, and keys
    - Produces a simplified JSON schema containing only components relevant to the question
 
-2. **SQL Expert** (OpenAI o3-mini)
+2. **SQL Expert** (Gemini 2.0 Flash)
    - Generates SQL queries based on the natural language question and filtered schema
    - Returns the SQL query as a single line with no line breaks
 
@@ -104,4 +119,4 @@ The system uses three different agents, each powered by a different LLM:
    - Provides an explanation of what the SQL query does
    - Returns an error message if the query cannot be fixed
 
-The multi-agent approach leverages the strengths of different LLMs for different aspects of the NL2SQL process, resulting in more accurate and reliable SQL generation.
+The multi-agent approach with unified Gemini 2.0 Flash model ensures consistent performance, reduced latency, and cost-effectiveness while maintaining high accuracy in SQL generation.
