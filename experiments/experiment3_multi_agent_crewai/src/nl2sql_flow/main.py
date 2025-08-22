@@ -10,12 +10,25 @@ from crewai import LLM, Crew
 from crewai.flow.flow import Flow, listen, start
 from nl2sql_flow.crews.nl2sql_crew.nl2sql_crew import Nl2SqlCrew
 
+
 class NL2SQLOnlyResult(BaseModel):
     sql: str = ""
+
 
 class NLQuestions(BaseModel):
     db_id: str = ""
     question: str = ""
+
+
+class QuestionAnalysisResult(BaseModel):
+    intent: str = ""
+    complexity: str = ""
+    entities: str = "{}"
+    requirements: str = "{}"
+    patterns: str = "[]"
+    linguistic_notes: str = ""
+    confidence: float = 0.0
+
 
 class NL2SQLResult(BaseModel):
     sql: str = ""
@@ -33,6 +46,7 @@ class SQLDbSchema(BaseModel):
 class NL2SQLState(BaseModel):
     db_id: str = ""
     question: str = ""
+    question_analysis: Dict = {}
     db_raw_schema: SQLDbSchema = SQLDbSchema()
     db_schema: SQLDbSchema = SQLDbSchema()
     result: NL2SQLResult = NL2SQLResult()
@@ -48,19 +62,35 @@ class NL2SQLFlow(Flow[NL2SQLState]):
 
     @start()
     def get_user_input(self):
-        print(f"\nStarting create SQL for question '{self.question.question}' database {self.raw_schema.db_id}\n")
+        print(
+            f"\nStarting create SQL for question '{self.question.question}' database {self.raw_schema.db_id}\n")
         self.state.db_id = self.raw_schema.db_id
         self.state.db_raw_schema = self.raw_schema
         self.state.question = self.question.question
         return self.state
 
     @listen(get_user_input)
+    def question_analysis(self):
+        print(f"\nAnalyzing question for intent and complexity\n")
+        result = Nl2SqlCrew().question_analysis_crew().kickoff(
+            inputs={
+                "question": self.state.question,
+                "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
+            }
+        )
+        self.state.question_analysis = result.to_dict()
+        print(
+            f"\nQuestion Analysis Results:\n{json.dumps(self.state.question_analysis, indent=2)}\n")
+        return self.state
+
+    @listen(question_analysis)
     def schema_selector(self):
         print(f"\nSelecting needed schema database for question\n")
         result = Nl2SqlCrew().select_needed_schema_screw().kickoff(
             inputs={
                 "question": self.state.question,
                 "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
+                "question_analysis": json.dumps(self.state.question_analysis),
             }
         )
         self.state.db_schema = SQLDbSchema(**result.to_dict())
@@ -73,6 +103,7 @@ class NL2SQLFlow(Flow[NL2SQLState]):
             inputs={
                 "question": self.state.question,
                 "db_schema": self.state.db_schema.model_dump_json(),
+                "question_analysis": json.dumps(self.state.question_analysis),
             }
         )
         self.state.result.sql = result.to_dict()["sql"]
@@ -87,6 +118,7 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "question": self.state.question,
                 "db_schema": self.state.db_schema.model_dump_json(),
                 "sql": self.state.result.sql,
+                "question_analysis": json.dumps(self.state.question_analysis),
             }
         ).to_dict()
         self.state.result = NL2SQLResult(**result)
@@ -95,10 +127,12 @@ class NL2SQLFlow(Flow[NL2SQLState]):
 
         return self.state
 
+
 def generate_filename():
     """Tạo tên file với timestamp theo định dạng yyyymmddhhmmss"""
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     return f"output/nl2sql_results_{timestamp}.csv"
+
 
 def init_csv_file(filename):
     with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
@@ -107,13 +141,16 @@ def init_csv_file(filename):
         writer.writeheader()
     print(f"Init result csv: {filename}")
 
+
 def append_to_csv(result, filename):
     """Thêm một kết quả vào file CSV"""
     with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
         fieldnames = ['db_id', 'question', 'sql', 'explain', 'error']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writerow(result)
-    print(f"Appended result to CSV: {result['db_id']} - {result['question'][:50]}...")
+    print(
+        f"Appended result to CSV: {result['db_id']} - {result['question'][:50]}...")
+
 
 def process_single_question(question, tables, filename):
     try:
@@ -126,7 +163,7 @@ def process_single_question(question, tables, filename):
                                             table_names_original=table['table_names_original'],
                                             column_names_original=table['column_names_original'],
                                             column_types=table['column_types'],
-                                        )).kickoff()
+                )).kickoff()
                 result = {
                     'db_id': raw_result.db_id,
                     'question': raw_result.question,
@@ -137,7 +174,9 @@ def process_single_question(question, tables, filename):
                 append_to_csv(result, filename)
                 break
     except Exception as e:
-        print(f"Error processing question: {question['question'][:50]}... due to {e}")
+        print(
+            f"Error processing question: {question['question'][:50]}... due to {e}")
+
 
 def kickoff():
     filename = generate_filename()
@@ -148,7 +187,7 @@ def kickoff():
         with open('questions.json') as fq:
             questions = json.load(fq)
             for question in questions:
-               cnt += 1
-               if cnt > 50:
-                   exit(0)
-               process_single_question(question, tables, filename)
+                cnt += 1
+                if cnt > 50:
+                    exit(0)
+                process_single_question(question, tables, filename)

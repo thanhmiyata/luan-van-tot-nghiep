@@ -4,7 +4,6 @@ from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List
 
 
-
 # If you want to run a snippet of code before or after the crew starts,
 # you can use the @before_kickoff and @after_kickoff decorators
 # https://docs.crewai.com/concepts/crews#example-crew-class-with-decorators
@@ -17,9 +16,18 @@ class Nl2SqlCrew():
     tasks: List[Task]
 
     @agent
+    def question_analyzer(self) -> Agent:
+        return Agent(
+            # type: ignore[index]
+            config=self.agents_config['question_analyzer'],
+            verbose=True
+        )
+
+    @agent
     def schema_selector(self) -> Agent:
         return Agent(
-            config=self.agents_config['schema_selector'],  # type: ignore[index]
+            # type: ignore[index]
+            config=self.agents_config['schema_selector'],
             verbose=True
         )
 
@@ -38,10 +46,20 @@ class Nl2SqlCrew():
         )
 
     @task
+    def question_analysis_task(self) -> Task:
+        from nl2sql_flow.main import QuestionAnalysisResult
+        return Task(
+            # type: ignore[index]
+            config=self.tasks_config['question_analysis_task'],
+            output_json=QuestionAnalysisResult
+        )
+
+    @task
     def select_needed_schema_task(self) -> Task:
         from nl2sql_flow.main import SQLDbSchema
         return Task(
-            config=self.tasks_config['select_needed_schema_task'],  # type: ignore[index]
+            # type: ignore[index]
+            config=self.tasks_config['select_needed_schema_task'],
             output_json=SQLDbSchema
         )
 
@@ -49,7 +67,8 @@ class Nl2SqlCrew():
     def generate_sql_task(self) -> Task:
         from nl2sql_flow.main import NL2SQLOnlyResult
         return Task(
-            config=self.tasks_config['generate_sql_task'],  # type: ignore[index]
+            # type: ignore[index]
+            config=self.tasks_config['generate_sql_task'],
             output_json=NL2SQLOnlyResult
         )
 
@@ -57,15 +76,28 @@ class Nl2SqlCrew():
     def validate_sql_task(self) -> Task:
         from nl2sql_flow.main import NL2SQLResult
         return Task(
-            config=self.tasks_config['validate_sql_task'],  # type: ignore[index]
+            # type: ignore[index]
+            config=self.tasks_config['validate_sql_task'],
             output_json=NL2SQLResult
+        )
+
+    @crew
+    def question_analysis_crew(self) -> Crew:
+        return Crew(
+            agents=self.agents,  # Automatically created by the @agent decorator
+            # Automatically created by the @task decorator
+            tasks=[self.question_analysis_task()],
+            process=Process.sequential,
+            # verbose=True,
+            # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
         )
 
     @crew
     def select_needed_schema_screw(self) -> Crew:
         return Crew(
             agents=self.agents,  # Automatically created by the @agent decorator
-            tasks=[self.select_needed_schema_task()],  # Automatically created by the @task decorator
+            # Automatically created by the @task decorator
+            tasks=[self.select_needed_schema_task()],
             process=Process.sequential,
             # verbose=True,
             # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
@@ -75,7 +107,8 @@ class Nl2SqlCrew():
     def generated_sql_crew(self) -> Crew:
         return Crew(
             agents=self.agents,  # Automatically created by the @agent decorator
-            tasks=[self.generate_sql_task()],  # Automatically created by the @task decorator
+            # Automatically created by the @task decorator
+            tasks=[self.generate_sql_task()],
             process=Process.sequential,
             # verbose=True,
             # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
@@ -85,7 +118,8 @@ class Nl2SqlCrew():
     def validate_sql_crew(self) -> Crew:
         return Crew(
             agents=self.agents,  # Automatically created by the @agent decorator
-            tasks=[self.validate_sql_task()],  # Automatically created by the @task decorator
+            # Automatically created by the @task decorator
+            tasks=[self.validate_sql_task()],
             process=Process.sequential,
             # verbose=True,
             # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
