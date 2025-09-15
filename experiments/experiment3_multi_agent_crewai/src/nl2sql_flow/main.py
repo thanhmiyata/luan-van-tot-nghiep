@@ -36,6 +36,14 @@ class NL2SQLResult(BaseModel):
     error: str = ""
 
 
+class NL2SQLQualityResult(BaseModel):
+    final_sql: str = ""
+    quality_score: float = 0.0
+    pipeline_summary: Dict = {}
+    recommendations: List[str] = []
+    confidence: float = 0.0
+
+
 class SQLDbSchema(BaseModel):
     db_id: str = ""
     table_names_original: List[str] = []
@@ -86,7 +94,7 @@ class NL2SQLFlow(Flow[NL2SQLState]):
     @listen(question_analysis)
     def schema_selector(self):
         print(f"\nSelecting needed schema database for question\n")
-        result = Nl2SqlCrew().select_needed_schema_screw().kickoff(
+        result = Nl2SqlCrew().select_needed_schema_crew().kickoff(
             inputs={
                 "question": self.state.question,
                 "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
@@ -126,6 +134,54 @@ class NL2SQLFlow(Flow[NL2SQLState]):
         print(json.dumps(self.state.result.model_dump(), indent=4))
 
         return self.state
+
+
+def run_optimized_nl2sql_pipeline(question: str, db_schema: Dict, db_id: str) -> Dict:
+    """
+    Run the optimized NL2SQL pipeline using the enhanced CrewAI workflow.
+    
+    Args:
+        question: Natural language question
+        db_schema: Database schema dictionary
+        db_id: Database identifier
+        
+    Returns:
+        Dictionary containing the complete pipeline results
+    """
+    try:
+        # Initialize the optimized crew
+        nl2sql_crew = Nl2SqlCrew()
+        crew = nl2sql_crew.nl2sql_pipeline_crew()
+        
+        # Prepare inputs for the pipeline
+        inputs = {
+            'question': question,
+            'raw_db_schema': json.dumps(db_schema, indent=2),
+            'db_id': db_id
+        }
+        
+        print(f"🚀 Starting optimized NL2SQL pipeline for question: {question[:50]}...")
+        
+        # Execute the complete pipeline
+        result = crew.kickoff(inputs=inputs)
+        
+        print("✅ Pipeline completed successfully!")
+        
+        return {
+            'success': True,
+            'result': result,
+            'pipeline_type': 'optimized_sequential',
+            'timestamp': datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"❌ Pipeline failed: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e),
+            'pipeline_type': 'optimized_sequential',
+            'timestamp': datetime.now().isoformat()
+        }
 
 
 def generate_filename():

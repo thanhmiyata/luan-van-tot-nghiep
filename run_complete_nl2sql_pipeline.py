@@ -47,15 +47,15 @@ def setup_environment():
     return True
 
 
-def get_test_questions(num_questions=30):
-    """Lấy số câu hỏi test từ vi_train_spider.json - chọn database có >50 câu hỏi và random n câu"""
+def get_test_questions(num_questions=3):
+    """Lấy số câu hỏi test từ train_spider.json - chọn database có >50 câu hỏi và random n câu"""
     import random
 
-    vi_train_spider_file = 'experiments/experiment3_multi_agent_crewai/vi_train_spider.json'
+    train_spider_file = 'experiments/experiment3_multi_agent_crewai/train_spider.json'
     tables_file = 'experiments/experiment3_multi_agent_crewai/tables.json'
 
-    with open(vi_train_spider_file, 'r', encoding='utf-8') as f:
-        vi_spider_data = json.load(f)
+    with open(train_spider_file, 'r', encoding='utf-8') as f:
+        spider_data = json.load(f)
 
     with open(tables_file, 'r', encoding='utf-8') as f:
         tables_data = json.load(f)
@@ -65,7 +65,7 @@ def get_test_questions(num_questions=30):
     db_counts = {}
     db_questions = {}
 
-    for item in vi_spider_data:
+    for item in spider_data:
         db_id = item['db_id']
         if db_id not in db_counts:
             db_counts[db_id] = 0
@@ -350,7 +350,7 @@ def main():
         return
 
     # 2. Lấy câu hỏi test
-    test_questions = get_test_questions(num_questions=40)
+    test_questions = get_test_questions(num_questions=3)
 
     # 3. Chạy NL2SQL system
     csv_filename, results = run_nl2sql_system(test_questions)

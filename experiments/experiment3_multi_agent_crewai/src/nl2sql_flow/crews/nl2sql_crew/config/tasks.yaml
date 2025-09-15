@@ -1,673 +1,158 @@
 question_analysis_task:
   description: >
-    **TASK**: Comprehensive Natural Language Question Analysis and Intent Recognition
+    Analyze the following question:
     
-    **OBJECTIVE**: Perform deep analysis of natural language questions to extract intent, classify complexity,
-    identify entities, and provide structured insights for optimal SQL generation pipeline.
+    **Question:** {question}
+    **Database:** ```{raw_db_schema}```
     
-    **INPUT**:
-    - Question: {question}
-    - Database Context: ```{raw_db_schema}```
+    Identify:
+    1. **Intent:** COUNT, LIST, MAX_MIN, AGGREGATION
+    2. **Complexity:** EASY (1 table), MEDIUM (2-3 tables), HARD (complex)
+    3. **Required tables:** student, instructor, course, section, etc.
+    4. **Required columns:** name, dept_name, semester, year, etc.
+    5. **Filter values:** 'Math', 'Fall', 2009, etc.
     
-    **ANALYSIS FRAMEWORK**:
-    1. **Intent Classification**: Identify primary query intent (COUNT, LIST, MAX/MIN, COMPARISON, AGGREGATION, SET_OPERATIONS)
-    2. **Entity Recognition**: Extract mentioned/implied tables, columns, values, and relationships
-    3. **Schema Relationship Analysis**: 
-       - Understand table relationship directions (who references whom)
-       - prereq(course_id, prereq_id): course_id REQUIRES prereq_id
-       - advisor(s_ID, i_ID): instructor i_ID ADVISES student s_ID
-       - Identify which column to use for filtering based on question intent
-    4. **Complexity Assessment**: Classify as EASY/MEDIUM/HARD/EXTRA based on required SQL patterns
-    5. **Linguistic Processing**: Handle Vietnamese-English mixed contexts and cultural nuances
-    6. **Relationship Mapping**: Identify required table connections and join patterns with correct directions
-    7. **Constraint Analysis**: Detect filtering, grouping, ordering, and aggregation requirements
-    8. **Pattern Identification** (EXACT MATCHING FOCUS): 
-       - Recognize needs for INTERSECT, UNION, NOT IN, exclusion logic
-       - **CRITICAL: Pattern Simplicity Preference**:
-         * **"Largest/Smallest"** → Prefer ORDER BY + LIMIT over subquery MAX/MIN
-         * **"Count with condition"** → Prefer COUNT(*) WHERE over COUNT DISTINCT
-         * **"Simple listing"** → Prefer direct SELECT over complex aggregations
-         * **"Exclusion logic"** → Prefer NOT IN over NOT EXISTS for simple cases
-    9. **Ambiguity Resolution**: Identify and resolve unclear references or multiple interpretations
-    
-    **OUTPUT FORMAT**: Return a comprehensive JSON analysis:
+    **Return JSON:**
     ```json
     {
-      "intent": "COUNT|LIST|MAX_MIN|COMPARISON|AGGREGATION|SET_OPERATIONS",
-      "complexity": "EASY|MEDIUM|HARD|EXTRA",
+      "intent": "COUNT|LIST|MAX_MIN|AGGREGATION",
+      "complexity": "EASY|MEDIUM|HARD",
       "entities": {
         "tables": ["table1", "table2"],
         "columns": ["col1", "col2"],
-        "values": ["val1", "val2"],
-        "relationships": ["table1.id = table2.foreign_id"]
+        "values": ["val1", "val2"]
       },
-      "requirements": {
-        "joins": ["table1 JOIN table2 ON condition"],
-        "filters": ["column = 'value'"],
-        "grouping": ["column1", "column2"],
-        "ordering": ["column ASC/DESC"],
-        "aggregations": ["COUNT", "MAX", "SUM"]
-      },
-      "patterns": ["INTERSECT", "UNION", "NOT_IN", "EXISTS"],
-      "linguistic_notes": "Vietnamese-English mappings and cultural context",
       "confidence": 0.95
     }
     ```
-    
+
   expected_output: >
-    A comprehensive JSON analysis object containing intent classification, complexity assessment,
-    entity recognition, requirement analysis, pattern identification, and confidence scoring.
+    JSON object with question analysis including intent, complexity, entities and confidence score.
       
   agent: question_analyzer
 
 select_needed_schema_task:
   description: >
-    **TASK**: Context-Aware Intelligent Schema Filtering with Relationship Reasoning
+    Filter database schema to keep only what's needed:
     
-    **OBJECTIVE**: Perform advanced schema analysis using question analysis insights to extract optimal
-    database components with multi-hop relationship discovery and adaptive filtering strategies.
+    **Question:** {question}
+    **Original Schema:** ```{raw_db_schema}```
+    **Analysis:** ```{question_analysis}```
     
-    **INPUT**:
-    - Question: {question}
-    - Raw Database Schema: ```{raw_db_schema}```
-    - Question Analysis: ```{question_analysis}```
+    Based on question analysis:
+    1. Keep tables mentioned in "entities.tables"
+    2. Keep columns mentioned in "entities.columns" 
+    3. Keep primary key and foreign key for JOIN
+    4. Remove irrelevant tables/columns
     
-    **ENHANCED ANALYSIS PROCESS**:
-    1. **Context Integration**: Use question analysis results to guide schema decisions
-    2. **Adaptive Filtering**: Apply different strategies based on classified complexity (EASY/MEDIUM/HARD/EXTRA)
-    3. **Multi-Hop Discovery**: Identify indirect relationships spanning multiple tables
-    4. **Pattern-Based Inclusion**: Pre-include schema elements needed for identified SQL patterns
-    5. **Alternative Path Analysis**: Discover multiple connection routes for robust SQL generation
-    6. **Completeness Validation**: Ensure schema supports all identified requirements and patterns
-    
-    **FILTERING RULES**:
-    - ALWAYS include primary keys of selected tables
-    - ALWAYS include foreign keys that enable necessary JOINs
-    - Include columns mentioned directly or indirectly in the question
-    - Exclude tables completely unrelated to the question
-    - Preserve data type information for all included columns
-    
-    **OUTPUT FORMAT**: Return a valid JSON object with identical structure to input schema:
+    **Return JSON with same format as original schema:**
     ```json
     {
       "db_id": "database_name",
-      "table_names_original": ["relevant_table1", "relevant_table2"],
-      "column_names_original": [[0, "column1"], [0, "column2"], [1, "column3"]],
-      "column_types": ["text", "number", "text"]
+      "table_names_original": ["table1", "table2"],
+      "column_names_original": [[0, "col1"], [1, "col2"]],
+      "column_types": ["text", "number"]
     }
     ```
-    
+
   expected_output: >
-    A filtered JSON schema object with the same structure as the input schema but only including relevant
-    tables and columns related to the question containing:
-      - Only relevant `table_names_original`.
-      - Only relevant `column_names_original`.
-      - Updated `column_types` corresponding to the filtered `column_names_original`.
+    JSON object containing filtered schema with same structure as original schema.
       
   agent: schema_selector
 
 generate_sql_task:
   description: >
-    **TASK**: Adaptive Context-Aware SQL Query Generation
+    Generate SQL query from the question:
     
-    **OBJECTIVE**: Generate optimal SQL queries using adaptive pattern selection based on question analysis
-    insights. Dynamically choose the most appropriate SQL approach while maintaining reliability and performance.
+    **Question:** "{question}"
+    **Schema:** ```{db_schema}```
+    **Analysis:** ```{question_analysis}```
     
-    **INPUT**:
-    - Question: "{question}"
-    - Filtered Schema: ```{db_schema}```
-    - Question Analysis: ```{question_analysis}```
+    **IMPORTANT - Understanding logic:**
+    1. **AND vs OR distinction:**
+       - "courses in both fall AND spring" = courses in BOTH semesters → INTERSECT
+       - "courses in fall OR spring" = courses in ANY semester → UNION
     
-    **ADAPTIVE GENERATION FRAMEWORK**:
-    1. **Context-Driven Selection**: Use question analysis results to select optimal SQL patterns
-    2. **Complexity-Matched Generation**: Automatically adjust SQL sophistication based on classified complexity
-    3. **Pattern-Aware Construction**: Apply appropriate SQL patterns identified in question analysis
-    4. **Multi-Candidate Evaluation**: Consider multiple valid approaches and select the most reliable
-    5. **Cross-Linguistic Intelligence**: Handle Vietnamese-English translations with contextual awareness
+    2. **COUNT logic:**
+       - Count departments → COUNT(DISTINCT dept_name)
+       - Count courses → COUNT(DISTINCT course_id) (if duplicates exist)
+       - Count students with advisors → COUNT(DISTINCT s_id)
     
-    **COMPLEXITY-ADAPTIVE SQL GENERATION**:
+    3. **GROUP BY logic:**
+       - "courses offered by multiple departments" → GROUP BY title HAVING COUNT(*) > 1
+       - "count by group" → GROUP BY column, COUNT(*)
     
-    **EASY Complexity** (Simple Intent):
-    - Direct single-table queries with basic filtering
-    - Simple aggregations without complex grouping
-    - Basic column selections with straightforward WHERE clauses
-    - Template: SELECT [columns] FROM [table] WHERE [simple_condition]
+    4. **Set operations:**
+       - Both conditions → INTERSECT
+       - Any condition → UNION
+       - Exclude → EXCEPT
     
-    **MEDIUM Complexity** (Moderate Relationships):
-    - Multi-table JOINs using identified relationships
-    - GROUP BY with aggregate functions as specified
-    - Subqueries for filtering or lookup operations
-    - Template: SELECT [columns] FROM [tables] JOIN [conditions] WHERE [filters] GROUP BY [grouping]
+    5. **Key understanding for common mistakes:**
+       - "enrollment" usually refers to STUDENT enrollment, not course sections
+       - "highest enrollment department" = department with most STUDENTS
+       - Use lowercase for column names when possible (id, not ID)
+       - Prefer simple subqueries over complex JOINs when logically equivalent
     
-    **HARD/EXTRA Complexity** (Advanced Logic):
-    - Complex set operations (INTERSECT, UNION, EXCEPT) as identified
-    - Advanced exclusion patterns (NOT IN, NOT EXISTS) based on analysis
-    - Multi-level subqueries and correlated queries
-    - Template: Complex nested structures matching identified patterns
+    **CRITICAL - SQL Format Requirements:**
+    - Return ONLY complete, executable SQL queries
+    - SQL must be a single line without line breaks
+    - Do NOT break SQL into multiple lines or fragments
+    - Every SQL must start with SELECT, INSERT, UPDATE, or DELETE
+    - Test your SQL mentally before returning
     
-    **QUERY COMPLEXITY GUIDELINES** (EXACT PATTERN MATCHING):
-    
-    **FOR EASY/SIMPLE QUESTIONS**:
-    - Basic SELECT column FROM table
-    - Simple COUNT(*) operations
-    - Basic WHERE filtering with single conditions
-    - Simple ORDER BY for sorting
-    - MIN/MAX operations without complex aggregations
-    
-    **CRITICAL: EXACT PATTERN PREFERENCES**:
-    - **"Largest/Smallest"** → **ORDER BY column DESC/ASC LIMIT 1** (not subquery MAX/MIN)
-    - **"Count with condition"** → **COUNT(*) WHERE condition** (not COUNT DISTINCT)
-    - **"Simple listing"** → **SELECT ... WHERE** (not complex aggregations)
-    - **"Exclusion"** → **NOT IN (subquery)** (not EXISTS for simple cases)
-    - **"Single result"** → **LIMIT 1** (not complex subqueries)
-    
-    **FOR MEDIUM/COMPLEX QUESTIONS ONLY**:
-    - JOINs between related tables using foreign keys
-    - Aggregate functions with GROUP BY
-    - LIMIT clauses for top-N queries
-    - Subqueries when necessary for complex logic
-    
-    **FOR HARD/EXTRA QUESTIONS ONLY**:
-    - Complex operations: INTERSECT, UNION, EXCEPT
-    - NOT IN / NOT EXISTS patterns for exclusion
-    - Multiple table JOINs (3+ tables)
-    - Correlated subqueries and window functions
-    
-    **SQL BEST PRACTICES**:
-    - Use table aliases for readability in JOINs
-    - Proper quote handling for string literals
-    - Case-insensitive matching with LIKE when appropriate
-    - Handle potential NULL values appropriately
-    - Use appropriate data type casting when needed
-    - Break complex queries into logical steps
-    - Use EXISTS instead of IN for better performance with NULLs
-    - Consider INTERSECT/UNION for set operations
-    - Validate foreign key relationships carefully
-    
-    **CRITICAL: QUESTION UNDERSTANDING FIRST**:
-    - Read the question CAREFULLY - what exactly is being asked?
-    - "Có bao nhiêu trạng thái tạm quyền?" ≠ "Count distinct temporary_acting values" 
-    - "Có bao nhiêu trạng thái tạm quyền?" = "Count rows WHERE temporary_acting = 'Yes'"
-    - "Liệt kê tổng số ngựa" = "List Total_Horses column" (not SUM grouped by farm)
-    - Always match the question's intent, not just keywords
-    
-    **SCHEMA RELATIONSHIP UNDERSTANDING** (CRITICAL):
-    - **Prerequisite Tables**: 
-      * prereq(course_id, prereq_id) means "course_id REQUIRES prereq_id"
-      * "Không có môn tiên quyết" = course NOT in prereq.course_id (not prereq.prereq_id)
-      * "Là môn tiên quyết" = course in prereq.prereq_id
-    - **Advisor Tables**:
-      * advisor(s_ID, i_ID) means "instructor i_ID advises student s_ID"
-      * Count students per advisor = GROUP BY i_ID, COUNT(s_ID)
-    - **Course-Section Relationship**:
-      * section(course_id, sec_id, semester, year) links to course(course_id)
-      * Filter by semester/year in section table, get course info from course table
-    - **ALWAYS verify relationship direction before writing SQL**
-    
-    **CROSS-LINGUISTIC INTELLIGENCE** (CRITICAL FOR VIETNAMESE QUESTIONS):
-    - **MANDATORY TRANSLATION**: Vietnamese questions ALWAYS require English values in SQL
-    - **Common Subject Mappings**:
-      * "Toán" = "Math", "Toán học" = "Mathematics"  
-      * "Khoa học Máy tính" = "Comp. Sci.", "Computer Science"
-      * "Lịch sử" = "History"
-      * "Tiếng Anh" = "English"
-      * "Vật lý" = "Physics"
-      * "Hóa học" = "Chemistry"
-      * "Sinh học" = "Biology"
-      * "Tài chính" = "Finance"
-      * "Kinh tế" = "Economics"
-    - **Department/Building Mappings**:
-      * "Khoa Khoa học Máy tính" = "Comp. Sci."
-      * "Khoa Lịch sử" = "History"
-      * "Tòa nhà Chandler" = "Chandler"
-      * "Tòa nhà Watson" = "Watson"
-    - **Status/Boolean Values**:
-      * Vietnamese "Có" = "Yes" in boolean contexts
-      * "Tạm thời" = "Temporary", "Chính thức" = "Official"
-    - **Semester/Time Mappings**:
-      * "Mùa thu" = "Fall", "Mùa xuân" = "Spring"
-      * "Mùa hè" = "Summer", "Mùa đông" = "Winter"
-    - **TRANSLATION STRATEGY**:
-      1. Identify Vietnamese terms in question
-      2. Map to appropriate English equivalents
-      3. Use English values in WHERE clauses
-      4. When uncertain, check schema for exact column values
-      5. Prefer exact English matches over Vietnamese originals
-    
-    **COMPLEX QUERY PATTERNS**:
-    - INTERSECT: Find common elements between two sets
-    - NOT IN/NOT EXISTS: Exclusion logic, be careful with NULLs
-    - Multiple JOINs: Chain relationships logically, validate foreign keys
-    - Set operations: UNION for combining, EXCEPT for differences
-    
-    **OUTPUT FORMAT**: Return a valid JSON object:
+    **Return JSON:**
     ```json
     {
-      "sql": "SELECT column1, column2 FROM table1 WHERE condition ORDER BY column1"
+      "sql": "SELECT column FROM table WHERE condition"
     }
     ```
-    
+
   expected_output: >
-    A JSON object containing:
-      - `sql`: The generated SQL query string, written in a single line with no line breaks.
+    JSON object containing the generated SQL query.
 
   agent: sql_expert
 
 validate_sql_task:
   description: >
-    **TASK**: Advanced SQL Validation with Execution Simulation and Quality Assurance
+    Validate and fix SQL query:
     
-    **OBJECTIVE**: Provide comprehensive validation through multi-layered analysis, execution simulation,
-    performance assessment, and intelligent recovery to guarantee 100% query executability with confidence scoring.
+    **SQL:** "{sql}"
+    **Question:** "{question}"
+    **Schema:** ```{db_schema}```
     
-    **INPUT**:
-    - SQL Query: "{sql}"
-    - Original Question: "{question}"
-    - Database Schema: ```{db_schema}```
-    - Question Analysis: ```{question_analysis}```
+    Check:
+    1. **Is syntax correct?** (SELECT, FROM, WHERE, etc.)
+    2. **Do table/column names exist?**
+    3. **Is logic correct?** (JOIN, WHERE conditions)
+    4. **Can it be executed?**
+    5. **Is SQL complete?** (Not a fragment or partial query)
+    6. **Is SQL single-line?** (No line breaks or formatting issues)
     
-    **COMPREHENSIVE VALIDATION PIPELINE**:
-    1. **Syntax & Structure Analysis**: Deep SQL parsing and structural validation
-    2. **Schema Compliance Verification**: Comprehensive database element validation
-    3. **Logic & Semantic Validation**: Intent preservation and correctness analysis
-    4. **Execution Simulation**: Virtual dry-run execution to predict behavior
-    5. **Performance Impact Assessment**: Query complexity and resource usage analysis
-    6. **Cross-linguistic Validation**: Cultural and linguistic correctness verification
-    7. **Alternative Generation**: Multiple valid query candidates with ranking
-    8. **Quality Assurance Scoring**: Confidence rating and recommendation system
+    If errors exist, fix:
+    - Fix incorrect table/column names (check schema carefully!)
+    - **Convert ID to lowercase id for consistency**
+    - **Fix prerequisite logic: course_id vs prereq_id confusion**
+    - **Fix COUNT logic: use COUNT(DISTINCT) for unique entities, COUNT(*) for records**
+    - **Remove unnecessary JOINs: if all columns in single table, use direct access**
+    - **Fix column order: match expected output (avg, count not count, avg)**
+    - **Fix GROUP BY: group by entity being counted, not display column**
+    - Fix JOIN conditions
+    - Simplify complex queries (prefer NOT IN over EXCEPT with JOIN)
+    - **Fix enrollment logic: use student table directly, not complex JOINs**
+    - Verify column consistency in set operations (EXCEPT/INTERSECT)
+    - Combine SQL fragments into complete queries
+    - Remove line breaks and format as single line
     
-    **ADVANCED VALIDATION CAPABILITIES**:
-    - **Virtual Execution Engine**: Simulate query execution without database access
-    - **Performance Profiling**: Predict execution time, resource usage, bottlenecks
-    - **Result Plausibility Analysis**: Verify logical correctness of expected results
-    - **Multi-Database Compatibility**: Ensure cross-platform SQL dialect support
-    - **Context-Aware Recovery**: Use question analysis insights for intelligent fixes
-    - **Confidence Scoring**: Rate query reliability and correctness probability (0-1 scale)
-    - **Alternative Ranking**: Generate and evaluate multiple valid SQL approaches
-    
-    **INTELLIGENT RECOVERY FRAMEWORK**:
-    - **Pattern-Based Corrections**: Apply proven fix patterns for common error categories
-    - **Context-Guided Fixes**: Use question analysis results to guide recovery decisions
-    - **Adaptive Simplification**: Reduce complexity while preserving core intent and requirements
-    - **Cross-Reference Validation**: Verify fixes against schema and question requirements
-    - **Linguistic Intelligence**: Handle Vietnamese-English mapping errors with cultural awareness
-    - **Performance-Conscious Recovery**: Choose fixes that maintain optimal performance characteristics
-    - **Fallback Hierarchy**: Implement multiple recovery strategies from complex to simple approaches
-    
-    4. **Advanced Pattern Validation**:
-       - INTERSECT/UNION operations: ensure compatible column types and counts
-       - NOT IN/NOT EXISTS: verify NULL handling is appropriate
-       - Multi-table JOINs: validate relationship chains are logical
-       - Subqueries: ensure they return appropriate data types and cardinality
-    
-    5. **Performance & Best Practices**:
-       - Check for potential performance issues
-       - Verify proper use of indexes (where applicable)
-       - Ensure efficient JOIN patterns
-       - Look for unnecessary complexity
-       - Suggest optimizations for complex analytical queries
-    
-    **ADVANCED RECOVERY STRATEGIES**:
-    - **Schema Relationship Validation** (CRITICAL):
-      * Verify table relationship directions before validation
-      * prereq(course_id, prereq_id): course_id NEEDS prereq_id as prerequisite
-      * advisor(s_ID, i_ID): instructor i_ID advises student s_ID  
-      * teaches(ID, course_id): instructor ID teaches course_id
-      * Fix relationship direction errors in WHERE/JOIN clauses
-    - **Cross-linguistic Value Mapping** (CRITICAL):
-      * "Toán" → "Math", "Khoa học Máy tính" → "Comp. Sci."
-      * "Lịch sử" → "History", "Tài chính" → "Finance" 
-      * "Mùa thu" → "Fall", "Mùa xuân" → "Spring"
-      * Vietnamese boolean "Có" → "Yes"
-    - **Schema-guided Translation**:
-      * Check actual column values in schema
-      * Match Vietnamese terms to English database values
-      * Use exact case matching from schema
-    - **Common Logic Error Fixes**:
-      * "không có môn tiên quyết" → NOT IN prereq.course_id (not prereq.prereq_id)
-      * "là môn tiên quyết của" → IN prereq.prereq_id
-      * "cố vấn cho nhiều sinh viên" → GROUP BY advisor.i_ID HAVING COUNT > 1
-    - Column name fuzzy matching (case sensitivity, underscores)
-    - Complex query simplification while preserving intent
-    - CRITICAL: Never return empty SQL - always provide executable query
-    
-    **OUTPUT FORMAT**: Return a valid JSON object:
+    **Return JSON:**
     ```json
     {
-      "sql": "CORRECTED_OR_ORIGINAL_SQL_QUERY_HERE",
-      "explain": "Detailed explanation of what the query does and how it answers the question",
-      "error": "Error message if query cannot be fixed, otherwise empty string"
+      "sql": "Fixed SQL query (or original if correct)",
+      "explain": "Explanation of what this SQL does",
+      "error": "Error message if cannot be fixed (empty if OK)"
     }
     ```
-    
-    **EXPLANATION REQUIREMENTS**:
-    - Describe the query's purpose in plain English
-    - Explain each major clause (SELECT, FROM, WHERE, JOIN, GROUP BY, ORDER BY)
-    - Mention any corrections made and why
-    - Confirm how the query answers the original question
-    
+
   expected_output: >
-    A JSON object containing:
-      - `sql`: GUARANTEED EXECUTABLE SQL query string. Must never be empty. Apply intelligent recovery if original has issues.
-      - `explain`: Detailed explanation including any corrections made and recovery strategies used.
-      - `error`: Always empty string - fix errors through recovery, don't report failures.
+    JSON object containing validated/fixed SQL query, explanation and error message (if any).
 
   agent: sql_validator
-
-# ============================================================================
-# ENHANCED PATTERN MATCHING GUIDELINES FOR ALL AGENTS
-# ============================================================================
-
-exact_pattern_matching_guidelines:
-  description: >
-    **CRITICAL: EXACT PATTERN MATCHING** (GOLD STANDARD ALIGNMENT):
-    - **ALWAYS prefer the SIMPLEST approach that matches the question intent**
-    - **ADVANCED SQL SIMPLIFICATION AND OPTIMIZATION STRATEGIES**:
-      * Minimize table joins by using direct aggregations
-      * Prefer single-table queries over complex multi-table joins
-      * Use native SQL functions instead of complex subqueries
-      * Eliminate unnecessary GROUP BY and HAVING clauses
-      * Standardize column references and aggregation methods
-
-    **PATTERN MATCHING REFINEMENT**:
-    - For "Largest/Smallest" queries:
-      * ALWAYS use `ORDER BY column DESC/ASC LIMIT 1`
-      * Avoid complex subqueries with MAX/MIN functions
-      * Prefer direct table aggregation
-    
-    - For "Count" queries:
-      * Use `COUNT(*)` instead of `COUNT(DISTINCT column)`
-      * Prefer simple `WHERE` conditions
-      * Eliminate unnecessary table joins
-    
-    - For "Exclusion" queries:
-      * Prefer `NOT IN` with direct column comparison
-      * Simplify nested subqueries
-      * Remove redundant JOIN conditions
-    
-    - For "Grouping" queries:
-      * Use minimal GROUP BY clauses
-      * Prefer `COUNT(*)` over complex counting methods
-      * Eliminate unnecessary column selections
-
-    **CROSS-LINGUISTIC PATTERN OPTIMIZATION**:
-    - Standardize Vietnamese query pattern translations:
-      * "Lớn nhất" → Top 1 with `ORDER BY DESC LIMIT 1`
-      * "Nhỏ nhất" → Top 1 with `ORDER BY ASC LIMIT 1`
-      * "Không có" → Direct `NOT IN` or `EXCEPT`
-      * "Số lượng" → Simple `COUNT(*)` 
-
-    **VALIDATION ENHANCEMENT**:
-    - Enforce strict schema alignment
-    - Validate column types and relationships
-    - Ensure query intent matches schema structure
-    - Remove unnecessary complexity
-    - Prioritize query readability and performance
-
-    **PERFORMANCE-DRIVEN PATTERN MATCHING**:
-    - Analyze query complexity before generation
-    - Choose most efficient SQL pattern
-    - Minimize computational overhead
-    - Optimize for database-specific performance characteristics
-
-    **CRITICAL TRANSLATION RULES**:
-    - Always map Vietnamese domain terms to exact English equivalents
-    - Preserve original question intent
-    - Handle linguistic nuances with context-aware translation
-    - Prefer schema-defined values over loose translations
-
-advanced_query_optimization_guidelines:
-  description: >
-    **ADVANCED SQL QUERY OPTIMIZATION STRATEGIES**:
-    
-    1. **Simplification Principles**:
-      * Minimize table joins by using direct aggregations
-      * Prefer single-table queries over complex multi-table joins
-      * Use native SQL functions instead of complex subqueries
-      * Eliminate unnecessary GROUP BY and HAVING clauses
-      * Standardize column references and aggregation methods
-
-    2. **Join Optimization**:
-      * Always use explicit JOIN conditions
-      * Prefer INNER JOIN over complex subquery filtering
-      * Ensure join conditions are as simple and direct as possible
-      * Avoid unnecessary cross joins or cartesian products
-
-    3. **Filtering and Condition Handling**:
-      * Use IN/NOT IN for set-based filtering
-      * Prefer direct column comparisons over complex subquery conditions
-      * Handle NULL values explicitly
-      * Use EXISTS for more efficient set membership checks
-
-    4. **Aggregation and Grouping**:
-      * Use COUNT(*) instead of COUNT(column)
-      * Prefer simple aggregations (SUM, AVG, MAX, MIN)
-      * Group by the minimum number of columns necessary
-      * Use HAVING only when absolutely required
-
-    5. **Performance Considerations**:
-      * Avoid using functions in WHERE clauses that prevent index usage
-      * Order joins to minimize computational complexity
-      * Use LIMIT for top-N queries instead of complex ranking subqueries
-
-    6. **Cross-Linguistic Translation**:
-      * Maintain consistent column and table name mappings
-      * Handle Vietnamese-English translations with precision
-      * Ensure exact matching of department, course, and instructor names
-
-  examples:
-    - description: "Preferred approach for complex filtering"
-      bad_query: "SELECT * FROM table WHERE column IN (SELECT complex_subquery)"
-      good_query: "SELECT * FROM table WHERE column = direct_value"
-
-    - description: "Efficient join and aggregation"
-      bad_query: "SELECT COUNT(DISTINCT column) FROM multiple_joins WHERE complex_condition"
-      good_query: "SELECT COUNT(*) FROM table WHERE simple_condition"
-
-advanced_join_and_subquery_optimization:
-  description: >
-    **ADVANCED JOIN AND SUBQUERY OPTIMIZATION STRATEGIES**:
-    
-    1. **JOIN Optimization Techniques**:
-      * Minimize the number of JOIN operations
-      * Prefer INNER JOIN over complex multi-table joins
-      * Use explicit JOIN conditions with clear relationship mapping
-      * Avoid unnecessary cross joins or cartesian products
-      * Prioritize join order based on table size and indexing
-
-    2. **Subquery Optimization**:
-      * Replace correlated subqueries with JOIN when possible
-      * Use EXISTS instead of IN for better performance
-      * Prefer semi-joins and anti-joins over complex subquery filtering
-      * Break down complex subqueries into simpler, more readable steps
-      * Avoid nested subqueries with multiple levels of complexity
-
-    3. **Performance-Driven JOIN Patterns**:
-      * Always use table aliases for readability
-      * Ensure JOIN conditions use indexed columns
-      * Minimize data transfer between joins
-      * Use LIMIT and TOP for early filtering
-      * Consider materialized views for frequently joined tables
-
-    4. **Advanced Filtering Strategies**:
-      * Push down filtering conditions as early as possible
-      * Use WHERE clauses before JOIN operations
-      * Leverage database-specific optimization techniques
-      * Handle NULL values explicitly
-      * Use CASE statements for complex conditional logic
-
-    5. **Cross-Linguistic JOIN and Filtering**:
-      * Maintain consistent column name mappings
-      * Handle Vietnamese-English translations with precision
-      * Ensure exact matching of department, course, and instructor names
-      * Use case-insensitive comparisons when appropriate
-      * Validate foreign key relationships carefully
-
-  examples:
-    - description: "Inefficient Multi-Table JOIN"
-      bad_query: >
-        SELECT * FROM table1 
-        JOIN table2 ON table1.id = table2.id 
-        JOIN table3 ON table2.id = table3.id 
-        JOIN table4 ON table3.id = table4.id
-      good_query: >
-        SELECT t1.*, t2.column 
-        FROM table1 t1 
-        INNER JOIN table2 t2 ON t1.id = t2.id 
-        WHERE t2.condition = 'value'
-
-    - description: "Subquery Optimization"
-      bad_query: >
-        SELECT * FROM main_table 
-        WHERE id IN (
-          SELECT id FROM secondary_table 
-          WHERE complex_condition
-        )
-      good_query: >
-        SELECT m.* 
-        FROM main_table m
-        JOIN secondary_table s ON m.id = s.id 
-        WHERE s.complex_condition
-
-  linguistic_mapping:
-    department_translations:
-      - "Khoa học Máy tính": "Computer Science"
-      - "Khoa Toán": "Mathematics Department"
-      - "Khoa Vật Lý": "Physics Department"
-    course_translations:
-      - "Lập trình": "Programming"
-      - "Cấu trúc dữ liệu": "Data Structures"
-      - "Giải tích": "Calculus"
-    semester_translations:
-      - "Mùa thu": "Fall"
-      - "Mùa xuân": "Spring"
-      - "Mùa hè": "Summer"
-
-advanced_set_operations_optimization:
-  description: >
-    **ADVANCED SET OPERATIONS AND COMPLEX QUERY OPTIMIZATION STRATEGIES**:
-    
-    1. **Set Operations Optimization**:
-      * Prefer EXCEPT over complex NOT IN subqueries
-      * Use INTERSECT for finding common elements efficiently
-      * Minimize data transfer between set operations
-      * Ensure compatible column types and cardinality
-      * Validate set operation logic against original question intent
-
-    2. **Complex Exclusion Patterns**:
-      * Prefer NOT IN with simple subqueries
-      * Use EXISTS for more complex membership checks
-      * Handle NULL values explicitly in exclusion logic
-      * Break down complex exclusion conditions
-      * Validate relationship directions carefully
-
-    3. **Advanced Linguistic Translation Strategies**:
-      * Develop context-aware translation mapping
-      * Handle nuanced linguistic variations
-      * Create comprehensive translation dictionaries
-      * Implement fuzzy matching for similar terms
-      * Use machine learning for semantic translation
-
-    4. **Cross-Linguistic Query Transformation**:
-      * Detect linguistic patterns in Vietnamese queries
-      * Map complex linguistic structures to SQL constructs
-      * Handle idiomatic expressions and cultural nuances
-      * Develop adaptive translation algorithms
-      * Validate translations against database schema
-
-    5. **Performance-Driven Set Operation Techniques**:
-      * Minimize computational complexity
-      * Use indexing strategies for set operations
-      * Implement query plan optimization
-      * Leverage database-specific set operation optimizations
-      * Analyze and predict query execution costs
-
-  examples:
-    - description: "Efficient Set Operation: Courses without Prerequisites"
-      bad_query: >
-        SELECT course_id FROM course 
-        WHERE course_id NOT IN (
-          SELECT course_id FROM prereq
-        )
-      good_query: >
-        SELECT course_id FROM course 
-        EXCEPT 
-        SELECT course_id FROM prereq
-
-    - description: "Complex Exclusion with Semantic Translation"
-      bad_query: >
-        SELECT name FROM instructor 
-        WHERE ID NOT IN (
-          SELECT ID FROM teaches 
-          WHERE course_id IN (
-            SELECT course_id FROM section 
-            WHERE semester = 'Spring'
-          )
-        )
-      good_query: >
-        SELECT name FROM instructor 
-        WHERE ID NOT IN (
-          SELECT ID FROM teaches 
-          WHERE semester = 'Spring'
-        )
-
-  linguistic_mapping:
-    advanced_translations:
-      departments:
-        - "Khoa học Máy tính": ["Computer Science", "CS", "Computing"]
-        - "Khoa Toán": ["Mathematics", "Math Department"]
-        - "Khoa Vật Lý": ["Physics", "Physics Department"]
-      courses:
-        - "Lập trình": ["Programming", "Coding"]
-        - "Cấu trúc dữ liệu": ["Data Structures", "Data Structures and Algorithms"]
-        - "Giải tích": ["Calculus", "Mathematical Analysis"]
-      semesters:
-        - "Mùa thu": ["Fall", "Autumn"]
-        - "Mùa xuân": ["Spring", "Springtime"]
-        - "Mùa hè": ["Summer", "Summertime"]
-
-    semantic_mapping:
-      intent_patterns:
-        - pattern: "Tìm * không có *"
-          sql_template: "SELECT * FROM {table} EXCEPT SELECT * FROM {related_table}"
-        
-        - pattern: "Danh sách * không thuộc *"
-          sql_template: "SELECT * FROM {table} WHERE {column} NOT IN (SELECT {related_column} FROM {related_table})"
-        
-        - pattern: "Các * chung giữa * và *"
-          sql_template: "SELECT * FROM {table1} INTERSECT SELECT * FROM {table2}"
-
-  advanced_query_optimization:
-    complex_query_strategies:
-      cte_usage:
-        - Breaking down complex queries
-        - Improving query readability
-        - Optimizing performance for multi-step logic
-      
-      join_optimization:
-        - Minimize number of JOIN operations
-        - Use INNER JOIN over cross joins
-        - Implement join order optimization
-        - Add appropriate indexes to join columns
-      
-      subquery_transformation:
-        - Convert correlated subqueries to JOINs
-        - Use EXISTS instead of IN for better performance
-        - Implement lateral joins for complex scenarios
-      
-      condition_handling:
-        - Support complex boolean logic
-        - Handle NULL conditions intelligently
-        - Use CASE statements for complex filtering
-        - Implement window functions for advanced analysis
-      
-    performance_guidelines:
-      - Always validate query plan
-      - Use EXPLAIN to analyze query execution
-      - Monitor and log query performance metrics
-      - Implement adaptive query optimization
-
-
-
-
-

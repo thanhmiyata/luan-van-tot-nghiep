@@ -1,8 +1,22 @@
 import csv
 import json
+import os
+import glob
+
+def get_latest_csv_file():
+    """Tìm file CSV kết quả mới nhất trong thư mục output"""
+    csv_files = glob.glob("output/nl2sql_results_*.csv")
+    if not csv_files:
+        raise FileNotFoundError("Không tìm thấy file kết quả CSV nào trong thư mục output/")
+    # Sắp xếp theo thời gian tạo file (mới nhất trước)
+    latest_file = max(csv_files, key=os.path.getctime)
+    return latest_file
 
 if __name__ == "__main__":
-    with open("output/nl2sql_results_20250718214534.csv", "r", encoding='utf-8') as f:
+    latest_csv = get_latest_csv_file()
+    print(f"Sử dụng file kết quả: {latest_csv}")
+    
+    with open(latest_csv, "r", encoding='utf-8') as f:
         fieldnames = ['db_id', 'question', 'sql', 'explain', 'error']
         result_reader = csv.DictReader(f, fieldnames=fieldnames)
         with open('train_spider.json', 'r', encoding='utf-8') as fq:

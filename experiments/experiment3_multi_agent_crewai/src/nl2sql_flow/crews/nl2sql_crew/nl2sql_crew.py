@@ -81,6 +81,7 @@ class Nl2SqlCrew():
             output_json=NL2SQLResult
         )
 
+
     @crew
     def question_analysis_crew(self) -> Crew:
         return Crew(
@@ -93,7 +94,7 @@ class Nl2SqlCrew():
         )
 
     @crew
-    def select_needed_schema_screw(self) -> Crew:
+    def select_needed_schema_crew(self) -> Crew:
         return Crew(
             agents=self.agents,  # Automatically created by the @agent decorator
             # Automatically created by the @task decorator
