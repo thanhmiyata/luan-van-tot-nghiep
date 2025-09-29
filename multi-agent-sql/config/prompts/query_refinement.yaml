@@ -1,0 +1,95 @@
+# Query Refinement Agent Prompts
+# Refines natural language questions to be more clear, complete, and unambiguous
+
+agent_type: "query_refinement"
+description: "Refine natural language questions to be clearer, more complete, and less ambiguous"
+
+prompts:
+  6_step:
+    system_prompt: |
+      You are a Query Refinement expert for SQL generation. Your task is to take natural language questions and make them clearer, more complete, and less ambiguous while preserving the original intent.
+      
+      Refinement goals:
+      1. Make implicit information explicit
+      2. Resolve ambiguous references
+      3. Add missing context
+      4. Clarify the expected output format
+      5. Maintain the original question's intent
+
+    user_prompt: |
+      Refine this natural language question to be clearer and more complete:
+
+      Original Question: "{question}"
+      Database Context: {context}
+
+      Provide refinement in JSON format:
+      {{
+        "refined_question": "Clear, complete, and unambiguous version of the question",
+        "changes_made": [
+          "Made implicit table reference explicit",
+          "Clarified expected output format",
+          "Resolved ambiguous column reference"
+        ],
+        "assumptions": [
+          "Assumed user wants current active records only",
+          "Interpreted 'recent' as within last 30 days"
+        ],
+        "confidence": 0.90,
+        "reasoning": "Explanation of refinement decisions"
+      }}
+
+examples:
+  - original: "How many students?"
+    refined: "How many students are currently enrolled in the university?"
+    changes: ["Added context about current enrollment", "Clarified scope to university"]
+    
+  - original: "List courses"
+    refined: "List all course titles and their corresponding course IDs from the course table"
+    changes: ["Specified what information to return", "Made table reference explicit", "Clarified output format"]
+    
+  - original: "Show instructors with high salary"
+    refined: "Show the names and salaries of instructors whose salary is above the average instructor salary"
+    changes: ["Defined 'high salary' as above average", "Specified output columns", "Made comparison explicit"]
+    
+  - original: "Students in CS"
+    refined: "List the names of all students who are enrolled in the Computer Science department"
+    changes: ["Expanded 'CS' to 'Computer Science'", "Made action explicit (list)", "Specified output (names)", "Clarified relationship (enrolled in department)"]
+
+  - original: "Recent courses"
+    refined: "List all courses that were offered in the most recent semester"
+    changes: ["Defined 'recent' as most recent semester", "Made action explicit", "Clarified scope"]
+
+refinement_strategies:
+  - name: "explicit_scope"
+    description: "Make implicit scope boundaries explicit"
+    examples: ["students" -> "all students in the university", "courses" -> "all available courses"]
+    
+  - name: "resolve_ambiguity"
+    description: "Clarify ambiguous references"
+    examples: ["high salary" -> "salary above average", "recent" -> "in the last semester"]
+    
+  - name: "specify_output"
+    description: "Clarify what information should be returned"
+    examples: ["show students" -> "list student names and IDs", "courses" -> "course titles and credits"]
+    
+  - name: "expand_abbreviations"
+    description: "Expand common abbreviations and acronyms"
+    examples: ["CS" -> "Computer Science", "dept" -> "department", "prof" -> "professor"]
+    
+  - name: "add_context"
+    description: "Add missing contextual information"
+    examples: ["instructors" -> "instructors at this university", "grades" -> "final grades for courses"]
+
+common_ambiguities:
+  - "students": "all students vs enrolled students vs active students"
+  - "courses": "course titles vs course instances vs course offerings"
+  - "instructors": "all instructors vs active instructors vs instructors teaching current semester"
+  - "high/low": "above/below average vs above/below median vs in top/bottom percentile"
+  - "recent": "last month vs last semester vs last year"
+  - "best/worst": "highest/lowest value vs most/least popular vs highest/lowest rated"
+
+context_additions:
+  - temporal: "current semester", "academic year 2023-2024", "as of today"
+  - scope: "in this university", "in the database", "among all records"
+  - format: "list the names", "count the number", "show the average"
+  - relationships: "enrolled in", "taught by", "assigned to", "belongs to"

@@ -1,0 +1,142 @@
+# Entity Recognition Agent Prompts
+# Identifies tables, columns, values, and relationships mentioned in natural language questions
+
+agent_type: "entity_recognition"
+description: "Identify database entities (tables, columns, values) and relationships mentioned in questions"
+
+prompts:
+  6_step:
+    system_prompt: |
+      You are an Entity Recognition expert for SQL generation. Your task is to identify all database entities mentioned or implied in natural language questions.
+      
+      Identify:
+      1. Table names (direct mentions or synonyms)
+      2. Column names (explicit or implied references)  
+      3. Literal values (numbers, strings, dates)
+      4. Relationships between entities
+      5. Implicit entities needed for the query
+
+    user_prompt: |
+      Extract all entities from this refined question:
+
+      Original Question: "{question}"
+      Refined Question: "{refined_question}"
+      Database Metadata: {db_metadata}
+
+      Identify entities in JSON format:
+      {{
+        "tables": [
+          {{
+            "name": "student",
+            "confidence": 0.95,
+            "mentioned_as": ["students", "learners"],
+            "reasoning": "Question asks about students"
+          }}
+        ],
+        "columns": [
+          {{
+            "table": "student", 
+            "name": "name",
+            "confidence": 0.90,
+            "mentioned_as": ["names", "student names"],
+            "reasoning": "Question asks for names of students"
+          }}
+        ],
+        "values": [
+          {{
+            "value": "Computer Science",
+            "type": "string",
+            "likely_column": "dept_name", 
+            "confidence": 0.85,
+            "reasoning": "Specific department mentioned"
+          }}
+        ],
+        "relationships": [
+          {{
+            "type": "foreign_key",
+            "from_table": "takes",
+            "from_column": "student_id", 
+            "to_table": "student",
+            "to_column": "id",
+            "reasoning": "Needed to connect student with courses"
+          }}
+        ],
+        "implicit_entities": [
+          {{
+            "entity_type": "table",
+            "name": "takes",
+            "reasoning": "Bridge table needed to connect students with courses"
+          }}
+        ],
+        "ambiguities": [
+          {{
+            "text": "courses",
+            "possible_references": ["course.title", "course.course_id"],
+            "disambiguation_needed": "Whether user wants course names or IDs"
+          }}
+        ]
+      }}
+
+examples:
+  - question: "What are the names of all students?"
+    expected_entities:
+      tables: [{"name": "student", "mentioned_as": ["students"]}]
+      columns: [{"table": "student", "name": "name", "mentioned_as": ["names"]}]
+      
+  - question: "How many Computer Science instructors earn more than 50000?"
+    expected_entities:
+      tables: [{"name": "instructor", "mentioned_as": ["instructors"]}]
+      columns: [
+        {"table": "instructor", "name": "dept_name", "mentioned_as": ["Computer Science"]},
+        {"table": "instructor", "name": "salary", "mentioned_as": ["earn"]}
+      ]
+      values: [
+        {"value": "Computer Science", "type": "string", "likely_column": "dept_name"},
+        {"value": 50000, "type": "number", "likely_column": "salary"}
+      ]
+
+  - question: "List courses taken by students in Fall 2023"
+    expected_entities:
+      tables: [
+        {"name": "student", "mentioned_as": ["students"]},
+        {"name": "course", "mentioned_as": ["courses"]},
+        {"name": "takes", "reasoning": "Bridge table for student-course relationship"}
+      ]
+      columns: [
+        {"table": "course", "name": "title", "mentioned_as": ["courses"]},
+        {"table": "takes", "name": "semester", "mentioned_as": ["Fall"]},
+        {"table": "takes", "name": "year", "mentioned_as": ["2023"]}
+      ]
+      values: [
+        {"value": "Fall", "type": "string", "likely_column": "semester"},
+        {"value": 2023, "type": "number", "likely_column": "year"}
+      ]
+
+entity_patterns:
+  table_indicators:
+    - "students" -> "student"
+    - "instructors" -> "instructor" 
+    - "courses" -> "course"
+    - "classes" -> "course"
+    - "teachers" -> "instructor"
+    - "professors" -> "instructor"
+    
+  column_indicators:
+    - "names" -> "name"
+    - "titles" -> "title"
+    - "salaries" -> "salary"
+    - "earnings" -> "salary"
+    - "departments" -> "dept_name"
+    - "grades" -> "grade"
+    - "credits" -> "credits"
+    
+  value_patterns:
+    - department_names: ["Computer Science", "Mathematics", "Physics", "Biology"]
+    - semesters: ["Fall", "Spring", "Summer", "Winter"]
+    - grade_values: ["A", "B", "C", "D", "F", "A+", "A-", "B+", "B-"]
+    
+  relationship_indicators:
+    - "taught by" -> instructor-course relationship
+    - "taken by" -> student-course relationship  
+    - "enrolled in" -> student-course relationship
+    - "works in" -> instructor-department relationship
