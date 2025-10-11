@@ -70,7 +70,7 @@ def setup_environment():
     return True
 
 
-def get_test_questions(num_questions=20):
+def get_test_questions(num_questions=40):
     """Lấy số câu hỏi test từ train_spider.json - chọn database có >50 câu hỏi và random n câu"""
     global timing_metrics
     start_time = time.time()
@@ -108,8 +108,8 @@ def get_test_questions(num_questions=20):
     for i, (db, count) in enumerate(sorted_dbs[:10], 1):
         print(f"   {i}. {db}: {count} câu hỏi")
 
-    # Chọn database có nhiều câu hỏi nhất
-    selected_db = sorted_dbs[0][0]
+    # Chọn ngẫu nhiên một database có >50 câu hỏi
+    selected_db = random.choice(list(eligible_dbs.keys()))
     available_questions = db_questions[selected_db]
 
     print(
@@ -668,7 +668,7 @@ def main():
         return
 
     # 2. Lấy câu hỏi test
-    test_questions = get_test_questions(num_questions=20)
+    test_questions = get_test_questions(num_questions=40)
 
     # 3. Chạy NL2SQL system
     csv_filename, results = run_nl2sql_system(test_questions)

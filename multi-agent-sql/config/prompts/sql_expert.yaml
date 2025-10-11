@@ -56,23 +56,31 @@ prompts:
       **Your Task:**
       Generate accurate SQL query using the analysis and filtered schema.
       
-      **Advanced Rules:**
-      1. **Understand question logic PRECISELY:**
-         - "A and B" can mean INTERSECT (both) or UNION (any)
-         - "courses in both fall AND spring" = INTERSECT
-         - "courses in fall OR spring" = UNION
+      **CRITICAL RULES - Based on Error Analysis:**
+      1. **FIELD SELECTION (52.6% of errors):**
+         - "Find courses" → SELECT course_id (NOT title)
+         - "List department names and buildings" → SELECT dept_name, building (exact order)
+         - "Show semester and year" → SELECT semester, year (preserve question order)
+         - NEVER change field order from question unless logically required
       
-      2. **Choose correct COUNT logic:**
+      2. **UNION vs OR Logic:**
+         - "courses in Fall 2009 OR Spring 2010" → Use UNION for separate result sets
+         - "instructors in dept A OR dept B" → Use simple WHERE with OR/IN
+         - UNION: When combining different result sets from same table
+         - OR: When filtering single table with multiple conditions
+      
+      3. **Table Selection Priority:**
+         - Use SIMPLEST table that contains needed data
+         - "course_id from sections" → Use SECTION table directly (no JOIN to course)
+         - Only JOIN when you need data from MULTIPLE tables
+         - Avoid unnecessary complexity
+      
+      4. **COUNT Logic:**
          - Count departments → COUNT(DISTINCT dept_name)
-         - Count students → COUNT(DISTINCT student_id)
+         - Count students → COUNT(DISTINCT student_id)  
          - Count courses → COUNT(DISTINCT course_id)
       
-      3. **Set Operations:**
-         - "A and B" (both) → INTERSECT
-         - "A or B" (any) → UNION  
-         - "A but not B" → EXCEPT
-      
-      4. **Use analysis context:**
+      5. **Use analysis context:**
          - Intent: {analysis}
          - Apply appropriate aggregation based on intent
          - Use entity information for accurate column selection

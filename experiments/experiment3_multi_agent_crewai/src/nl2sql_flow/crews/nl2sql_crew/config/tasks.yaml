@@ -6,17 +6,23 @@ question_analysis_task:
     **Database:** ```{raw_db_schema}```
     
     Identify:
-    1. **Intent:** COUNT, LIST, MAX_MIN, AGGREGATION
-    2. **Complexity:** EASY (1 table), MEDIUM (2-3 tables), HARD (complex)
-    3. **Required tables:** student, instructor, course, section, etc.
-    4. **Required columns:** name, dept_name, semester, year, etc.
-    5. **Filter values:** 'Math', 'Fall', 2009, etc.
+    1. **CRITICAL - Expected Output Fields:** What fields should the SQL SELECT return?
+       - "Find courses" → course_id (NOT title unless explicitly asked)
+       - "List dept names and buildings" → dept_name, building (exact order)
+       - "Show semester and year" → semester, year (preserve order)
+    2. **Intent:** COUNT, LIST, MAX_MIN, AGGREGATION
+    3. **Complexity:** EASY (1 table), MEDIUM (2-3 tables), HARD (complex)
+    4. **Required tables:** student, instructor, course, section, etc.
+    5. **Required columns:** name, dept_name, semester, year, etc.
+    6. **Filter values:** 'Math', 'Fall', 2009, etc.
     
     **Return JSON:**
     ```json
     {
       "intent": "COUNT|LIST|MAX_MIN|AGGREGATION",
       "complexity": "EASY|MEDIUM|HARD",
+      "expected_output_fields": ["field1", "field2"],
+      "field_order_critical": true,
       "entities": {
         "tables": ["table1", "table2"],
         "columns": ["col1", "col2"],
@@ -68,30 +74,29 @@ generate_sql_task:
     **Schema:** ```{db_schema}```
     **Analysis:** ```{question_analysis}```
     
-    **IMPORTANT - Understanding logic:**
-    1. **AND vs OR distinction:**
-       - "courses in both fall AND spring" = courses in BOTH semesters → INTERSECT
-       - "courses in fall OR spring" = courses in ANY semester → UNION
+    **CRITICAL RULES - Based on Error Analysis:**
+    1. **FIELD SELECTION (TOP PRIORITY - 52.6% of errors):**
+       - Use EXACT fields from analysis "expected_output_fields"
+       - "Find courses" → SELECT course_id (NOT title)
+       - "List A and B" → SELECT A, B (exact order from analysis)
+       - NEVER substitute course_id with title, or id with name
+       - Preserve field order from "expected_output_fields"
     
-    2. **COUNT logic:**
+    2. **SIMPLICITY RULES:**
+       - "course_id from SECTION" → Use SECTION table directly (no JOIN to course)
+       - Only JOIN when you need data from MULTIPLE tables
+       - If all fields are in one table, use that table only
+    
+    3. **UNION vs OR Logic:**
+       - "courses in Fall 2009 OR Spring 2010" → Use UNION (separate result sets)
+       - "instructors in dept A OR dept B" → Use simple WHERE with OR/IN
+       - UNION: When combining different result sets from same table
+       - OR: When filtering single table with multiple conditions
+    
+    4. **COUNT logic:**
        - Count departments → COUNT(DISTINCT dept_name)
        - Count courses → COUNT(DISTINCT course_id) (if duplicates exist)
        - Count students with advisors → COUNT(DISTINCT s_id)
-    
-    3. **GROUP BY logic:**
-       - "courses offered by multiple departments" → GROUP BY title HAVING COUNT(*) > 1
-       - "count by group" → GROUP BY column, COUNT(*)
-    
-    4. **Set operations:**
-       - Both conditions → INTERSECT
-       - Any condition → UNION
-       - Exclude → EXCEPT
-    
-    5. **Key understanding for common mistakes:**
-       - "enrollment" usually refers to STUDENT enrollment, not course sections
-       - "highest enrollment department" = department with most STUDENTS
-       - Use lowercase for column names when possible (id, not ID)
-       - Prefer simple subqueries over complex JOINs when logically equivalent
     
     **CRITICAL - SQL Format Requirements:**
     - Return ONLY complete, executable SQL queries
@@ -121,24 +126,32 @@ validate_sql_task:
     **Schema:** ```{db_schema}```
     
     Check:
-    1. **Is syntax correct?** (SELECT, FROM, WHERE, etc.)
-    2. **Do table/column names exist?**
-    3. **Is logic correct?** (JOIN, WHERE conditions)
-    4. **Can it be executed?**
-    5. **Is SQL complete?** (Not a fragment or partial query)
-    6. **Is SQL single-line?** (No line breaks or formatting issues)
+    1. **FIELD SELECTION VALIDATION (TOP PRIORITY):**
+       - Does SELECT return the correct fields from analysis?
+       - Question asks "Find courses" → SQL must SELECT course_id (NOT title)
+       - Question asks "List A and B" → SQL must SELECT A, B (exact order)
+       - REJECT SQL that returns wrong fields or wrong order
+    2. **Is syntax correct?** (SELECT, FROM, WHERE, etc.)
+    3. **Do table/column names exist?**
+    4. **Is logic correct?** (JOIN, WHERE conditions)
+    5. **Can it be executed?**
+    6. **Is SQL complete?** (Not a fragment or partial query)
+    7. **Is SQL single-line?** (No line breaks or formatting issues)
     
     If errors exist, fix:
+    - **CRITICAL - Field Selection Fixes:**
+      - Wrong SELECT fields → Replace with correct fields from analysis
+      - SELECT title instead of course_id → Change to course_id
+      - Wrong field order → Reorder to match question/analysis
+      - Missing fields → Add required fields from analysis
     - Fix incorrect table/column names (check schema carefully!)
-    - **Convert ID to lowercase id for consistency**
-    - **Fix prerequisite logic: course_id vs prereq_id confusion**
-    - **Fix COUNT logic: use COUNT(DISTINCT) for unique entities, COUNT(*) for records**
     - **Remove unnecessary JOINs: if all columns in single table, use direct access**
-    - **Fix column order: match expected output (avg, count not count, avg)**
-    - **Fix GROUP BY: group by entity being counted, not display column**
+    - **Fix UNION vs OR logic: use UNION for separate result sets, OR for filtering**
+    - **Convert ID to lowercase id for consistency**
+    - **Fix COUNT logic: use COUNT(DISTINCT) for unique entities, COUNT(*) for records**
+    - **Fix column order: match expected output from analysis**
     - Fix JOIN conditions
-    - Simplify complex queries (prefer NOT IN over EXCEPT with JOIN)
-    - **Fix enrollment logic: use student table directly, not complex JOINs**
+    - Simplify complex queries (prefer simple table access over complex JOINs)
     - Verify column consistency in set operations (EXCEPT/INTERSECT)
     - Combine SQL fragments into complete queries
     - Remove line breaks and format as single line

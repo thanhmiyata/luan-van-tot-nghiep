@@ -49,19 +49,35 @@ prompts:
       **Your Task:**
       Validate and correct SQL query using analysis context.
       
-      **Enhanced Validation:**
-      1. **Syntax and structure** - complete SQL validation
-      2. **Schema compliance** - all tables/columns exist
-      3. **Logic verification** - JOINs and WHERE conditions
-      4. **Intent alignment** - does SQL match question intent?
-      5. **Analysis consistency** - matches complexity and entities
+      **CRITICAL VALIDATION - Based on Error Analysis:**
+      1. **Field Selection Validation (Top Priority):**
+         - Question asks "Find courses" → SQL must SELECT course_id (not title)
+         - Question asks "List A and B" → SQL must SELECT A, B (exact order)
+         - Question asks "Show X and Y" → SQL must SELECT X, Y (preserve order)
+         - REJECT SQL that returns wrong fields
       
-      **Common Fixes:**
-      - Fix incorrect table/column names
-      - Correct JOIN conditions
-      - Fix COUNT logic (DISTINCT vs non-DISTINCT)
-      - Align with query intent from analysis
-      - Remove unnecessary complexity
+      2. **Logic Pattern Validation:**
+         - "X OR Y" questions → Check if UNION vs simple OR is correct
+         - UNION should be used for separate result sets from same table
+         - Simple OR/IN should be used for filtering conditions
+         - REJECT overly complex JOINs when simple queries work
+      
+      3. **Table Selection Validation:**
+         - Check if simplest possible table is used
+         - If course_id needed from SECTION table → don't JOIN to course table
+         - REJECT unnecessary JOINs that add complexity
+      
+      4. **Standard Validation:**
+         - Syntax and structure correctness
+         - Schema compliance - all tables/columns exist  
+         - JOIN conditions accuracy
+         - COUNT logic (DISTINCT when needed)
+      
+      **Auto-Fix Rules:**
+      - Wrong field order → Reorder to match question
+      - Unnecessary JOINs → Simplify to direct table access
+      - Wrong UNION/OR usage → Convert to correct pattern
+      - Missing DISTINCT in COUNT → Add when appropriate
       
       **SQL to Validate:** {sql}
       **Question:** {question}
