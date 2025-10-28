@@ -95,34 +95,64 @@ class DataLoader:
             raise
 
     @staticmethod
-    def load_test_dataset(questions_file: str, tables_file: str, db_id: Optional[str] = None) -> Tuple[List[NLQuestion], DatabaseSchema]:
+    def load_test_dataset(
+        questions_file: Path,
+        tables_file: Path,
+        num_questions: Optional[int] = None,
+        db_id: Optional[str] = None
+    ) -> Tuple[List[NLQuestion], DatabaseSchema, List[str]]:
         """
-        Load complete test dataset (questions + schema)
+        Load complete test dataset (questions + schema + gold queries)
 
         Args:
             questions_file: Path to questions JSON file
             tables_file: Path to tables.json file  
+            num_questions: Number of questions to load (None = all)
             db_id: Specific database ID to use
 
         Returns:
-            Tuple of (questions, schema)
+            Tuple of (questions, schema, gold_queries)
         """
-        questions = DataLoader.load_spider_questions(questions_file)
+        # Load questions
+        with open(questions_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
 
-        # If db_id not specified, use the most common db_id from questions
+        # If db_id not specified, use the most common db_id
         if not db_id:
-            db_ids = [q.db_id for q in questions]
-            db_id = max(set(db_ids), key=db_ids.count)
+            db_ids = [item.get('db_id', '') for item in data]
+            from collections import Counter
+            db_id = Counter(db_ids).most_common(1)[0][0]
             logger.info(f"Auto-selected database: {db_id}")
 
-        schema = DataLoader.load_database_schema(tables_file, db_id)
-
         # Filter questions for the selected database
-        filtered_questions = [q for q in questions if q.db_id == db_id]
-        logger.info(
-            f"Filtered to {len(filtered_questions)} questions for database {db_id}")
+        filtered_data = [item for item in data if item.get('db_id') == db_id]
 
-        return filtered_questions, schema
+        # Limit number of questions if specified
+        if num_questions:
+            filtered_data = filtered_data[:num_questions]
+
+        # Extract questions and gold queries
+        questions = []
+        gold_queries = []
+
+        for i, item in enumerate(filtered_data):
+            question = NLQuestion(
+                question=item.get('question', ''),
+                db_id=item.get('db_id', ''),
+                question_id=item.get('question_id', str(i))
+            )
+            questions.append(question)
+
+            # Get gold SQL
+            gold_sql = item.get('query', item.get('sql', ''))
+            gold_queries.append(gold_sql)
+
+        logger.info(f"Loaded {len(questions)} questions for database {db_id}")
+
+        # Load schema
+        schema = DataLoader.load_database_schema(str(tables_file), db_id)
+
+        return questions, schema, gold_queries
 
     @staticmethod
     def save_results_to_sql_file(results: List[Dict[str, Any]], output_file: str):
