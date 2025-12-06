@@ -15,14 +15,48 @@ from pathlib import Path
 from typing import List, Dict, Tuple
 import time
 import re
+import argparse
 from dotenv import load_dotenv
 
 
-# Load environment variables từ .env file
-load_dotenv('experiments/experiment3_multi_agent_crewai/.env')
+# Đường dẫn cơ sở cho các thành phần dự án (cố định)
+DATA_DIR = Path("data")                   # data chung cho tất cả pipeline
+SPIDER_DATA_DIR = DATA_DIR / "spider_data"       # chứa database Spider
+OUTPUT_BASE_DIR = Path("output")          # thư mục output chung
 
-# Thêm đường dẫn để import các module CrewAI
-sys.path.append('experiments/experiment3_multi_agent_crewai/src')
+# Các biến toàn cục phụ thuộc loại pipeline (4-step hoặc 6-step)
+NL2SQL_BASE_DIR: Path | None = None       # sẽ được set trong configure_pipeline()
+PIPELINE_OUTPUT_DIR: Path | None = None   # output riêng cho từng pipeline
+PIPELINE_TYPE: str = "4step"              # "4step" hoặc "6step"
+
+
+def configure_pipeline(pipeline_type: str) -> None:
+    """
+    Cấu hình đường dẫn và môi trường cho pipeline 4-step hoặc 6-step.
+    """
+    global NL2SQL_BASE_DIR, PIPELINE_OUTPUT_DIR, PIPELINE_TYPE
+
+    if pipeline_type not in ("4step", "6step"):
+        raise ValueError("pipeline_type must be '4step' or '6step'")
+
+    PIPELINE_TYPE = pipeline_type
+
+    if pipeline_type == "4step":
+        NL2SQL_BASE_DIR = Path("src") / "nl2sql_4step"
+        PIPELINE_OUTPUT_DIR = OUTPUT_BASE_DIR / "nl2sql_4step"
+    else:
+        NL2SQL_BASE_DIR = Path("src") / "nl2sql_6step"
+        PIPELINE_OUTPUT_DIR = OUTPUT_BASE_DIR / "nl2sql_6step"
+
+    # Load environment variables từ .env file (nếu có)
+    load_dotenv(NL2SQL_BASE_DIR / ".env")  # type: ignore[arg-type]
+
+    # Thêm đường dẫn để import các module CrewAI (nl2sql_flow)
+    base_dir_str = str(NL2SQL_BASE_DIR)
+    if base_dir_str not in sys.path:
+        sys.path.append(base_dir_str)
+
+    print(f"🔧 Đã cấu hình pipeline: {PIPELINE_TYPE} (base dir = {NL2SQL_BASE_DIR})")
 
 # Global tracking variables
 ai_request_count = 0
@@ -43,17 +77,21 @@ api_call_details = {
 
 def setup_environment():
     """Setup môi trường và copy database cần thiết"""
-    global timing_metrics
+    global timing_metrics, PIPELINE_OUTPUT_DIR
     start_time = time.time()
+
+    if PIPELINE_OUTPUT_DIR is None:
+        raise RuntimeError(
+            "PIPELINE_OUTPUT_DIR chưa được cấu hình. Hãy gọi configure_pipeline() trước."
+        )
 
     print("[SETUP] Dang setup moi truong...")
 
     # Tạo thư mục output nếu chưa có
-    os.makedirs(
-        'experiments/experiment3_multi_agent_crewai/output', exist_ok=True)
+    os.makedirs(PIPELINE_OUTPUT_DIR, exist_ok=True)
 
-    # Copy database từ spider_data sang test-suite-sql-eval
-    source_db_dir = Path('Data Set/spider_data/database')
+    # Copy database từ data/spider_data sang test-suite-sql-eval
+    source_db_dir = SPIDER_DATA_DIR / 'database'
     target_db_dir = Path('experiments/test-suite-sql-eval/database')
 
     if source_db_dir.exists() and not target_db_dir.exists():
@@ -77,8 +115,9 @@ def get_test_questions(num_questions=40):
 
     import random
 
-    train_spider_file = 'experiments/experiment3_multi_agent_crewai/train_spider.json'
-    tables_file = 'experiments/experiment3_multi_agent_crewai/tables.json'
+    # Các file Spider dùng chung cho mọi pipeline (4-step, 6-step, single)
+    train_spider_file = DATA_DIR / 'train_spider.json'
+    tables_file = DATA_DIR / 'tables.json'
 
     with open(train_spider_file, 'r', encoding='utf-8') as f:
         spider_data = json.load(f)
@@ -190,8 +229,13 @@ def enhance_sql_query(sql_query: str, question_text: str, schema: dict) -> dict:
 
 def run_nl2sql_system(test_questions):
     """Chạy hệ thống NL2SQL CrewAI"""
-    global ai_request_count, execution_metrics, timing_metrics, api_call_details
+    global ai_request_count, execution_metrics, timing_metrics, api_call_details, PIPELINE_OUTPUT_DIR, PIPELINE_TYPE
     start_time = time.time()
+
+    if PIPELINE_OUTPUT_DIR is None:
+        raise RuntimeError(
+            "PIPELINE_OUTPUT_DIR chưa được cấu hình. Hãy gọi configure_pipeline() trước."
+        )
 
     print("\n🤖 Đang chạy hệ thống NL2SQL CrewAI...")
 
@@ -206,9 +250,11 @@ def run_nl2sql_system(test_questions):
 
     # Schema đã được load trong test_questions
 
-    # Tạo file CSV output
+    # Tạo file CSV output (theo từng pipeline)
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    csv_filename = f'experiments/experiment3_multi_agent_crewai/output/nl2sql_results_{timestamp}.csv'
+    csv_filename = str(
+        PIPELINE_OUTPUT_DIR / f'nl2sql_results_{PIPELINE_TYPE}_{timestamp}.csv'
+    )
 
     # Initialize CSV file
     with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
@@ -230,7 +276,8 @@ def run_nl2sql_system(test_questions):
             print("   🔄 Đang chạy multi-agent flow...")
 
             # Track AI requests (estimate based on typical CrewAI flow)
-            question_api_calls = 4  # Typical: schema analysis, SQL generation, validation, refinement
+            # 4-step: khoảng 4 calls, 6-step: khoảng 6 calls
+            question_api_calls = 6 if PIPELINE_TYPE == "6step" else 4
             ai_request_count += question_api_calls
             api_call_details['total_agent_calls'] += question_api_calls
 
@@ -350,13 +397,19 @@ def run_nl2sql_system(test_questions):
 
 def convert_csv_to_evaluation_format(csv_filename):
     """Convert CSV output sang format đánh giá"""
-    global timing_metrics
+    global timing_metrics, PIPELINE_OUTPUT_DIR
     start_time = time.time()
+
+    if PIPELINE_OUTPUT_DIR is None:
+        raise RuntimeError(
+            "PIPELINE_OUTPUT_DIR chưa được cấu hình. Hãy gọi configure_pipeline() trước."
+        )
 
     print("\n🔄 Đang convert CSV sang format đánh giá...")
 
-    predict_file = 'experiments/experiment3_multi_agent_crewai/predict.sql'
-    gold_file = 'experiments/experiment3_multi_agent_crewai/gold.sql'
+    # Lưu gold/predict chung vào thư mục output của pipeline hiện tại
+    predict_file = PIPELINE_OUTPUT_DIR / 'predict.sql'
+    gold_file = PIPELINE_OUTPUT_DIR / 'gold.sql'
 
     # Đọc CSV results (đã có ground truth trong CSV)
     with open(csv_filename, 'r', encoding='utf-8') as f:
@@ -398,8 +451,8 @@ def run_evaluation(gold_file, predict_file):
     current_dir = Path.cwd()
 
     try:
-        # Copy tables.json từ experiment3 sang test-suite-sql-eval trước khi chuyển thư mục
-        tables_source = current_dir / 'experiments/experiment3_multi_agent_crewai/tables.json'
+        # Copy tables.json từ data chung sang test-suite-sql-eval trước khi chạy evaluation
+        tables_source = current_dir / DATA_DIR / 'tables.json'
         tables_target = eval_dir / 'tables.json'
 
         if not tables_target.exists() and tables_source.exists():
@@ -420,10 +473,8 @@ def run_evaluation(gold_file, predict_file):
         # Chạy evaluation từ thư mục gốc với đường dẫn đầy đủ
         eval_script = os.path.join(
             current_dir, 'experiments', 'test-suite-sql-eval', 'evaluation.py')
-        gold_path = os.path.join(
-            current_dir, 'experiments', 'experiment3_multi_agent_crewai', 'gold.sql')
-        pred_path = os.path.join(
-            current_dir, 'experiments', 'experiment3_multi_agent_crewai', 'predict.sql')
+        gold_path = str(current_dir / gold_file)
+        pred_path = str(current_dir / predict_file)
         db_path = os.path.join(current_dir, 'experiments',
                                'test-suite-sql-eval', 'database')
         tables_path = os.path.join(
@@ -657,7 +708,22 @@ def main():
         'total_agent_calls': 0
     }
 
-    print("🚀 Bắt đầu chạy Complete NL2SQL Pipeline")
+    # Parse tham số dòng lệnh
+    parser = argparse.ArgumentParser(
+        description="Chạy complete NL2SQL pipeline với lựa chọn 4-step hoặc 6-step."
+    )
+    parser.add_argument(
+        "--pipeline",
+        choices=["4step", "6step"],
+        default="4step",
+        help="Chọn loại pipeline NL2SQL: 4step (mặc định) hoặc 6step."
+    )
+    args = parser.parse_args()
+
+    # Cấu hình pipeline tương ứng
+    configure_pipeline(args.pipeline)
+
+    print(f"🚀 Bắt đầu chạy Complete NL2SQL Pipeline ({args.pipeline})")
     print("=" * 60)
 
     start_time = time.time()
@@ -667,8 +733,8 @@ def main():
         print("❌ Setup environment thất bại")
         return
 
-    # 2. Lấy câu hỏi test
-    test_questions = get_test_questions(num_questions=40)
+    # 2. Lấy câu hỏi test (tạm thời dùng 3 câu hỏi để thử pipeline)
+    test_questions = get_test_questions(num_questions=3)
 
     # 3. Chạy NL2SQL system
     csv_filename, results = run_nl2sql_system(test_questions)
