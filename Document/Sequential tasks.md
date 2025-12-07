@@ -6,7 +6,7 @@ This document provides sequential tasks with ready-to-use prompts for ChatGPT 5 
 
 **Model:** ChatGPT 5 (recommended for final assembly, formatting, and polish)
 
-**Total Tasks:** 5 sequential tasks
+**Total Tasks:** 5 sequential tasks (Task 1 has 3 lightweight steps)
 
 ---
 
@@ -31,6 +31,8 @@ This document provides sequential tasks with ready-to-use prompts for ChatGPT 5 
 
 ## Task 1: Combine All Sections into Single Document
 
+### ⚠️ RECOMMENDED APPROACH: Use the 3-step incremental process below (each step only processes 1 existing file + 2 new sections)
+
 ### Objective
 Combine all paper sections into one complete document with consistent formatting.
 
@@ -41,6 +43,140 @@ Combine all paper sections into one complete document with consistent formatting
 - Methodology draft
 - Discussion draft
 - Conclusion draft
+
+---
+
+## 🔄 Task 1: 3-Step Process (RECOMMENDED)
+
+### Step 1.1: Combine Abstract + Introduction
+
+**Prompt for ChatGPT 5:**
+
+```
+You are combining the first two sections of a scientific paper.
+
+## Task
+Read and combine these 2 files in order:
+1. `Document/abstract_draft.md` - Abstract section
+2. `Document/introduction_review.md` - Introduction section
+
+## Requirements
+- Combine in order: Abstract → 1. Introduction
+- Use consistent heading levels (# for title, ## for main sections)
+- Keep all content (do not remove anything)
+- Preserve citations in [Author et al., Year] format
+- Keep placeholders [X]% as-is
+- Ensure smooth transition between Abstract and Introduction
+
+## Output
+Provide the combined Abstract + Introduction sections in markdown format.
+```
+
+**Save output as:** `paper_step1_abstract_intro.md`
+
+**Checklist:**
+- [ ] Abstract section included
+- [ ] Introduction section included
+- [ ] Consistent formatting
+- [ ] All citations preserved
+- [ ] Placeholders [X]% preserved
+
+---
+
+### Step 1.2: Add Related Work + Methodology to Existing File
+
+**Prompt for ChatGPT 5:**
+
+```
+You are adding the Related Work and Methodology sections to an existing paper file.
+
+## Task
+1. Read the existing file: `paper_step1_abstract_intro.md` (contains: Abstract, Introduction)
+2. Read these 2 new sections:
+   - `Document/related_work_draft.md` - Related Work section
+   - `Document/methodology_draft.md` - Methodology section
+
+## Requirements
+- Keep all existing content from `paper_step1_abstract_intro.md` (Abstract, Introduction)
+- Append new sections in order: 2. Related Work → 3. Methodology
+- Use consistent heading levels (## for main sections, ### for subsections)
+- Keep all content (do not remove anything)
+- Preserve citations in [Author et al., Year] format
+- Keep placeholders [X]% as-is
+- Ensure smooth transition between Introduction and Related Work
+- Ensure smooth transition between Related Work and Methodology
+
+## Output
+Provide the updated paper with all 4 sections in order:
+- Abstract
+- 1. Introduction
+- 2. Related Work
+- 3. Methodology
+```
+
+**Save output as:** `paper_step2_with_methodology.md` (overwrite or update the file)
+
+**Checklist:**
+- [ ] Abstract section preserved
+- [ ] Introduction section preserved
+- [ ] Related Work section added
+- [ ] Methodology section added
+- [ ] Consistent formatting throughout
+- [ ] All citations preserved
+- [ ] Placeholders [X]% preserved
+- [ ] Smooth transitions between sections
+
+---
+
+### Step 1.3: Add Discussion + Conclusion to Existing File
+
+**Prompt for ChatGPT 5:**
+
+```
+You are adding the Discussion and Conclusion sections to an existing paper file.
+
+## Task
+1. Read the existing file: `paper_step2_with_methodology.md` (contains: Abstract, Introduction, Related Work, Methodology)
+2. Read these 2 new sections:
+   - `Document/discussion_draft.md` - Discussion section
+   - `Document/conclusion_draft.md` - Conclusion section
+
+## Requirements
+- Keep all existing content from `paper_step2_with_methodology.md` (Abstract, Introduction, Related Work, Methodology)
+- Append new sections in order: 4. Discussion → 5. Conclusion
+- Use consistent heading levels throughout
+- Verify section numbering is sequential: Abstract, 1. Introduction, 2. Related Work, 3. Methodology, 4. Discussion, 5. Conclusion
+- Keep all content intact (do not remove anything)
+- Preserve all citations in [Author et al., Year] format
+- Keep placeholders [X]% as-is
+- Ensure smooth transition between Methodology and Discussion
+- Ensure smooth transition between Discussion and Conclusion
+
+## Output
+Provide the complete combined paper in markdown format with:
+- All 6 sections in correct order
+- Consistent formatting throughout
+- Proper section numbering (Abstract, 1-5)
+- Brief summary: total word count, number of sections
+```
+
+**Save output as:** `complete_paper_combined.md`
+
+**Checklist:**
+- [ ] All 6 sections included (Abstract, Introduction, Related Work, Methodology, Discussion, Conclusion)
+- [ ] All previous sections preserved
+- [ ] Discussion section added
+- [ ] Conclusion section added
+- [ ] Sections in correct order
+- [ ] Consistent formatting
+- [ ] Proper section numbering
+- [ ] All citations preserved
+- [ ] Placeholders [X]% preserved
+- [ ] Smooth transitions between all sections
+
+---
+
+## 📝 ALTERNATIVE: Original Task 1 (Use only if 3-step process not needed)
 
 ### Prompt for ChatGPT 5
 
@@ -587,7 +723,10 @@ After completing all 5 tasks, you should have:
 ## Workflow Summary
 
 ```
-Task 1: Combine Sections
+Task 1: Combine Sections (3 Incremental Steps)
+    Step 1.1: Abstract + Introduction → paper_step1_abstract_intro.md
+    Step 1.2: Read Step 1.1 output + Add Related Work + Methodology → paper_step2_with_methodology.md
+    Step 1.3: Read Step 1.2 output + Add Discussion + Conclusion → complete_paper_combined.md
     ↓
 Task 2: Format Citations
     ↓
@@ -602,16 +741,85 @@ Complete Paper Ready
 
 ---
 
+## Troubleshooting Guide
+
+### Problem: "Tool call ended before result was received"
+
+**Cause:** Paper too long or too many files read at once
+
+**Solutions:**
+
+1. **Use 3-Step Incremental Process (Recommended - Already implemented):**
+   - Step 1.1: Creates initial file with 2 sections
+   - Step 1.2: Reads Step 1.1 output + adds 2 sections (only processes 1 existing file + 2 new sections)
+   - Step 1.3: Reads Step 1.2 output + adds 2 sections (only processes 1 existing file + 2 new sections)
+   - This approach minimizes load: each step only needs to read 1 existing file and 2 new sections
+   - Much lighter than merging multiple files at once
+
+2. **If any step still fails:**
+   - Verify the input file from previous step exists and is complete
+   - Try processing one section at a time instead of two
+   - Copy-paste content directly into prompt instead of using file references
+
+3. **If still failing:**
+   - Copy-paste content directly into prompt instead of using file references
+   - Use shorter prompts with explicit instructions
+   - Process one section at a time and manually combine
+
+### Problem: Output truncated or incomplete
+
+**Solutions:**
+- Ask for continuation: "Continue from where you left off"
+- Request specific section: "Provide only the Methodology section"
+- Use "Continue" command if ChatGPT stops mid-output
+
+### Problem: Citations lost or formatting changed
+
+**Solutions:**
+- Explicitly state: "Preserve all citations exactly as [Author et al., Year]"
+- Verify after each task
+- Keep backup of original files
+
+### Best Practices
+
+1. **Save After Each Task:**
+   - Save output immediately after each task completes
+   - Name files clearly: `paper_task1.md`, `paper_task2.md`, etc.
+   - Keep backups
+
+2. **Verify Before Next Task:**
+   - Check output quality before proceeding
+   - Verify all content is present
+   - Check for formatting issues
+
+3. **If Task Fails:**
+   - Don't retry immediately (may hit rate limits)
+   - Wait 5-10 minutes
+   - Use subtask approach instead
+   - Try shorter, more focused prompts
+
+4. **For Large Papers:**
+   - Always use subtask approach
+   - Process in chunks
+   - Verify each chunk before combining
+
+---
+
 ## Notes
 
 - **Model:** Use ChatGPT 5 for all tasks (best for accuracy, consistency, and formatting)
 - **Order:** Complete tasks sequentially (each task depends on previous)
-- **Backup:** Save output of each task before proceeding to next
-- **Verification:** Check each task output before moving to next task
+- **Task 1 Approach:** Use incremental 3-step process - each step reads 1 existing file and adds 2 sections
+  - Step 1.1: Creates initial file (2 sections)
+  - Step 1.2: Updates file by adding 2 sections (1 file + 2 sections)
+  - Step 1.3: Updates file by adding 2 sections (1 file + 2 sections)
+- **Backup:** Save output of each step before proceeding to next
+- **Verification:** Check each step output before moving to next step
 - **Time Estimate:** ~2-3 hours total (depending on paper length and complexity)
+- **If Errors:** Each step has minimal load (1 file + 2 sections), greatly reducing chance of errors
 
 ---
 
 **Last Updated:** [CURRENT_DATE]
-**Status:** Ready to Execute
+**Status:** Ready to Execute (with troubleshooting guide)
 
