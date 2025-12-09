@@ -1,7 +1,3 @@
-Dưới đây là bản dịch nguyên văn toàn bộ nội dung bài báo từ đường dẫn bạn cung cấp, không tóm tắt bất kỳ phần nào.
-
-***
-
 # Chuyển đổi Ngôn ngữ Tự nhiên sang SQL sử dụng Hệ thống Đa tác nhân
 
 ## Tóm tắt (Abstract)
