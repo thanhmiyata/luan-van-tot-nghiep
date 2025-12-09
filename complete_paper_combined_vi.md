@@ -160,8 +160,6 @@ Công việc hiện tại trong NL2SQL, hệ thống đa tác nhân và học c�
 
 ## 3. Phương pháp luận (Methodology)
 
-### Phiên bản Dự thảo (Draft Version)
-
 ### 3.1 Tổng quan
 Như được hiển thị trong Hình 1, kiến trúc đa tác nhân của chúng tôi cho việc chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) tận dụng khung làm việc CrewAI để điều phối sáu tác nhân chuyên biệt làm việc cộng tác. Kiến trúc hệ thống tuân theo một quy trình tuần tự trong đó mỗi tác nhân thực hiện một vai trò cụ thể trong quá trình tạo truy vấn: phân tích câu hỏi, chọn lược đồ, lập kế hoạch truy vấn, tạo SQL, tinh chỉnh một lần và xác thực.
 
@@ -502,8 +500,6 @@ Tích hợp với các giao diện hội thoại sẽ cho phép NL2SQL nhiều l
 ---
 
 ## 5. Kết luận - Chuyển đổi Ngôn ngữ Tự nhiên sang SQL sử dụng Hệ thống Đa tác nhân
-
-### Phiên bản Dự thảo (Draft Version)
 Các hệ thống Chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truyền thống thường gặp khó khăn với các truy vấn phức tạp đòi hỏi suy luận nhiều bước, hiểu chính xác lược đồ và sinh mã SQL chuẩn xác, với các lỗi hệ thống trong việc chọn trường chiếm 52,6% số thất bại. Bài báo này đã giải quyết những hạn chế này thông qua một hệ thống đa tác nhân mới sử dụng khung làm việc CrewAI, với sáu tác nhân chuyên biệt có vai trò riêng biệt và cơ chế tinh chỉnh một lần cho phép sửa lỗi thông qua sự cộng tác của tác nhân.
 
 Bài báo này đưa ra bốn đóng góp chính. Thứ nhất, chúng tôi đề xuất một kiến trúc 6 tác nhân mới được thiết kế đặc biệt cho NL2SQL, với các tác nhân chuyên biệt—Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL, và Tinh chỉnh SQL—mỗi tác nhân tập trung vào các khía cạnh riêng biệt của nhiệm vụ NL2SQL. Thứ hai, chúng tôi thực hiện phân tích lỗi toàn diện xác định việc chọn trường là nguồn lỗi chính, chiếm 52,6% các lỗi, và thực hiện các chiến lược giảm thiểu có mục tiêu trong tác nhân Phân tích Câu hỏi của chúng tôi. Thứ ba, chúng tôi cung cấp đánh giá thực nghiệm so sánh các kiến trúc quy trình 4 bước và 6 bước trên tập dữ liệu Spider, chứng minh tác động của việc lập kế hoạch truy vấn và tinh chỉnh một lần đối với độ chính xác. Thứ tư, chúng tôi phân tích các mô hình cộng tác của tác nhân, bao gồm luồng thông tin giữa các tác nhân và quy trình tinh chỉnh một lần, và tác động của chúng đối với độ chính xác truy vấn.

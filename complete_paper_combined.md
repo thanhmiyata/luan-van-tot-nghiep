@@ -168,8 +168,6 @@ Existing work in NL2SQL, multi-agent systems, and tool learning has made signifi
 
 ## 3. Methodology
 
-### Draft Version
-
 ### 3.1 Overview
 
 As shown in Figure 1, our multi-agent architecture for Natural Language to SQL (NL2SQL) translation leverages the CrewAI framework to orchestrate six specialized agents working collaboratively. The system architecture follows a sequential pipeline where each agent performs a specific role in the query generation process: question analysis, schema selection, query planning, SQL generation, single-pass refinement, and validation.
@@ -534,8 +532,6 @@ Integration with conversational interfaces would enable multi-turn NL2SQL, allow
 
 ---
 ## 5. Conclusion - Natural Language to SQL using Multi-Agent Systems
-
-### Draft Version
 
 Traditional Natural Language to SQL (NL2SQL) systems struggle with complex queries requiring multi-step reasoning, accurate schema understanding, and proper SQL generation, with systematic errors in field selection accounting for 52.6% of failures. This paper addressed these limitations through a novel multi-agent system using the CrewAI framework, featuring six specialized agents with distinct roles and a single-pass refinement mechanism that enables error correction through agent collaboration.
 
