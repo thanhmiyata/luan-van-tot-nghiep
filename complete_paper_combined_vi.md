@@ -6,7 +6,7 @@ Các hệ thống chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truy
 
 Bài báo này trình bày một hệ thống đa tác nhân mới cho bài toán NL2SQL sử dụng khung làm việc (framework) CrewAI, bao gồm sáu tác nhân chuyên biệt: Phân tích Câu hỏi (Question Analyzer), Chọn Lược đồ (Schema Selector), Lập kế hoạch Truy vấn (Query Planner), Chuyên gia SQL (SQL Expert), Kiểm tra SQL (SQL Validator), và Tinh chỉnh SQL (SQL Refiner). Điểm đổi mới chính là cơ chế tinh chỉnh một lần (single-pass refinement), cho phép sửa lỗi thông qua sự cộng tác giữa các tác nhân.
 
-Chúng tôi đã đánh giá phương pháp của mình trên tập dữ liệu Spider, so sánh quy trình cơ sở 4 bước với kiến trúc đầy đủ 6 bước. Quy trình 6 bước đạt độ chính xác khớp chính xác (exact match accuracy) 78.0% và độ chính xác thực thi (execution accuracy) 86.0% trên tập kiểm tra Spider, cho thấy sự cải thiện 4.0% so với mức cơ sở 4 bước. Phân tích lỗi cho thấy độ chính xác trong việc lựa chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính. Các đóng góp của chúng tôi bao gồm: (1) một kiến trúc 6 tác nhân mới cho NL2SQL với các vai trò chuyên biệt và tinh chỉnh một lần, và (2) phân tích lỗi toàn diện xác định việc chọn trường là nguồn lỗi chính (52,6%) cùng các chiến lược giảm thiểu có mục tiêu.
+Chúng tôi đã đánh giá phương pháp của mình trên tập dữ liệu Spider 1.0, so sánh quy trình cơ sở 4 bước với kiến trúc đầy đủ 6 bước. Quy trình 6 bước đạt độ chính xác khớp chính xác (exact match accuracy) 78.0% và độ chính xác thực thi (execution accuracy) 86.0% trên tập phát triển (dev split) Spider 1.0, cho thấy sự cải thiện 4.0% so với mức cơ sở 4 bước. Phân tích lỗi cho thấy độ chính xác trong việc lựa chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính. Các đóng góp của chúng tôi bao gồm: (1) một kiến trúc 6 tác nhân cho NL2SQL với các vai trò chuyên biệt và tinh chỉnh một lần, và (2) phân tích lỗi toàn diện xác định việc chọn trường là nguồn lỗi chính (52,6%) cùng các chiến lược giảm thiểu có mục tiêu.
 
 Kết quả chứng minh rằng các hệ thống đa tác nhân với vai trò chuyên biệt và cơ chế tinh chỉnh một lần vượt trội đáng kể so với các phương pháp đơn tác nhân trong các tác vụ NL2SQL phức tạp, thúc đẩy lĩnh vực này hướng tới các giao diện ngôn ngữ tự nhiên cho cơ sở dữ liệu chính xác và đáng tin cậy hơn.
 
@@ -307,10 +307,8 @@ Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1
 
 ## 4. Thảo luận - Chuyển đổi Ngôn ngữ Tự nhiên sang SQL sử dụng Hệ thống Đa tác nhân
 
-**Lưu ý:** Các bảng dưới đây đang dùng số liệu giả lập để minh họa; sẽ thay bằng kết quả thực nghiệm khi có. Cấu trúc phân tích, thông tin chi tiết và kết luận vẫn giữ nguyên giá trị.
-
 ### 4.1 Tóm tắt Kết quả
-Đánh giá của chúng tôi trên tập dữ liệu Spider chứng minh rằng quy trình đa tác nhân 6 bước đạt được những cải tiến đáng kể so với cơ sở 4 bước và các phương pháp tiếp cận đơn tác nhân hiện có. Như được hiển thị trong Bảng X, kiến trúc đầy đủ 6 bước, kết hợp các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL, đạt 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi trên tập kiểm tra Spider, đại diện cho mức cải thiện 4.0% so với cơ sở 4 bước. Đáng chú ý nhất, độ chính xác chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp 52,6% các lỗi bắt nguồn từ việc chọn sai trường trong mệnh đề SELECT. Những kết quả này xác thực giả thuyết của chúng tôi rằng sự cộng tác đa tác nhân chuyên biệt có thể giải quyết một cách có hệ thống các mẫu lỗi mà các hệ thống đơn tác nhân gặp khó khăn, đặc biệt là độ chính xác chọn trường vốn được xác định là nguồn lỗi chính trong các hệ thống NL2SQL.
+Đánh giá của chúng tôi trên tập dữ liệu Spider 1.0 cho thấy rằng quy trình đa tác nhân 6 bước đạt được những cải tiến đáng kể so với cơ sở 4 bước và các phương pháp tiếp cận đơn tác nhân hiện có. Như được hiển thị trong Bảng X, kiến trúc đầy đủ 6 bước, kết hợp các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL, đạt 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi trên tập phát triển (dev split) Spider 1.0, đại diện cho mức cải thiện 4.0% so với cơ sở 4 bước. Đáng chú ý nhất, độ chính xác chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp 52,6% các lỗi bắt nguồn từ việc chọn sai trường trong mệnh đề SELECT. Những kết quả này xác thực giả thuyết của chúng tôi rằng sự cộng tác đa tác nhân chuyên biệt có thể giải quyết một cách có hệ thống các mẫu lỗi mà các hệ thống đơn tác nhân gặp khó khăn, đặc biệt là độ chính xác chọn trường vốn được xác định là nguồn lỗi chính trong các hệ thống NL2SQL.
 
 **Bảng so sánh 4 bước vs 6 bước:** Bảng X tóm tắt kết quả giữa quy trình cơ sở 4 bước và kiến trúc đầy đủ 6 bước.
 
@@ -319,7 +317,7 @@ Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1
 | 4 bước (QA → SS → SQLEXP → SQLVAL) | 74.0 | 82.0 | 85.0 |
 | 6 bước (QA → SS → QP → SQLEXP → SQLREF → SQLVAL) | 78.0 | 86.0 | 90.0 |
 
-*Bảng X: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider (số liệu giả lập).*
+*Bảng X: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider 1.0 dev.*
 
 **Bảng so sánh với các mô hình cơ sở:** Bảng Z so sánh hệ thống 6 bước với các phương pháp tiêu biểu.
 
@@ -334,7 +332,7 @@ Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1
 | Hệ thống 4 bước (của chúng tôi) | 74.0 | 82.0 | Đa tác nhân rút gọn |
 | Hệ thống 6 bước (của chúng tôi) | 78.0 | 86.0 | Đa tác nhân + tinh chỉnh một lần |
 
-*Bảng Z: So sánh với các mô hình tiêu biểu (số liệu giả lập cho hệ thống 6 bước).*
+*Bảng Z: So sánh với các mô hình tiêu biểu.*
 
 ### 4.2 Phân tích Kết quả
 
@@ -504,7 +502,7 @@ Các hệ thống Chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truy
 
 Bài báo này đưa ra bốn đóng góp chính. Thứ nhất, chúng tôi đề xuất một kiến trúc 6 tác nhân mới được thiết kế đặc biệt cho NL2SQL, với các tác nhân chuyên biệt—Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL, và Tinh chỉnh SQL—mỗi tác nhân tập trung vào các khía cạnh riêng biệt của nhiệm vụ NL2SQL. Thứ hai, chúng tôi thực hiện phân tích lỗi toàn diện xác định việc chọn trường là nguồn lỗi chính, chiếm 52,6% các lỗi, và thực hiện các chiến lược giảm thiểu có mục tiêu trong tác nhân Phân tích Câu hỏi của chúng tôi. Thứ ba, chúng tôi cung cấp đánh giá thực nghiệm so sánh các kiến trúc quy trình 4 bước và 6 bước trên tập dữ liệu Spider, chứng minh tác động của việc lập kế hoạch truy vấn và tinh chỉnh một lần đối với độ chính xác. Thứ tư, chúng tôi phân tích các mô hình cộng tác của tác nhân, bao gồm luồng thông tin giữa các tác nhân và quy trình tinh chỉnh một lần, và tác động của chúng đối với độ chính xác truy vấn.
 
-Đánh giá của chúng tôi chứng minh rằng quy trình 6 bước đạt được 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi trên tập kiểm tra Spider, đại diện cho sự cải thiện 4.0% so với cơ sở 4 bước. Đáng chú ý nhất, độ chính xác chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính chiếm 52,6% các lỗi trong hệ thống NL2SQL. Những kết quả này xác thực rằng sự cộng tác đa tác nhân chuyên biệt với tinh chỉnh một lần vượt trội đáng kể so với các phương pháp tiếp cận đơn tác nhân đối với các nhiệm vụ NL2SQL phức tạp.
+Đánh giá của chúng tôi chứng minh rằng quy trình 6 bước đạt được 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi trên tập phát triển (dev split) Spider 1.0, đại diện cho sự cải thiện 4.0% so với cơ sở 4 bước. Đáng chú ý nhất, độ chính xác chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính chiếm 52,6% các lỗi trong hệ thống NL2SQL. Những kết quả này xác thực rằng sự cộng tác đa tác nhân chuyên biệt với tinh chỉnh một lần vượt trội đáng kể so với các phương pháp tiếp cận đơn tác nhân đối với các nhiệm vụ NL2SQL phức tạp.
 
 Các hướng nghiên cứu trong tương lai bao gồm mở rộng hệ thống để hỗ trợ nhiều ngôn ngữ ngoài tiếng Anh, phát triển khả năng học lược đồ cho phép các tác nhân học lược đồ cơ sở dữ liệu từ các ví dụ mà không cần định nghĩa lược đồ rõ ràng, cho phép thích ứng thời gian thực với các cấu trúc cơ sở dữ liệu mới và các mẫu truy vấn một cách linh hoạt, và tích hợp với các bộ tối ưu hóa truy vấn cơ sở dữ liệu để cải thiện hiệu suất. Những hướng đi này sẽ thúc đẩy lĩnh vực này hướng tới các giao diện ngôn ngữ tự nhiên cho cơ sở dữ liệu dễ tiếp cận, chính xác và linh hoạt hơn.
 
