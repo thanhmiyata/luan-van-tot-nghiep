@@ -533,7 +533,7 @@ Các hướng nghiên cứu trong tương lai bao gồm mở rộng hệ thống
 
 ## Phụ lục A. Ánh xạ Trích dẫn (Appendix A. Citation Mapping)
 
-| Trích dẫn cũ trong văn bản | ID Mới | Tóm tắt tham khảo |
+| Tác giả/Công trình | Số tham chiếu | Mô tả |
 | :--- | :--- | :--- |
 | [Zhong et al., 2017] (Seq2SQL, WikiSQL) | [1] | Mô hình Seq2SQL và tập dữ liệu WikiSQL |
 | [Yu et al., 2018] (SyntaxSQLNet) | [2] | Mô hình Text-to-SQL SyntaxSQLNet |
