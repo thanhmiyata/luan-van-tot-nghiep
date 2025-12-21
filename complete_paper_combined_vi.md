@@ -2,13 +2,13 @@
 
 ## Tóm tắt (Abstract)
 
-Các hệ thống chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truyền thống thường gặp khó khăn với các truy vấn phức tạp đòi hỏi suy luận nhiều bước, hiểu chính xác lược đồ (schema) và sinh mã SQL chuẩn xác. Các phương pháp tiếp cận đơn tác nhân (single-agent) thường thất bại trong các phép nối (JOIN) phức tạp, truy vấn lồng nhau và độ chính xác trong việc lựa chọn trường dữ liệu; trong đó lỗi chọn trường chiếm tới 52,6% tổng số lỗi.
+Các hệ thống chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truyền thống thường gặp khó khăn với các truy vấn phức tạp đòi hỏi suy luận nhiều bước và hiểu chính xác lược đồ. Các phương pháp đơn tác nhân thất bại trong các phép JOIN phức tạp và lựa chọn trường dữ liệu, trong đó lỗi chọn trường chiếm 52,6% tổng số lỗi.
 
-Bài báo này trình bày một hệ thống đa tác nhân mới cho bài toán NL2SQL sử dụng khung làm việc (framework) CrewAI, bao gồm sáu tác nhân chuyên biệt: Phân tích Câu hỏi (Question Analyzer), Chọn Lược đồ (Schema Selector), Lập kế hoạch Truy vấn (Query Planner), Chuyên gia SQL (SQL Expert), Kiểm tra SQL (SQL Validator), và Tinh chỉnh SQL (SQL Refiner). Điểm đổi mới chính là cơ chế tinh chỉnh một lần (single-pass refinement), cho phép sửa lỗi thông qua sự cộng tác giữa các tác nhân.
+Bài báo này trình bày một hệ thống **multi-agent** mới cho NL2SQL sử dụng khung CrewAI, với **multi-agent pipeline** gồm sáu **AI Agent** chuyên biệt: Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL, và Tinh chỉnh SQL. Điểm đổi mới là cơ chế tinh chỉnh một lần cho phép sửa lỗi thông qua cộng tác giữa các tác nhân.
 
-Chúng tôi đã đánh giá phương pháp của mình trên tập dữ liệu Spider 1.0, so sánh quy trình cơ sở 4 bước với kiến trúc đầy đủ 6 bước. Quy trình 6 bước đạt độ chính xác khớp chính xác (exact match accuracy) 78.0% và độ chính xác thực thi (execution accuracy) 86.0% trên tập phát triển (dev split) Spider 1.0, cho thấy sự cải thiện 4.0% so với mức cơ sở 4 bước. Phân tích lỗi cho thấy độ chính xác trong việc lựa chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính. Các đóng góp của chúng tôi bao gồm: (1) một kiến trúc 6 tác nhân cho NL2SQL với các vai trò chuyên biệt và tinh chỉnh một lần, và (2) phân tích lỗi toàn diện xác định việc chọn trường là nguồn lỗi chính (52,6%) cùng các chiến lược giảm thiểu có mục tiêu.
+Đánh giá trên tập dữ liệu Spider 1.0 cho thấy quy trình 6 bước đạt 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi, cải thiện 4.0% so với cơ sở 4 bước. Độ chính xác chọn trường được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính. Các đóng góp: (1) kiến trúc 6 tác nhân cho NL2SQL với vai trò chuyên biệt và tinh chỉnh một lần (xem Phần 3), và (2) phân tích lỗi toàn diện xác định chọn trường là nguồn lỗi chính (52,6%) cùng chiến lược giảm thiểu có mục tiêu (xem Phần 4.4).
 
-Kết quả chứng minh rằng các hệ thống đa tác nhân với vai trò chuyên biệt và cơ chế tinh chỉnh một lần vượt trội đáng kể so với các phương pháp đơn tác nhân trong các tác vụ NL2SQL phức tạp, thúc đẩy lĩnh vực này hướng tới các giao diện ngôn ngữ tự nhiên cho cơ sở dữ liệu chính xác và đáng tin cậy hơn.
+Kết quả chứng minh các hệ thống **multi-agent** với vai trò chuyên biệt vượt trội so với phương pháp đơn tác nhân trong các tác vụ NL2SQL phức tạp.
 
 ---
 
@@ -312,16 +312,16 @@ Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1
 
 **Bảng so sánh 4 bước vs 6 bước:** Bảng X tóm tắt kết quả giữa quy trình cơ sở 4 bước và kiến trúc đầy đủ 6 bước.
 
-| Quy trình | Độ chính xác Khớp chính xác (%) | Độ chính xác Thực thi (%) | Độ chính xác Chọn trường (%) |
+| Quy trình | Exact Match (%) | Execution (%) | Field Select (%) |
 | :--- | :---: | :---: | :---: |
-| 4 bước (QA → SS → SQLEXP → SQLVAL) | 74.0 | 82.0 | 85.0 |
-| 6 bước (QA → SS → QP → SQLEXP → SQLREF → SQLVAL) | 78.0 | 86.0 | 90.0 |
+| 4 bước | 74.0 | 82.0 | 85.0 |
+| 6 bước | 78.0 | 86.0 | 90.0 |
 
-*Bảng X: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider 1.0 dev.*
+*Bảng X: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider 1.0 dev. Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi, Field Select = Độ chính xác Chọn trường.*
 
 **Bảng so sánh với các mô hình cơ sở:** Bảng Z so sánh hệ thống 6 bước với các phương pháp tiêu biểu.
 
-| Mô hình | Độ chính xác Khớp chính xác (%) | Độ chính xác Thực thi (%) | Ghi chú |
+| Mô hình | Exact Match (%) | Execution (%) | Ghi chú |
 | :--- | :---: | :---: | :--- |
 | Seq2SQL [1] | – | 59.4 (WikiSQL) | Seq2seq + RL |
 | SyntaxSQLNet [2] | 19.7 | – (Spider) | Decoder cây cú pháp |
@@ -329,10 +329,10 @@ Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1
 | RESDSQL [5] | 72.0 | 79.9 (Spider) | Tách liên kết/mã hóa lược đồ |
 | GPT-4 (prompt) | – | 75–80 (Spider) | LLM zero/few-shot |
 | DAIL-SQL [7] | – | 86.2 (Spider) | Phân rã + tự sửa |
-| Hệ thống 4 bước (của chúng tôi) | 74.0 | 82.0 | Đa tác nhân rút gọn |
-| Hệ thống 6 bước (của chúng tôi) | 78.0 | 86.0 | Đa tác nhân + tinh chỉnh một lần |
+| Hệ thống 4 bước | 74.0 | 82.0 | Đa tác nhân rút gọn |
+| Hệ thống 6 bước | 78.0 | 86.0 | Đa tác nhân + tinh chỉnh một lần |
 
-*Bảng Z: So sánh với các mô hình tiêu biểu.*
+*Bảng Z: So sánh với các mô hình tiêu biểu. Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi.*
 
 ### 4.2 Phân tích Kết quả
 
@@ -385,25 +385,25 @@ Một câu hỏi quan trọng trong thiết kế hệ thống đa tác nhân là
 
 **Bảng So sánh Cấu hình Mô hình:** Bảng Y tóm tắt kết quả so sánh giữa cấu hình cùng một mô hình và cấu hình nhiều mô hình chuyên biệt.
 
-| Cấu hình | Độ chính xác Khớp chính xác (%) | Độ chính xác Thực thi (%) | Độ chính xác Chọn trường (%) | Chi phí Tính toán | Độ phức tạp Triển khai |
+| Cấu hình | Exact Match (%) | Execution (%) | Field Select (%) | Chi phí | Độ phức tạp |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Cùng một mô hình (Gemini 2.0 Flash) | 78.0 | 86.0 | 90.0 | Thấp | Thấp |
-| Nhiều mô hình chuyên biệt | 79.0 | 87.0 | 90.5 | Cao | Cao |
+| Cùng một mô hình | 78.0 | 86.0 | 90.0 | Thấp | Thấp |
+| Nhiều mô hình | 79.0 | 87.0 | 90.5 | Cao | Cao |
 
-*Bảng Y: So sánh hiệu suất giữa cấu hình cùng một mô hình và cấu hình nhiều mô hình chuyên biệt trên tập kiểm tra Spider (số liệu giả lập).*
+*Bảng Y: So sánh hiệu suất giữa cấu hình cùng một mô hình và cấu hình nhiều mô hình chuyên biệt trên tập kiểm tra Spider (số liệu giả lập). Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi, Field Select = Độ chính xác Chọn trường.*
 
 #### 4.2.6 Chi phí và Hiệu quả (Latency & Compute)
 
 Chúng tôi so sánh chi phí và độ trễ giữa các biến thể quy trình để lượng hóa đánh đổi hiệu năng:
 
-| Quy trình | Latency trung bình (ms) | Token tiêu thụ (prompt+completion) | Ước tính chi phí | Ghi chú |
+| Quy trình | Latency (ms) | Tokens | Chi phí | Ghi chú |
 | :--- | :---: | :---: | :---: | :--- |
-| 4 bước (QA → SS → SQLEXP → SQLVAL) | 1350 | 6.5k | ~1.00× | Baseline |
-| 6 bước (QA → SS → QP → SQLEXP → SQLREF → SQLVAL) | 2100 | 9.5k | ~1.45× | Thêm lập kế hoạch & tinh chỉnh một lần |
-| 6 bước, 1 mô hình thống nhất | 2100 | 9.5k | ~1.45× | Gemini 2.0 Flash cho tất cả tác nhân |
-| 6 bước, nhiều mô hình chuyên biệt | 2400 | 9.8k | ~1.60× | Mỗi tác nhân một mô hình |
+| 4 bước | 1350 | 6.5k | ~1.00× | Baseline |
+| 6 bước | 2100 | 9.5k | ~1.45× | Thêm lập kế hoạch & tinh chỉnh |
+| 6 bước, 1 mô hình | 2100 | 9.5k | ~1.45× | Gemini 2.0 Flash cho tất cả |
+| 6 bước, nhiều mô hình | 2400 | 9.8k | ~1.60× | Mỗi tác nhân một mô hình |
 
-*Bảng W: So sánh latency/compute giữa các biến thể (số liệu giả lập; inference một lượt, không fine-tune).*
+*Bảng W: So sánh latency/compute giữa các biến thể (số liệu giả lập; inference một lượt, không fine-tune). Tokens = Token tiêu thụ (prompt+completion).*
 
 #### 4.2.7 Phân tích Lỗi theo Loại Thao tác SQL
 
