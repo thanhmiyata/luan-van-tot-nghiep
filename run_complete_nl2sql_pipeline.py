@@ -718,6 +718,12 @@ def main():
         default="4step",
         help="Chọn loại pipeline NL2SQL: 4step (mặc định) hoặc 6step."
     )
+    parser.add_argument(
+        "--num_questions",
+        type=int,
+        default=5,
+        help="Số câu hỏi sẽ được random từ Spider để test pipeline (mặc định: 5).",
+    )
     args = parser.parse_args()
 
     # Cấu hình pipeline tương ứng
@@ -733,8 +739,8 @@ def main():
         print("❌ Setup environment thất bại")
         return
 
-    # 2. Lấy câu hỏi test (tạm thời dùng 3 câu hỏi để thử pipeline)
-    test_questions = get_test_questions(num_questions=3)
+    # 2. Lấy câu hỏi test (số lượng cấu hình bằng tham số dòng lệnh)
+    test_questions = get_test_questions(num_questions=args.num_questions)
 
     # 3. Chạy NL2SQL system
     csv_filename, results = run_nl2sql_system(test_questions)

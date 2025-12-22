@@ -1,28 +1,77 @@
 question_analysis_task:
   description: >
-    Analyze the following question:
-    
+    Analyze the following question and its database schema and produce a rich,
+    machine-readable analysis that is strictly aligned with the ACTUAL schema.
+
     **Question:** {question}
-    **Database:** ```{raw_db_schema}```
-    
-    Identify:
-    1. **CRITICAL - Expected Output Fields:** What fields should the SQL SELECT return?
-       - "Find courses" → course_id (NOT title unless explicitly asked)
-       - "List dept names and buildings" → dept_name, building (exact order)
-       - "Show semester and year" → semester, year (preserve order)
-    2. **Intent:** COUNT, LIST, MAX_MIN, AGGREGATION
-    3. **Complexity:** EASY (1 table), MEDIUM (2-3 tables), HARD (complex)
-    4. **Required tables:** student, instructor, course, section, etc.
-    5. **Required columns:** name, dept_name, semester, year, etc.
-    6. **Filter values:** 'Math', 'Fall', 2009, etc.
-    
-    **Return JSON:**
+    **Raw Schema (Spider JSON):** ```{raw_db_schema}```
+
+    Tasks:
+    1. Carefully inspect `table_names_original` and `column_names_original`.
+       - Every field you mention MUST correspond to an existing table/column.
+       - Never invent table or column names.
+    2. Determine:
+       - **Intent:** COUNT, LIST, MAX_MIN, AGGREGATION, BOOLEAN, or OTHER.
+       - **Complexity:** EASY (1 table), MEDIUM (2–3 tables), HARD (more / complex logic).
+    3. **CRITICAL – Expected Output Fields:**
+       - Identify what fields the SQL SELECT should return, based on the question.
+       - Map them to actual `(table, column)` pairs from the schema.
+       - Preserve question order when meaningful.
+       - Examples:
+         - "Find courses" → return course identifier column (e.g. `course_id`), NOT title unless explicitly asked.
+         - "List department names and buildings" → `dept_name`, `building` (exact order).
+         - "Show semester and year" → `semester`, `year` (preserve order).
+    4. Extract structured constraints:
+       - `filters` for WHERE / HAVING (which table/column, operator, value).
+       - `group_by` columns if aggregation per group is needed.
+       - `order_by` columns and direction if the question implies ordering.
+       - High-level `join_hints` describing which tables must be connected.
+
+    **Return JSON ONLY (no markdown, no comments):**
     ```json
     {
-      "intent": "COUNT|LIST|MAX_MIN|AGGREGATION",
+      "intent": "COUNT|LIST|MAX_MIN|AGGREGATION|BOOLEAN|OTHER",
       "complexity": "EASY|MEDIUM|HARD",
       "expected_output_fields": ["field1", "field2"],
       "field_order_critical": true,
+      "output_fields_detailed": [
+        {
+          "table": "table_name_or_null_if_ambiguous",
+          "column": "exact_column_name_from_schema",
+          "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN",
+          "alias": "optional_alias_or_null",
+          "order_index": 0
+        }
+      ],
+      "filters": [
+        {
+          "table": "table_name_or_null",
+          "column": "column_name_or_null",
+          "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN",
+          "value": "value_as_string_if_present_in_question",
+          "value_type": "NUMBER|STRING|DATE|OTHER"
+        }
+      ],
+      "group_by": [
+        {
+          "table": "table_name",
+          "column": "column_name"
+        }
+      ],
+      "order_by": [
+        {
+          "table": "table_name",
+          "column": "column_name",
+          "direction": "ASC|DESC"
+        }
+      ],
+      "join_hints": [
+        {
+          "from_table": "table_a",
+          "to_table": "table_b",
+          "reason": "why these tables must be joined"
+        }
+      ],
       "entities": {
         "tables": ["table1", "table2"],
         "columns": ["col1", "col2"],
@@ -39,18 +88,24 @@ question_analysis_task:
 
 select_needed_schema_task:
   description: >
-    Filter database schema to keep only what's needed:
-    
+    Filter database schema to keep only what's needed, while NEVER removing any
+    table or column required for outputs, filters, grouping or ordering.
+
     **Question:** {question}
     **Original Schema:** ```{raw_db_schema}```
     **Analysis:** ```{question_analysis}```
-    
+
     Based on question analysis:
-    1. Keep tables mentioned in "entities.tables"
-    2. Keep columns mentioned in "entities.columns" 
-    3. Keep primary key and foreign key for JOIN
-    4. Remove irrelevant tables/columns
-    
+    1. Start from:
+       - all tables in `entities.tables`
+       - all tables referenced by `output_fields_detailed`, `filters`, `group_by`, `order_by`
+    2. For every selected table:
+       - Keep columns mentioned in `entities.columns`
+       - Keep all columns referenced in `output_fields_detailed`, `filters`, `group_by`, `order_by`
+    3. Preserve all primary keys and foreign keys for the kept tables, so JOINs remain possible.
+    4. Optionally keep intermediate tables needed to connect selected tables via foreign-key relationships.
+    5. It is BETTER to keep a few extra tables/columns than to accidentally drop a required one.
+
     **Return JSON with same format as original schema:**
     ```json
     {
@@ -73,6 +128,7 @@ generate_sql_task:
     **Question:** "{question}"
     **Schema:** ```{db_schema}```
     **Analysis:** ```{question_analysis}```
+    **Query Plan:** ```{query_plan}```
     
     **CRITICAL RULES - Based on Error Analysis:**
     1. **FIELD SELECTION (TOP PRIORITY - 52.6% of errors):**
@@ -97,6 +153,11 @@ generate_sql_task:
        - Count departments → COUNT(DISTINCT dept_name)
        - Count courses → COUNT(DISTINCT course_id) (if duplicates exist)
        - Count students with advisors → COUNT(DISTINCT s_id)
+
+    5. **FOLLOW THE PLAN (MANDATORY):**
+       - The plan provides `steps[]`. Implement ALL steps in a single SQL.
+       - Apply joins/filters/group_by/order_by/set_op/limit exactly as described.
+       - Do NOT ignore or reorder steps unless required by SQL validity.
     
     **CRITICAL - SQL Format Requirements:**
     - Return ONLY complete, executable SQL queries
@@ -124,6 +185,7 @@ validate_sql_task:
     **SQL:** "{sql}"
     **Question:** "{question}"
     **Schema:** ```{db_schema}```
+    **Analysis:** ```{question_analysis}```
     
     Check:
     1. **FIELD SELECTION VALIDATION (TOP PRIORITY):**
@@ -131,6 +193,7 @@ validate_sql_task:
        - Question asks "Find courses" → SQL must SELECT course_id (NOT title)
        - Question asks "List A and B" → SQL must SELECT A, B (exact order)
        - REJECT SQL that returns wrong fields or wrong order
+       - Use `expected_output_fields` and `output_fields_detailed` to check name/order/aggregation
     2. **Is syntax correct?** (SELECT, FROM, WHERE, etc.)
     3. **Do table/column names exist?**
     4. **Is logic correct?** (JOIN, WHERE conditions)
@@ -186,12 +249,28 @@ query_planning_task:
          - filters (WHERE)
          - aggregations / GROUP BY / HAVING
          - set operations (UNION/INTERSECT/EXCEPT) if needed
+         - limit (if the question implies top-k)
       3. Ensure the plan will produce exactly the expected_output_fields in correct order.
 
     **Return JSON:**
     ```json
     {
-      "plan": "Text description of the step-by-step query strategy"
+      "steps": [
+        {
+          "description": "text",
+          "tables": ["table1", "table2"],
+          "joins": [
+            {"from_table": "table1", "from_column": "col_a", "to_table": "table2", "to_column": "col_b"}
+          ],
+          "filters": [
+            {"table": "table1", "column": "col_a", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "v", "value_type": "NUMBER|STRING|DATE|OTHER"}
+          ],
+          "group_by": [{"table": "table1", "column": "col_a"}],
+          "order_by": [{"table": "table1", "column": "col_a", "direction": "ASC|DESC"}],
+          "set_op": "NONE|UNION|INTERSECT|EXCEPT",
+          "limit": "optional integer or null"
+        }
+      ]
     }
     ```
 
@@ -223,7 +302,8 @@ refine_sql_task:
     ```json
     {
       "sql": "Refined or original SQL",
-      "notes": "Short explanation of changes (or why none were needed)"
+      "notes": "Short explanation of changes (or why none were needed)",
+      "diagnostics": ["optional list of issues found/fixed"]
     }
     ```
 
