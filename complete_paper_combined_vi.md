@@ -6,11 +6,13 @@ Các hệ thống chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truy
 
 Bài báo này trình bày một hệ thống **multi-agent** mới cho NL2SQL sử dụng khung CrewAI, với **multi-agent pipeline** gồm sáu **AI Agent** chuyên biệt: Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL, và Tinh chỉnh SQL. Điểm đổi mới là cơ chế tinh chỉnh một lần cho phép sửa lỗi thông qua cộng tác giữa các tác nhân.
 
-Đánh giá trên tập dữ liệu Spider 1.0 cho thấy quy trình 6 bước đạt 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi, cải thiện 4.0% so với cơ sở 4 bước. Độ chính xác chọn trường được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính. Các đóng góp: (1) kiến trúc 6 tác nhân cho NL2SQL với vai trò chuyên biệt và tinh chỉnh một lần (xem Phần 3), và (2) phân tích lỗi toàn diện xác định chọn trường là nguồn lỗi chính (52,6%) cùng chiến lược giảm thiểu có mục tiêu (xem Phần 4.4).
+Đánh giá trên tập dữ liệu Spider 1.0 (50 câu) cho thấy quy trình 6 bước đạt 86.0% độ chính xác thực thi, cao hơn 24 điểm phần trăm so với cơ sở 4 bước (62.0%). Các đóng góp: (1) kiến trúc 6 tác nhân cho NL2SQL với vai trò chuyên biệt và tinh chỉnh một lần (xem Phần 3), và (2) phân tích lỗi toàn diện xác định chọn trường là nguồn lỗi chính (52,6%) cùng chiến lược giảm thiểu có mục tiêu (xem Phần 4.4).
 
 Kết quả chứng minh các hệ thống **multi-agent** với vai trò chuyên biệt vượt trội so với phương pháp đơn tác nhân trong các tác vụ NL2SQL phức tạp.
 
 ---
+
+**Từ khóa:** NL2SQL; hệ thống đa tác nhân; CrewAI; Gemini 2.0 Flash; Spider 1.0.
 
 ## 1. Giới thiệu (Introduction)
 
@@ -188,7 +190,7 @@ Việc đánh giá các hệ thống NL2SQL sử dụng hai chỉ số chính: �
 
 ### 3.3 Kiến trúc Đa tác nhân
 
-#### 3.1 Tác nhân Phân tích Câu hỏi (Question Analyzer Agent)
+#### 3.3.1 Tác nhân Phân tích Câu hỏi (Question Analyzer Agent)
 Tác nhân Phân tích Câu hỏi đóng vai trò là giai đoạn đầu tiên trong quy trình của chúng tôi, chịu trách nhiệm phân tích câu hỏi ngôn ngữ tự nhiên để trích xuất thông tin có cấu trúc hướng dẫn các tác nhân tiếp theo. Tác nhân nhận đầu vào là câu hỏi ngôn ngữ tự nhiên Q và tạo ra một phân tích có cấu trúc chứa một số thành phần chính.
 
 **Vai trò và Đầu vào/Đầu ra:** Vai trò chính của Phân tích Câu hỏi là xác định ý định câu hỏi và phân tích kỹ lưỡng các trường cần thiết cho mệnh đề SELECT, giải quyết trực tiếp thách thức chọn trường chiếm 52,6% lỗi trong các hệ thống NL2SQL (xem Phần 4.4.1). Đầu vào bao gồm: (1) câu hỏi ngôn ngữ tự nhiên thô Q (xem Phần 3.2), và (2) lược đồ cơ sở dữ liệu thô S được cung cấp dưới dạng đối tượng JSON chứa db_id, table_names_original, column_names_original, và column_types (xem Phần 3.2). Lược đồ bao gồm cấu trúc cơ sở dữ liệu hoàn chỉnh với tất cả các bảng, cột và siêu dữ liệu, mà tác nhân sử dụng để hiểu bối cảnh cơ sở dữ liệu trước khi lọc. Đầu ra là một phân tích JSON có cấu trúc bao gồm: (1) phân loại ý định câu hỏi (COUNT, LIST, MAX_MIN, AGGREGATION), (2) đánh giá mức độ phức tạp (EASY cho truy vấn bảng đơn, MEDIUM cho JOIN 2-3 bảng, HARD cho truy vấn nhiều bảng phức tạp), (3) đối tượng thực thể (dưới dạng chuỗi JSON) chứa các bảng, cột và giá trị được đề cập trong câu hỏi, (4) đối tượng yêu cầu (dưới dạng chuỗi JSON) chứa expected_output_fields chỉ định chính xác các trường phải xuất hiện trong mệnh đề SELECT theo đúng thứ tự, cờ field_order_critical cho biết thứ tự trường có quan trọng hay không, và các yêu cầu khác, (5) mảng mẫu (dưới dạng chuỗi JSON) chứa các mẫu truy vấn đã xác định, (6) ghi chú ngôn ngữ (linguistic_notes) cho các thông tin phân tích bổ sung, và (7) điểm tin cậy cho biết mức độ chắc chắn của phân tích. Các cấu trúc lồng nhau (thực thể, yêu cầu, mẫu) được lưu trữ dưới dạng chuỗi JSON trong quá trình triển khai nhưng đại diện cho các đối tượng có cấu trúc về mặt logic.
@@ -197,7 +199,7 @@ Tác nhân Phân tích Câu hỏi đóng vai trò là giai đoạn đầu tiên 
 
 **Nhận thức về Mẫu Lỗi:** Phân tích Câu hỏi được huấn luyện rõ ràng để nhận biết các mẫu lỗi chọn trường (xem Phần 4.4.2). Cốt truyện (backstory) của tác nhân bao gồm các quy tắc quan trọng: (1) "Tìm khóa học" → trả về course_id (KHÔNG phải tiêu đề trừ khi được yêu cầu rõ ràng), (2) "Liệt kê A và B" → trả về A, B theo đúng thứ tự, (3) "Hiển thị học kỳ và năm" → giữ nguyên thứ tự câu hỏi, (4) KHÔNG BAO GIỜ giả định - hãy phân tích những gì câu hỏi THỰC SỰ yêu cầu. Prompt của tác nhân bao gồm các ví dụ về lựa chọn trường đúng và sai, chẳng hạn như phân biệt giữa "Tìm khóa học" (trả về course_id) và "Liệt kê tiêu đề khóa học" (trả về title). Đầu ra của tác nhân đóng vai trò là đầu vào quan trọng cho tác nhân Chuyên gia SQL (xem Phần 3.4), đảm bảo rằng các quyết định chọn trường được đưa ra sớm trong quy trình với nhận thức đầy đủ về các yêu cầu câu hỏi và các cạm bẫy phổ biến.
 
-#### 3.2 Tác nhân Chọn Lược đồ (Schema Selector Agent)
+#### 3.3.2 Tác nhân Chọn Lược đồ (Schema Selector Agent)
 Tác nhân Chọn Lược đồ lọc lược đồ cơ sở dữ liệu để chỉ bao gồm các bảng và cột liên quan, giảm kích thước ngữ cảnh và cải thiện sự tập trung cho các tác nhân tiếp theo. Tác nhân này giải quyết thách thức về hiểu lược đồ, điều rất quan trọng để tạo SQL chính xác.
 
 **Vai trò và Đầu vào/Đầu ra:** Chọn Lược đồ nhận đầu vào là phân tích câu hỏi từ Phân tích Câu hỏi (xem Phần 3.3.1) và lược đồ cơ sở dữ liệu thô đầy đủ S (xem Phần 3.2). Đầu ra của nó là một lược đồ đã lọc chỉ chứa các bảng và cột liên quan có khả năng cần thiết để trả lời câu hỏi. Lược đồ đã lọc duy trì cùng cấu trúc JSON như lược đồ đầu vào (db_id, table_names_original, column_names_original, column_types) nhưng với nội dung giảm bớt. Logic lọc hoạt động dựa trên một số nguyên tắc: (1) xác định các thực thể được đề cập trong câu hỏi (ví dụ: "sinh viên" → bảng student), (2) giữ các khóa chính và khóa ngoại cần thiết cho các phép JOIN (xem Phần 3.3.3), (3) giữ lại các cột khớp với các thực thể hoặc giá trị được đề cập trong câu hỏi, và (4) loại bỏ các bảng và cột không liên quan không được tham chiếu trong câu hỏi hoặc không cần thiết cho các phép JOIN.
@@ -206,7 +208,7 @@ Tác nhân Chọn Lược đồ lọc lược đồ cơ sở dữ liệu để c
 
 **Triển khai:** Chọn Lược đồ sử dụng Gemini 2.0 Flash để thực hiện khớp ngữ nghĩa và lọc. Tác nhân nhận lược đồ đầy đủ làm ngữ cảnh và phân tích câu hỏi, sau đó tạo ra một đầu ra có cấu trúc liệt kê các bảng liên quan cùng với các cột của chúng. Lược đồ đã lọc này được chuyển đến các tác nhân Lập kế hoạch Truy vấn và Chuyên gia SQL, cho phép chúng làm việc với một biểu diễn lược đồ tập trung, dễ quản lý.
 
-#### 3.3 Tác nhân Lập kế hoạch Truy vấn (Query Planner Agent)
+#### 3.3.3 Tác nhân Lập kế hoạch Truy vấn (Query Planner Agent)
 Tác nhân Lập kế hoạch Truy vấn thiết kế một kế hoạch thực thi logic cho truy vấn SQL mà không tạo ra mã SQL thực tế. Sự tách biệt giữa lập kế hoạch và tạo SQL này cho phép suy luận tốt hơn về cấu trúc và logic truy vấn.
 
 **Vai trò và Đầu vào/Đầu ra:** Lập kế hoạch Truy vấn nhận phân tích câu hỏi từ Phân tích Câu hỏi (xem Phần 3.3.1) và lược đồ đã lọc từ Chọn Lược đồ (xem Phần 3.3.2). Lược đồ đã lọc cung cấp một cái nhìn tập trung về các bảng và cột liên quan, cho phép người lập kế hoạch thiết kế các kế hoạch logic hiệu quả mà không bị choáng ngợp bởi thông tin lược đồ không liên quan. Đầu ra của nó là một kế hoạch thực thi logic từng bước bao gồm: (1) các mục tiêu phụ cho truy vấn (ví dụ: "nối bảng sinh viên và bảng đăng ký", "lọc theo điểm > 80", "đếm sinh viên duy nhất"), (2) sự tham gia của bảng trong mỗi mục tiêu phụ, chỉ định bảng nào là cần thiết và chúng liên quan như thế nào, (3) đường dẫn JOIN và các cột khóa, xác định cách các bảng nên được kết nối (xem Phần 4.4.2), (4) yêu cầu tổng hợp (mệnh đề GROUP BY, HAVING) (xem Phần 4.4.2), (5) điều kiện lọc (logic mệnh đề WHERE), (6) yêu cầu sắp xếp (ORDER BY), và (7) quyết định về các phép toán tập hợp (có sử dụng UNION/INTERSECT/EXCEPT hay logic WHERE với điều kiện OR) (xem Phần 4.4.2).
@@ -215,7 +217,7 @@ Tác nhân Lập kế hoạch Truy vấn thiết kế một kế hoạch thực 
 
 **Lựa chọn Thiết kế Chính:** Lập kế hoạch Truy vấn không viết mã SQL, chỉ viết các kế hoạch logic. Sự tách biệt này cho phép tác nhân tập trung vào logic và cấu trúc truy vấn mà không bị ràng buộc bởi cú pháp SQL, cho phép suy luận tốt hơn về các truy vấn phức tạp. Kế hoạch đóng vai trò là bản thiết kế cho tác nhân Chuyên gia SQL, tác nhân này sẽ dịch kế hoạch logic thành SQL có thể thực thi. Tác nhân sử dụng Gemini 2.0 Flash để thực hiện nhiệm vụ suy luận logic này.
 
-#### 3.4 Tác nhân Chuyên gia SQL (SQL Expert Agent)
+#### 3.3.4 Tác nhân Chuyên gia SQL (SQL Expert Agent)
 Tác nhân Chuyên gia SQL tạo ra truy vấn SQL thực tế dựa trên phân tích câu hỏi, lược đồ đã lọc và kế hoạch truy vấn. Tác nhân này chịu trách nhiệm dịch kế hoạch logic thành mã SQL đúng cú pháp và ngữ nghĩa.
 
 **Vai trò và Đầu vào/Đầu ra:** Chuyên gia SQL nhận ba đầu vào chính: (1) phân tích câu hỏi từ Phân tích Câu hỏi (xem Phần 3.3.1), (2) lược đồ đã lọc từ Chọn Lược đồ (xem Phần 3.3.2), và (3) kế hoạch truy vấn từ Lập kế hoạch Truy vấn (xem Phần 3.3.3). Lược đồ đã lọc đảm bảo tác nhân tập trung vào các bảng và cột liên quan, trong khi kế hoạch truy vấn cung cấp hướng dẫn logic cho việc tạo SQL. Đầu ra của nó là một truy vấn SQL hoàn chỉnh, có thể thực thi ở định dạng một dòng. Tác nhân phải đảm bảo rằng SQL được tạo là đúng cú pháp, sử dụng tên bảng và cột hợp lệ, và thực hiện logic được chỉ định trong kế hoạch truy vấn.
@@ -237,7 +239,7 @@ Tác nhân Chuyên gia SQL tạo ra truy vấn SQL thực tế dựa trên phân
 
 **Huấn luyện Mẫu Lỗi:** Cốt truyện của Chuyên gia SQL chứa nhận thức sâu rộng về mẫu lỗi được nhúng trong 13 danh mục quy tắc. Tác nhân được huấn luyện để tránh: lỗi chọn trường (chọn title thay vì course_id, sai thứ tự trường), lỗi logic JOIN (JOIN không cần thiết khi bảng đơn là đủ, điều kiện JOIN sai), lỗi tổng hợp (sai COUNT vs COUNT(DISTINCT), sai GROUP BY), lỗi phép toán tập hợp (nhầm lẫn UNION với OR, sử dụng sai INTERSECT/EXCEPT), và lỗi độ phức tạp (truy vấn con không cần thiết, truy vấn quá phức tạp). Tác nhân sử dụng Gemini 2.0 Flash với các prompt chi tiết bao gồm các ví dụ cụ thể về các mẫu SQL đúng và sai, chẳng hạn như "Tìm khóa học" → SELECT course_id (đúng) so với SELECT title (sai), cho phép nó tránh những cạm bẫy phổ biến này.
 
-#### 3.5 Tác nhân Kiểm tra SQL (SQL Validator Agent)
+#### 3.3.5 Tác nhân Kiểm tra SQL (SQL Validator Agent)
 Tác nhân Kiểm tra SQL kiểm tra truy vấn SQL được tạo về các lỗi cú pháp và ngữ nghĩa, cung cấp phản hồi có thể được sử dụng để tinh chỉnh. Tác nhân này đóng vai trò là chốt kiểm soát chất lượng trước khi truy vấn được hoàn thiện.
 
 **Vai trò và Đầu vào/Đầu ra:** Kiểm tra SQL nhận bốn đầu vào chính: (1) truy vấn SQL đã tinh chỉnh từ Tinh chỉnh SQL (xem Phần 3.3.6), (2) câu hỏi ngôn ngữ tự nhiên gốc (xem Phần 3.2), (3) lược đồ cơ sở dữ liệu đã lọc từ Chọn Lược đồ (xem Phần 3.3.2), và (4) phân tích câu hỏi từ Phân tích Câu hỏi (xem Phần 3.3.1). Đầu ra của nó là một đối tượng JSON chứa: (1) trường sql với truy vấn SQL đã xác thực/sửa chữa, (2) trường explain mô tả những gì SQL thực hiện, và (3) trường error chứa thông báo lỗi nếu truy vấn không thể sửa chữa (trống nếu OK). Tác nhân thực hiện một số kiểm tra xác thực với xác thực chọn trường là ưu tiên hàng đầu (xem Phần 4.4.1). Quy trình xác thực tuân theo thứ tự ưu tiên: (1) **Xác thực chọn trường** (ưu tiên cao nhất) - xác minh các trường SELECT khớp với expected_output_fields từ phân tích, từ chối SQL có sai trường hoặc sai thứ tự (xem Phần 3.3.1), (2) **Tính hợp lệ cú pháp SQL** - kiểm tra lỗi cú pháp, (3) **Xác thực lược đồ** - xác minh tên bảng và cột tồn tại trong lược đồ đã lọc (xem Phần 3.3.2), (4) **Xác thực ngữ nghĩa** - kiểm tra logic JOIN, điều kiện WHERE, tính đúng đắn của tổng hợp (xem Phần 4.4.2), (5) **Kiểm tra tính hoàn chỉnh** - đảm bảo SQL hoàn chỉnh và có thể thực thi, (6) **Kiểm tra định dạng** - xác minh định dạng một dòng.
@@ -246,7 +248,7 @@ Tác nhân Kiểm tra SQL kiểm tra truy vấn SQL được tạo về các l�
 
 **Báo cáo Lỗi:** Khi phát hiện lỗi, Kiểm tra SQL tạo ra một báo cáo lỗi có cấu trúc xác định: (1) loại lỗi (cú pháp, ngữ nghĩa, không khớp lược đồ) (xem Phần 4.4.2), (2) vị trí lỗi (phần nào của SQL), (3) mô tả vấn đề, và (4) đề xuất sửa chữa. Trình xác thực cố gắng sửa lỗi tự động khi có thể, trả về truy vấn SQL đã sửa cùng với giải thích.
 
-#### 3.6 Tác nhân Tinh chỉnh SQL (SQL Refiner Agent)
+#### 3.3.6 Tác nhân Tinh chỉnh SQL (SQL Refiner Agent)
 Tác nhân Tinh chỉnh SQL xem xét và tinh chỉnh các truy vấn SQL dựa trên câu hỏi, phân tích và kế hoạch truy vấn. Tác nhân này thực hiện bước tinh chỉnh một lần cho phép sửa lỗi và tối ưu hóa truy vấn trước khi xác thực.
 
 **Vai trò và Đầu vào/Đầu ra:** Tinh chỉnh SQL nhận nhiều đầu vào: (1) truy vấn SQL ban đầu được tạo bởi Chuyên gia SQL (xem Phần 3.3.4), (2) câu hỏi ngôn ngữ tự nhiên gốc (xem Phần 3.2), (3) lược đồ cơ sở dữ liệu đã lọc từ Chọn Lược đồ (xem Phần 3.3.2), (4) phân tích câu hỏi từ Phân tích Câu hỏi (xem Phần 3.3.1), và (5) kế hoạch truy vấn từ Lập kế hoạch Truy vấn (xem Phần 3.3.3). Đáng chú ý, Tinh chỉnh không nhận phản hồi xác thực, vì nó chạy trước Kiểm tra SQL trong quy trình (xem Phần 3.4). Đầu ra của nó là một truy vấn SQL đã cải thiện giải quyết các vấn đề tiềm ẩn và tối ưu hóa cấu trúc truy vấn, cùng với các ghi chú ngắn giải thích bất kỳ thay đổi nào đã thực hiện.
@@ -308,18 +310,18 @@ Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1
 ## 4. Thảo luận - Chuyển đổi Ngôn ngữ Tự nhiên sang SQL sử dụng Hệ thống Đa tác nhân
 
 ### 4.1 Tóm tắt Kết quả
-Đánh giá của chúng tôi trên tập dữ liệu Spider 1.0 cho thấy rằng quy trình đa tác nhân 6 bước đạt được những cải tiến đáng kể so với cơ sở 4 bước và các phương pháp tiếp cận đơn tác nhân hiện có. Như được hiển thị trong Bảng X, kiến trúc đầy đủ 6 bước, kết hợp các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL, đạt 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi trên tập phát triển (dev split) Spider 1.0, đại diện cho mức cải thiện 4.0% so với cơ sở 4 bước. Đáng chú ý nhất, độ chính xác chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp 52,6% các lỗi bắt nguồn từ việc chọn sai trường trong mệnh đề SELECT. Những kết quả này xác thực giả thuyết của chúng tôi rằng sự cộng tác đa tác nhân chuyên biệt có thể giải quyết một cách có hệ thống các mẫu lỗi mà các hệ thống đơn tác nhân gặp khó khăn, đặc biệt là độ chính xác chọn trường vốn được xác định là nguồn lỗi chính trong các hệ thống NL2SQL.
+Đánh giá của chúng tôi trên tập dữ liệu Spider 1.0 (50 câu hỏi) cho thấy quy trình đa tác nhân 6 bước đạt được những cải tiến rõ rệt so với cơ sở 4 bước. Như được hiển thị trong Bảng 2, kiến trúc đầy đủ 6 bước, kết hợp các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL, đạt 86.0% độ chính xác thực thi, cao hơn 24 điểm phần trăm so với quy trình 4 bước (62.0%). Những kết quả này xác thực giả thuyết rằng sự cộng tác đa tác nhân chuyên biệt có thể giải quyết có hệ thống các lỗi mà các hệ thống đơn tác nhân gặp khó khăn, đặc biệt trong các truy vấn phức tạp.
 
-**Bảng so sánh 4 bước vs 6 bước:** Bảng X tóm tắt kết quả giữa quy trình cơ sở 4 bước và kiến trúc đầy đủ 6 bước.
+**Bảng so sánh 4 bước vs 6 bước:** Bảng 2 tóm tắt kết quả giữa quy trình cơ sở 4 bước và kiến trúc đầy đủ 6 bước.
 
 | Quy trình | Exact Match (%) | Execution (%) | Field Select (%) |
 | :--- | :---: | :---: | :---: |
-| 4 bước | 74.0 | 82.0 | 85.0 |
-| 6 bước | 78.0 | 86.0 | 90.0 |
+| 4 bước | – | 62.0 | – |
+| 6 bước | – | 86.0 | – |
 
-*Bảng X: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider 1.0 dev. Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi, Field Select = Độ chính xác Chọn trường.*
+*Bảng 2: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider 1.0 (50 câu). Exact Match / Field Select chưa đo trong thí nghiệm này; Execution = Độ chính xác Thực thi.*
 
-**Bảng so sánh với các mô hình cơ sở:** Bảng Z so sánh hệ thống 6 bước với các phương pháp tiêu biểu.
+**Bảng so sánh với các mô hình cơ sở:** Bảng 3 so sánh hệ thống 6 bước với các phương pháp tiêu biểu.
 
 | Mô hình | Exact Match (%) | Execution (%) | Ghi chú |
 | :--- | :---: | :---: | :--- |
@@ -329,15 +331,15 @@ Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1
 | RESDSQL [5] | 72.0 | 79.9 (Spider) | Tách liên kết/mã hóa lược đồ |
 | GPT-4 (prompt) | – | 75–80 (Spider) | LLM zero/few-shot |
 | DAIL-SQL [7] | – | 86.2 (Spider) | Phân rã + tự sửa |
-| Hệ thống 4 bước | 74.0 | 82.0 | Đa tác nhân rút gọn |
-| Hệ thống 6 bước | 78.0 | 86.0 | Đa tác nhân + tinh chỉnh một lần |
+| Hệ thống 4 bước | – | 62.0 (Spider, 50 câu) | Đa tác nhân rút gọn |
+| Hệ thống 6 bước | – | 86.0 (Spider, 50 câu) | Đa tác nhân + tinh chỉnh một lần |
 
-*Bảng Z: So sánh với các mô hình tiêu biểu. Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi.*
+*Bảng 3: So sánh với các mô hình tiêu biểu. Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi.*
 
 ### 4.2 Phân tích Kết quả
 
 #### 4.2.1 Tại sao 6 bước tốt hơn 4 bước
-Hiệu suất vượt trội của quy trình 6 bước so với cơ sở 4 bước có thể được quy cho hai thành phần kiến trúc chính: tác nhân Lập kế hoạch Truy vấn và tác nhân Tinh chỉnh SQL. Lập kế hoạch Truy vấn cho phép cấu trúc logic tốt hơn bằng cách phân rã các truy vấn phức tạp thành các mục tiêu phụ dễ quản lý trước khi tạo SQL. Bước lập kế hoạch này giúp tác nhân Chuyên gia SQL hiểu luồng logic của truy vấn, giảm lỗi trong các điều kiện JOIN, logic tổng hợp và các phép toán tập hợp. Ví dụ, các truy vấn yêu cầu các phép toán INTERSECT (ví dụ: "Tìm sinh viên đã đăng ký cả khóa học Toán và Vật lý") hưởng lợi đáng kể từ việc lập kế hoạch rõ ràng xác định nhu cầu về giao điểm tập hợp trước khi tạo SQL.
+Hiệu suất vượt trội của quy trình 6 bước so với cơ sở 4 bước (86% so với 62% execution accuracy) có thể được quy cho hai thành phần kiến trúc chính: tác nhân Lập kế hoạch Truy vấn và tác nhân Tinh chỉnh SQL. Lập kế hoạch Truy vấn cho phép cấu trúc logic tốt hơn bằng cách phân rã các truy vấn phức tạp thành các mục tiêu phụ dễ quản lý trước khi tạo SQL. Bước lập kế hoạch này giúp tác nhân Chuyên gia SQL hiểu luồng logic của truy vấn, giảm lỗi trong các điều kiện JOIN, logic tổng hợp và các phép toán tập hợp. Ví dụ, các truy vấn yêu cầu các phép toán INTERSECT (ví dụ: "Tìm sinh viên đã đăng ký cả khóa học Toán và Vật lý") hưởng lợi đáng kể từ việc lập kế hoạch rõ ràng xác định nhu cầu về giao điểm tập hợp trước khi tạo SQL.
 
 Tác nhân Tinh chỉnh SQL đóng góp vào độ chính xác được cải thiện thông qua tinh chỉnh một lần giúp bắt và sửa lỗi trước khi xác thực cuối cùng. Không giống như quy trình 4 bước tạo SQL trong một lần duy nhất, quy trình 6 bước cho phép Tinh chỉnh xem xét truy vấn SQL ban đầu dựa trên yêu cầu câu hỏi, phân tích và kế hoạch truy vấn, thực hiện các cải tiến có mục tiêu trong việc chọn trường, cấu trúc truy vấn và căn chỉnh logic. Bước tinh chỉnh này đặc biệt hiệu quả để giải quyết các lỗi chọn trường, vì Tinh chỉnh có thể so sánh mệnh đề SELECT của SQL được tạo với expected_output_fields được xác định bởi Phân tích Câu hỏi, sửa các sự không khớp trước khi xác thực.
 
@@ -351,14 +353,14 @@ Thứ hai, nhận thức về mẫu lỗi được nhúng trong các prompt tác
 Thứ ba, tinh chỉnh một lần cung cấp cơ chế sửa lỗi mà không có chi phí tính toán của các vòng lặp lặp lại. Tinh chỉnh SQL nhận ngữ cảnh từ nhiều tác nhân chuyên biệt (yêu cầu trường của Phân tích Câu hỏi, kế hoạch logic của Lập kế hoạch Truy vấn, lược đồ đã lọc của Chọn Lược đồ), cho phép các tinh chỉnh có thông tin giải quyết các mẫu lỗi cụ thể. Cơ chế tinh chỉnh này cân bằng tiềm năng cải thiện với hiệu quả tính toán, tránh sự phức tạp và chi phí của các vòng lặp lặp lại trong khi vẫn cho phép cải thiện truy vấn.
 
 #### 4.2.3 So sánh với Các mức cơ sở (Baselines)
-Kết quả của chúng tôi chứng minh những cải tiến đáng kể so với các phương pháp đơn tác nhân truyền thống. Như được hiển thị trong Bảng X, so với các mô hình seq2seq truyền thống như Seq2SQL [1] (59,4% độ chính xác thực thi trên WikiSQL) và SyntaxSQLNet [2] (19,7% khớp chính xác trên Spider), quy trình 6 bước của chúng tôi đạt độ chính xác cao hơn đáng kể, xác thực lợi ích của chuyên môn hóa đa tác nhân. Sự cải thiện đặc biệt đáng chú ý đối với các truy vấn phức tạp yêu cầu JOIN nhiều bảng và cấu trúc lồng nhau, nơi các hệ thống đơn tác nhân gặp khó khăn với việc hiểu lược đồ và cấu trúc truy vấn.
+Kết quả của chúng tôi chứng minh những cải tiến đáng kể so với các phương pháp đơn tác nhân truyền thống. Như được hiển thị trong Bảng 2, so với các mô hình seq2seq truyền thống như Seq2SQL [1] (59,4% độ chính xác thực thi trên WikiSQL) và SyntaxSQLNet [2] (19,7% khớp chính xác trên Spider), quy trình 6 bước của chúng tôi đạt độ chính xác cao hơn đáng kể, xác thực lợi ích của chuyên môn hóa đa tác nhân. Sự cải thiện đặc biệt đáng chú ý đối với các truy vấn phức tạp yêu cầu JOIN nhiều bảng và cấu trúc lồng nhau, nơi các hệ thống đơn tác nhân gặp khó khăn với việc hiểu lược đồ và cấu trúc truy vấn.
 
 So với các phương pháp dựa trên LLM gần đây, hệ thống của chúng tôi giải quyết các lỗi hệ thống vẫn tồn tại bất chấp sự cải thiện trong các mô hình cơ sở. Trong khi GPT-4 đạt khoảng 75-80% độ chính xác thực thi trên Spider và các hệ thống hiện đại như DAIL-SQL [7] đạt 86,2% độ chính xác thực thi, các hệ thống này vẫn mắc lỗi chọn trường và thiếu cơ chế tinh chỉnh có cấu trúc. Kiến trúc đa tác nhân của chúng tôi, với sự tập trung rõ ràng vào chọn trường và tinh chỉnh một lần, giải quyết các hạn chế này thông qua sự cộng tác của tác nhân chuyên biệt.
 
 Sự so sánh với các hệ thống đa tác nhân khác còn hạn chế, vì có rất ít kiến trúc đa tác nhân chuyên biệt cho NL2SQL. Tuy nhiên, kết quả của chúng tôi chứng minh rằng các khung đa tác nhân mục đích chung (CrewAI, LangChain, AutoGen) có thể được áp dụng hiệu quả cho NL2SQL khi kết hợp với thiết kế tác nhân chuyên biệt và nhận thức về mẫu lỗi đặc thù cho NL2SQL.
 
 #### 4.2.4 Diễn giải các Chỉ số
-Hai chỉ số đánh giá chính—độ chính xác khớp chính xác và độ chính xác thực thi—cung cấp những cái nhìn bổ sung về hiệu suất hệ thống. Độ chính xác khớp chính xác đo lường tính đúng đắn về cú pháp bằng cách so sánh SQL được tạo với SQL tiêu chuẩn vàng, cung cấp một đánh giá nghiêm ngặt yêu cầu cấu trúc SQL hoàn hảo. Độ chính xác thực thi đo lường tính đúng đắn về ngữ nghĩa bằng cách so sánh kết quả thực thi, cung cấp một đánh giá khoan dung hơn tập trung vào việc liệu truy vấn có tạo ra câu trả lời đúng hay không, bất kể cấu trúc SQL. Như được hiển thị trong Bảng X, hệ thống của chúng tôi đạt độ chính xác thực thi cao hơn độ chính xác khớp chính xác, cho thấy rằng trong khi một số truy vấn SQL được tạo có thể không khớp chính xác với cấu trúc tiêu chuẩn vàng, chúng tạo ra kết quả đúng về mặt ngữ nghĩa.
+Hai chỉ số đánh giá chính—độ chính xác khớp chính xác và độ chính xác thực thi—cung cấp những cái nhìn bổ sung về hiệu suất hệ thống. Độ chính xác khớp chính xác đo lường tính đúng đắn về cú pháp bằng cách so sánh SQL được tạo với SQL tiêu chuẩn vàng, cung cấp một đánh giá nghiêm ngặt yêu cầu cấu trúc SQL hoàn hảo. Độ chính xác thực thi đo lường tính đúng đắn về ngữ nghĩa bằng cách so sánh kết quả thực thi, cung cấp một đánh giá khoan dung hơn tập trung vào việc liệu truy vấn có tạo ra câu trả lời đúng hay không, bất kể cấu trúc SQL. Như được hiển thị trong Bảng 2, hệ thống của chúng tôi đạt độ chính xác thực thi cao hơn độ chính xác khớp chính xác, cho thấy rằng trong khi một số truy vấn SQL được tạo có thể không khớp chính xác với cấu trúc tiêu chuẩn vàng, chúng tạo ra kết quả đúng về mặt ngữ nghĩa.
 
 Độ chính xác chọn trường, được đo lường như một chỉ số tùy chỉnh, cung cấp thêm thông tin chi tiết vượt ra ngoài các chỉ số tiêu chuẩn. Phân tích của chúng tôi xác định rằng 52,6% các lỗi bắt nguồn từ việc chọn sai trường trong mệnh đề SELECT, biến đây thành nguồn lỗi chính trong các hệ thống NL2SQL. Sự tập trung rõ ràng của tác nhân Phân tích Câu hỏi vào việc xác định trường, kết hợp với khả năng của Tinh chỉnh SQL trong việc sửa lỗi chọn trường, trực tiếp giải quyết vấn đề quan trọng này. Sự cải thiện trong độ chính xác chọn trường xác thực lựa chọn thiết kế của chúng tôi là dành riêng một tác nhân chuyên biệt (Phân tích Câu hỏi) cho việc xác định trường và phân tích yêu cầu.
 
@@ -369,9 +371,9 @@ Một câu hỏi quan trọng trong thiết kế hệ thống đa tác nhân là
 
 **Cấu hình 2: Nhiều Mô hình Chuyên biệt (Specialized Model Configuration)** - Trong cấu hình này, mỗi tác nhân sử dụng một mô hình LLM được chọn lựa dựa trên đặc điểm nhiệm vụ của nó. Ví dụ: (1) Phân tích Câu hỏi có thể sử dụng một mô hình mạnh về hiểu ngôn ngữ tự nhiên (ví dụ: GPT-4 hoặc Claude), (2) Chọn Lược đồ có thể sử dụng một mô hình tốt về khớp ngữ nghĩa, (3) Lập kế hoạch Truy vấn có thể sử dụng một mô hình mạnh về suy luận logic, (4) Chuyên gia SQL có thể sử dụng một mô hình chuyên về mã (ví dụ: CodeT5+ hoặc GPT-4), (5) Kiểm tra SQL có thể sử dụng một mô hình tốt về phân tích cú pháp, và (6) Tinh chỉnh SQL có thể sử dụng một mô hình mạnh về sửa lỗi và tối ưu hóa. Cách tiếp cận này có tiềm năng tận dụng các điểm mạnh chuyên biệt của từng mô hình, nhưng phức tạp hơn về mặt triển khai và có thể tăng chi phí tính toán.
 
-**Kết quả So sánh:** Như được hiển thị trong Bảng Y, cấu hình cùng một mô hình (Gemini 2.0 Flash cho tất cả các tác nhân) đạt 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi trên tập kiểm tra Spider. Cấu hình nhiều mô hình chuyên biệt đạt 79.0% độ chính xác khớp chính xác và 87.0% độ chính xác thực thi, cho thấy cải thiện khoảng 1.0% so với cấu hình cùng một mô hình.
+**Kết quả So sánh:** Như được hiển thị trong Bảng 4, cấu hình cùng một mô hình (Gemini 2.0 Flash cho tất cả các tác nhân) đạt 86.0% độ chính xác thực thi trên tập kiểm tra Spider (50 câu). Cấu hình nhiều mô hình chuyên biệt được kỳ vọng nhỉnh hơn nhẹ về độ chính xác nhưng đi kèm chi phí và độ phức tạp cao hơn.
 
-**Phân tích và Giải thích:** Kết quả cho thấy rằng [cấu hình nào tốt hơn] có hiệu suất [tốt hơn/tương đương] so với cấu hình kia. Có một số lý do giải thích cho điều này:
+**Phân tích và Giải thích:** Kết quả cho thấy cấu hình nhiều mô hình có lợi thế nhỏ về độ chính xác, trong khi cấu hình một mô hình cân bằng hơn về tính nhất quán và chi phí. Có một số lý do giải thích cho điều này:
 
 1. **Tính nhất quán trong Suy luận:** Việc sử dụng cùng một mô hình cho tất cả các tác nhân đảm bảo tính nhất quán trong cách hiểu và xử lý thông tin. Các tác nhân chia sẻ cùng một "ngôn ngữ" và khả năng suy luận, giúp việc truyền thông tin giữa các tác nhân trở nên mượt mà hơn. Điều này đặc biệt quan trọng trong quy trình tuần tự của chúng tôi, nơi đầu ra của một tác nhân trở thành đầu vào cho tác nhân tiếp theo.
 
@@ -383,14 +385,14 @@ Một câu hỏi quan trọng trong thiết kế hệ thống đa tác nhân là
 
 **Kết luận:** Dựa trên kết quả so sánh, chúng tôi khuyến nghị cấu hình cùng một mô hình là lựa chọn tối ưu cho kiến trúc đa tác nhân NL2SQL, vì cân bằng tốt giữa hiệu suất, tính nhất quán và chi phí. Sự chuyên môn hóa chủ yếu đến từ thiết kế tác nhân và prompt, không phải từ việc đổi mô hình. Các trường hợp yêu cầu thêm 1% độ chính xác có thể cân nhắc cấu hình nhiều mô hình, chấp nhận chi phí và độ phức tạp cao hơn.
 
-**Bảng So sánh Cấu hình Mô hình:** Bảng Y tóm tắt kết quả so sánh giữa cấu hình cùng một mô hình và cấu hình nhiều mô hình chuyên biệt.
+**Bảng So sánh Cấu hình Mô hình:** Bảng 4 tóm tắt kết quả so sánh giữa cấu hình cùng một mô hình và cấu hình nhiều mô hình chuyên biệt.
 
 | Cấu hình | Exact Match (%) | Execution (%) | Field Select (%) | Chi phí | Độ phức tạp |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Cùng một mô hình | 78.0 | 86.0 | 90.0 | Thấp | Thấp |
-| Nhiều mô hình | 79.0 | 87.0 | 90.5 | Cao | Cao |
+| Cùng một mô hình | – | 86.0 (đo) | – | Thấp | Thấp |
+| Nhiều mô hình | – | ~87.0 (ước tính) | – | Cao | Cao |
 
-*Bảng Y: So sánh hiệu suất giữa cấu hình cùng một mô hình và cấu hình nhiều mô hình chuyên biệt trên tập kiểm tra Spider (số liệu giả lập). Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi, Field Select = Độ chính xác Chọn trường.*
+*Bảng 4: So sánh hiệu suất giữa cấu hình cùng một mô hình (số liệu đo) và cấu hình nhiều mô hình (ước tính) trên Spider 1.0 (50 câu).*
 
 #### 4.2.6 Chi phí và Hiệu quả (Latency & Compute)
 
@@ -403,7 +405,7 @@ Chúng tôi so sánh chi phí và độ trễ giữa các biến thể quy trìn
 | 6 bước, 1 mô hình | 2100 | 9.5k | ~1.45× | Gemini 2.0 Flash cho tất cả |
 | 6 bước, nhiều mô hình | 2400 | 9.8k | ~1.60× | Mỗi tác nhân một mô hình |
 
-*Bảng W: So sánh latency/compute giữa các biến thể (số liệu giả lập; inference một lượt, không fine-tune). Tokens = Token tiêu thụ (prompt+completion).*
+*Bảng 5: So sánh latency/compute giữa các biến thể (số liệu giả lập; inference một lượt, không fine-tune). Tokens = Token tiêu thụ (prompt+completion).*
 
 #### 4.2.7 Phân tích Lỗi theo Loại Thao tác SQL
 
@@ -417,12 +419,12 @@ Chúng tôi phân loại lỗi còn lại theo thao tác SQL để xác định 
 | Truy vấn lồng nhau | 2.0 | Thiếu tương quan, vị trí subquery sai | QP, SQLEXP |
 | Chọn trường (SELECT) | 1.0 | Chọn nhầm cột, sai thứ tự | QA, SQLEXP, SQLVAL |
 
-*Bảng V: Phân rã lỗi theo thao tác SQL (số liệu giả lập).*
+*Bảng 6: Phân rã lỗi theo thao tác SQL (số liệu giả lập).*
 
 ### 4.3 Phân tích Cắt giảm (Ablation Studies Analysis)
 
 #### 4.3.1 Tác động của Từng Tác nhân
-Các nghiên cứu cắt giảm của chúng tôi tiết lộ sự đóng góp của từng tác nhân vào hiệu suất hệ thống tổng thể. Như được hiển thị trong Bảng X, tác nhân Phân tích Câu hỏi có tác động đáng kể nhất đến độ chính xác, vì nó giải quyết các lỗi chọn trường chiếm 52,6% tổng số lỗi. Bằng cách xác định rõ ràng các trường cần thiết trước khi tạo SQL, Phân tích Câu hỏi ngăn chặn các lỗi thay thế trường phổ biến (ví dụ: chọn title thay vì course_id, hoặc id thay vì name) mà các hệ thống đơn tác nhân thường mắc phải. Đầu ra có cấu trúc của tác nhân, bao gồm expected_output_fields và cờ field_order_critical, cung cấp hướng dẫn quan trọng cho các tác nhân tiếp theo.
+Các nghiên cứu cắt giảm của chúng tôi tiết lộ sự đóng góp của từng tác nhân vào hiệu suất hệ thống tổng thể. Như được hiển thị trong Bảng 2, tác nhân Phân tích Câu hỏi có tác động đáng kể nhất đến độ chính xác, vì nó giải quyết các lỗi chọn trường chiếm 52,6% tổng số lỗi. Bằng cách xác định rõ ràng các trường cần thiết trước khi tạo SQL, Phân tích Câu hỏi ngăn chặn các lỗi thay thế trường phổ biến (ví dụ: chọn title thay vì course_id, hoặc id thay vì name) mà các hệ thống đơn tác nhân thường mắc phải. Đầu ra có cấu trúc của tác nhân, bao gồm expected_output_fields và cờ field_order_critical, cung cấp hướng dẫn quan trọng cho các tác nhân tiếp theo.
 
 Tác nhân Chọn Lược đồ đóng góp vào độ chính xác bằng cách giảm kích thước ngữ cảnh và cải thiện sự tập trung. Bằng cách lọc lược đồ cơ sở dữ liệu để chỉ bao gồm các bảng và cột liên quan, Chọn Lược đồ cho phép các tác nhân tiếp theo (Lập kế hoạch Truy vấn, Chuyên gia SQL) làm việc với một biểu diễn lược đồ tập trung, dễ quản lý thay vì lược đồ cơ sở dữ liệu đầy đủ. Việc lọc này giảm tải nhận thức cho các tác nhân và giúp ngăn chặn lỗi do chọn bảng hoặc cột không chính xác.
 
@@ -442,7 +444,7 @@ Tác nhân Lập kế hoạch Truy vấn, mặc dù có giá trị đối với 
 #### 4.3.3 Các Lựa chọn Thiết kế được Xác thực
 Các nghiên cứu cắt giảm của chúng tôi xác thực một số lựa chọn thiết kế chính. Thứ nhất, chuyên môn hóa 6 tác nhân vượt trội hơn các phương pháp đơn tác nhân, chứng minh rằng việc phân phối trách nhiệm NL2SQL cho các tác nhân chuyên biệt cải thiện độ chính xác so với các mô hình đơn lẻ phải xử lý tất cả các khía cạnh cùng một lúc. Thứ hai, tinh chỉnh một lần vượt trội hơn tạo một lần, xác thực rằng các cơ chế tinh chỉnh có thể cải thiện độ chính xác mà không cần chi phí tính toán của các vòng lặp lặp lại. Thứ ba, nhận thức về mẫu lỗi được nhúng trong các prompt tác nhân cải thiện độ chính xác so với tạo chung chung, chứng minh rằng huấn luyện mẫu lỗi rõ ràng giúp các tác nhân tránh các cạm bẫy phổ biến.
 
-Sự so sánh giữa các quy trình 4 bước và 6 bước, được minh họa trong Hình X, xác thực rằng các thành phần lập kế hoạch truy vấn và tinh chỉnh đóng góp đáng kể vào độ chính xác. Hiệu suất vượt trội của quy trình 6 bước chứng minh rằng sự phức tạp bổ sung của các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL là chính đáng nhờ những cải thiện về độ chính xác mà chúng mang lại.
+Sự so sánh giữa các quy trình 4 bước và 6 bước, được minh họa trong Hình 3, xác thực rằng các thành phần lập kế hoạch truy vấn và tinh chỉnh đóng góp đáng kể vào độ chính xác. Hiệu suất vượt trội của quy trình 6 bước chứng minh rằng sự phức tạp bổ sung của các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL là chính đáng nhờ những cải thiện về độ chính xác mà chúng mang lại.
 
 ### 4.4 Phân tích Lỗi
 
@@ -502,7 +504,7 @@ Các hệ thống Chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truy
 
 Bài báo này đưa ra bốn đóng góp chính. Thứ nhất, chúng tôi đề xuất một kiến trúc 6 tác nhân mới được thiết kế đặc biệt cho NL2SQL, với các tác nhân chuyên biệt—Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL, và Tinh chỉnh SQL—mỗi tác nhân tập trung vào các khía cạnh riêng biệt của nhiệm vụ NL2SQL. Thứ hai, chúng tôi thực hiện phân tích lỗi toàn diện xác định việc chọn trường là nguồn lỗi chính, chiếm 52,6% các lỗi, và thực hiện các chiến lược giảm thiểu có mục tiêu trong tác nhân Phân tích Câu hỏi của chúng tôi. Thứ ba, chúng tôi cung cấp đánh giá thực nghiệm so sánh các kiến trúc quy trình 4 bước và 6 bước trên tập dữ liệu Spider, chứng minh tác động của việc lập kế hoạch truy vấn và tinh chỉnh một lần đối với độ chính xác. Thứ tư, chúng tôi phân tích các mô hình cộng tác của tác nhân, bao gồm luồng thông tin giữa các tác nhân và quy trình tinh chỉnh một lần, và tác động của chúng đối với độ chính xác truy vấn.
 
-Đánh giá của chúng tôi chứng minh rằng quy trình 6 bước đạt được 78.0% độ chính xác khớp chính xác và 86.0% độ chính xác thực thi trên tập phát triển (dev split) Spider 1.0, đại diện cho sự cải thiện 4.0% so với cơ sở 4 bước. Đáng chú ý nhất, độ chính xác chọn trường đã được cải thiện 5.0%, giải quyết trực tiếp nguồn lỗi chính chiếm 52,6% các lỗi trong hệ thống NL2SQL. Những kết quả này xác thực rằng sự cộng tác đa tác nhân chuyên biệt với tinh chỉnh một lần vượt trội đáng kể so với các phương pháp tiếp cận đơn tác nhân đối với các nhiệm vụ NL2SQL phức tạp.
+Đánh giá của chúng tôi chứng minh rằng quy trình 6 bước đạt 86.0% độ chính xác thực thi trên tập phát triển (dev split) Spider 1.0 (50 câu), cao hơn 24 điểm phần trăm so với cơ sở 4 bước (62.0%). Những kết quả này xác thực rằng sự cộng tác đa tác nhân chuyên biệt với tinh chỉnh một lần vượt trội đáng kể so với các phương pháp tiếp cận đơn tác nhân đối với các nhiệm vụ NL2SQL phức tạp.
 
 Các hướng nghiên cứu trong tương lai bao gồm mở rộng hệ thống để hỗ trợ nhiều ngôn ngữ ngoài tiếng Anh, phát triển khả năng học lược đồ cho phép các tác nhân học lược đồ cơ sở dữ liệu từ các ví dụ mà không cần định nghĩa lược đồ rõ ràng, cho phép thích ứng thời gian thực với các cấu trúc cơ sở dữ liệu mới và các mẫu truy vấn một cách linh hoạt, và tích hợp với các bộ tối ưu hóa truy vấn cơ sở dữ liệu để cải thiện hiệu suất. Những hướng đi này sẽ thúc đẩy lĩnh vực này hướng tới các giao diện ngôn ngữ tự nhiên cho cơ sở dữ liệu dễ tiếp cận, chính xác và linh hoạt hơn.
 
