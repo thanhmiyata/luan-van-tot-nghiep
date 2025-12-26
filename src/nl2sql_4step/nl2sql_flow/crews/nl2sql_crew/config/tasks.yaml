@@ -1,228 +1,95 @@
 question_analysis_task:
   description: >
-    Analyze the following question and its database schema and produce a rich,
-    machine-readable analysis that is strictly aligned with the ACTUAL schema.
+    4-step: Analyzer. Extract intent, expected_output_fields (ordered), and single_table_ok flag.
 
-    **Question:** {question}
-    **Raw Schema (Spider JSON):** ```{raw_db_schema}```
+    Inputs:
+    - Question: {question}
+    - Raw Schema (Spider JSON): ```{raw_db_schema}```
 
-    Tasks:
-    1. Carefully inspect `table_names_original` and `column_names_original`.
-       - Every field you mention MUST correspond to an existing table/column.
-       - Never invent table or column names.
-    2. Determine:
-       - **Intent:** COUNT, LIST, MAX_MIN, AGGREGATION, BOOLEAN, or OTHER.
-       - **Complexity:** EASY (1 table), MEDIUM (2–3 tables), HARD (more / complex logic).
-    3. **CRITICAL – Expected Output Fields:**
-       - Identify what fields the SQL SELECT should return, based on the question.
-       - Map them to actual `(table, column)` pairs from the schema.
-       - Preserve question order when meaningful.
-       - Examples:
-         - "Find courses" → return course identifier column (e.g. `course_id`), NOT title unless explicitly asked.
-         - "List department names and buildings" → `dept_name`, `building` (exact order).
-         - "Show semester and year" → `semester`, `year` (preserve order).
-    4. Extract structured constraints:
-       - `filters` for WHERE / HAVING (which table/column, operator, value).
-       - `group_by` columns if aggregation per group is needed.
-       - `order_by` columns and direction if the question implies ordering.
-       - High-level `join_hints` describing which tables must be connected.
+    Requirements:
+    1) Map every expected field to real schema columns; never invent names.
+    2) expected_output_fields preserves requested order; set field_order_critical=true.
+    3) Mark single_table_ok=true when one table already has all needed columns.
+    4) Provide structured filters/group_by/order_by/join_hints using real columns.
 
-    **Return JSON ONLY (no markdown, no comments):**
-    ```json
+    Return JSON only (no markdown):
     {
       "intent": "COUNT|LIST|MAX_MIN|AGGREGATION|BOOLEAN|OTHER",
       "complexity": "EASY|MEDIUM|HARD",
       "expected_output_fields": ["field1", "field2"],
       "field_order_critical": true,
+      "single_table_ok": true,
       "output_fields_detailed": [
-        {
-          "table": "table_name_or_null_if_ambiguous",
-          "column": "exact_column_name_from_schema",
-          "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN",
-          "alias": "optional_alias_or_null",
-          "order_index": 0
-        }
+        {"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "alias": null, "order_index": 0}
       ],
-      "filters": [
-        {
-          "table": "table_name_or_null",
-          "column": "column_name_or_null",
-          "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN",
-          "value": "value_as_string_if_present_in_question",
-          "value_type": "NUMBER|STRING|DATE|OTHER"
-        }
-      ],
-      "group_by": [
-        {
-          "table": "table_name",
-          "column": "column_name"
-        }
-      ],
-      "order_by": [
-        {
-          "table": "table_name",
-          "column": "column_name",
-          "direction": "ASC|DESC"
-        }
-      ],
-      "join_hints": [
-        {
-          "from_table": "table_a",
-          "to_table": "table_b",
-          "reason": "why these tables must be joined"
-        }
-      ],
-      "entities": {
-        "tables": ["table1", "table2"],
-        "columns": ["col1", "col2"],
-        "values": ["val1", "val2"]
-      },
+      "filters": [{"table": "t", "column": "c", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "v", "value_type": "NUMBER|STRING|DATE|OTHER"}],
+      "group_by": [{"table": "t", "column": "c"}],
+      "order_by": [{"table": "t", "column": "c", "direction": "ASC|DESC"}],
+      "join_hints": [{"from_table": "a", "to_table": "b", "reason": "why join"}],
+      "entities": {"tables": ["t1"], "columns": ["c1"], "values": ["v1"]},
       "confidence": 0.95
     }
-    ```
-
   expected_output: >
-    JSON object with question analysis including intent, complexity, entities and confidence score.
-      
+    JSON with expected_output_fields, field_order_critical and single_table_ok.
   agent: question_analyzer
 
 select_needed_schema_task:
   description: >
-    Filter database schema to keep only what's needed, while NEVER removing any
-    table or column required for outputs, filters, grouping or ordering.
+    Filter schema for required tables/columns while preserving PK/FK needed for joins.
 
-    **Question:** {question}
-    **Original Schema:** ```{raw_db_schema}```
-    **Analysis:** ```{question_analysis}```
+    Inputs:
+    - Question: {question}
+    - Original Schema: ```{raw_db_schema}```
+    - Analysis: ```{question_analysis}```
 
-    Based on question analysis:
-    1. Start from:
-       - all tables in `entities.tables`
-       - all tables referenced by `output_fields_detailed`, `filters`, `group_by`, `order_by`
-    2. For every selected table:
-       - Keep columns mentioned in `entities.columns`
-       - Keep all columns referenced in `output_fields_detailed`, `filters`, `group_by`, `order_by`
-    3. Preserve all primary keys and foreign keys for the kept tables, so JOINs remain possible.
-    4. Optionally keep intermediate tables needed to connect selected tables via foreign-key relationships.
-    5. It is BETTER to keep a few extra tables/columns than to accidentally drop a required one.
+    Steps:
+    1) Start from tables in entities.tables and those referenced in outputs/filters/group_by/order_by.
+    2) Keep columns used for outputs/filters/group_by/order_by and PK/FK of kept tables.
+    3) Optionally keep intermediate tables to connect required tables.
+    4) Prefer keeping a small safe superset over dropping a needed column.
 
-    **Return JSON with same format as original schema:**
-    ```json
-    {
-      "db_id": "database_name",
-      "table_names_original": ["table1", "table2"],
-      "column_names_original": [[0, "col1"], [1, "col2"]],
-      "column_types": ["text", "number"]
-    }
-    ```
-
+    Return JSON with same structure as input schema.
   expected_output: >
-    JSON object containing filtered schema with same structure as original schema.
-      
+    Filtered schema JSON preserving PK/FK connectivity.
   agent: schema_selector
 
 generate_sql_task:
   description: >
-    Generate SQL query from the question:
-    
-    **Question:** "{question}"
-    **Schema:** ```{db_schema}```
-    **Analysis:** ```{question_analysis}```
-    
-    **CRITICAL RULES - Based on Error Analysis:**
-    1. **FIELD SELECTION (TOP PRIORITY - 52.6% of errors):**
-       - Use EXACT fields from analysis "expected_output_fields"
-       - "Find courses" → SELECT course_id (NOT title)
-       - "List A and B" → SELECT A, B (exact order from analysis)
-       - NEVER substitute course_id with title, or id with name
-       - Preserve field order from "expected_output_fields"
-    
-    2. **SIMPLICITY RULES:**
-       - "course_id from SECTION" → Use SECTION table directly (no JOIN to course)
-       - Only JOIN when you need data from MULTIPLE tables
-       - If all fields are in one table, use that table only
-    
-    3. **UNION vs OR Logic:**
-       - "courses in Fall 2009 OR Spring 2010" → Use UNION (separate result sets)
-       - "instructors in dept A OR dept B" → Use simple WHERE with OR/IN
-       - UNION: When combining different result sets from same table
-       - OR: When filtering single table with multiple conditions
-    
-    4. **COUNT logic:**
-       - Count departments → COUNT(DISTINCT dept_name)
-       - Count courses → COUNT(DISTINCT course_id) (if duplicates exist)
-       - Count students with advisors → COUNT(DISTINCT s_id)
-    
-    **CRITICAL - SQL Format Requirements:**
-    - Return ONLY complete, executable SQL queries
-    - SQL must be a single line without line breaks
-    - Do NOT break SQL into multiple lines or fragments
-    - Every SQL must start with SELECT, INSERT, UPDATE, or DELETE
-    - Test your SQL mentally before returning
-    
-    **Return JSON:**
-    ```json
-    {
-      "sql": "SELECT column FROM table WHERE condition"
-    }
-    ```
+    4-step: SQL Expert. Generate one-line SQL following expected_output_fields and single_table_ok.
 
+    Inputs:
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+
+    Core rules:
+    1) SELECT exactly expected_output_fields in order; no extra/missing/renamed columns.
+    2) If counting entities → COUNT(DISTINCT id/PK); GROUP BY all non-aggregates; avoid GROUP BY when only aggregate/single row.
+    3) If single_table_ok=true, do not join; otherwise join only when needed for columns using correct PK=FK.
+    4) ORDER BY only when question requires ranking/sorting.
+    5) Correct set ops: AND/OR vs UNION/INTERSECT/EXCEPT as intended.
+    6) No SELECT * unless explicitly asked; SQL must be a single executable line without comments.
   expected_output: >
-    JSON object containing the generated SQL query.
-
+    JSON {"sql": "<single-line SQL>"} honoring expected_output_fields and single_table_ok.
   agent: sql_expert
 
 validate_sql_task:
   description: >
-    Validate and fix SQL query:
-    
-    **SQL:** "{sql}"
-    **Question:** "{question}"
-    **Schema:** ```{db_schema}```
-    **Analysis:** ```{question_analysis}```
-    
-    Check:
-    1. **FIELD SELECTION VALIDATION (TOP PRIORITY):**
-       - Does SELECT return the correct fields from analysis?
-       - Question asks "Find courses" → SQL must SELECT course_id (NOT title)
-       - Question asks "List A and B" → SQL must SELECT A, B (exact order)
-       - REJECT SQL that returns wrong fields or wrong order
-       - Use `expected_output_fields` and `output_fields_detailed` to check name/order/aggregation
-    2. **Is syntax correct?** (SELECT, FROM, WHERE, etc.)
-    3. **Do table/column names exist?**
-    4. **Is logic correct?** (JOIN, WHERE conditions)
-    5. **Can it be executed?**
-    6. **Is SQL complete?** (Not a fragment or partial query)
-    7. **Is SQL single-line?** (No line breaks or formatting issues)
-    
-    If errors exist, fix:
-    - **CRITICAL - Field Selection Fixes:**
-      - Wrong SELECT fields → Replace with correct fields from analysis
-      - SELECT title instead of course_id → Change to course_id
-      - Wrong field order → Reorder to match question/analysis
-      - Missing fields → Add required fields from analysis
-    - Fix incorrect table/column names (check schema carefully!)
-    - **Remove unnecessary JOINs: if all columns in single table, use direct access**
-    - **Fix UNION vs OR logic: use UNION for separate result sets, OR for filtering**
-    - **Convert ID to lowercase id for consistency**
-    - **Fix COUNT logic: use COUNT(DISTINCT) for unique entities, COUNT(*) for records**
-    - **Fix column order: match expected output from analysis**
-    - Fix JOIN conditions
-    - Simplify complex queries (prefer simple table access over complex JOINs)
-    - Verify column consistency in set operations (EXCEPT/INTERSECT)
-    - Combine SQL fragments into complete queries
-    - Remove line breaks and format as single line
-    
-    **Return JSON:**
-    ```json
-    {
-      "sql": "Fixed SQL query (or original if correct)",
-      "explain": "Explanation of what this SQL does",
-      "error": "Error message if cannot be fixed (empty if OK)"
-    }
-    ```
+    4-step: Final Validator. Enforce final checklist and fix if needed.
 
+    Inputs:
+    - SQL: "{sql}"
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+
+    Validate:
+    - SELECT = expected_output_fields (content/order); COUNT uses DISTINCT when counting entities.
+    - No unnecessary joins; correct PK/FK; remove ORDER BY unless asked.
+    - Names exist in schema; SQL complete, one line, no comments.
+    - Fix issues and return corrected SQL with short explain; if unfixable, include error.
+
+    Return JSON {"sql": "...", "explain": "...", "error": ""}.
   expected_output: >
-    JSON object containing validated/fixed SQL query, explanation and error message (if any).
-
+    Final validated SQL JSON.
   agent: sql_validator

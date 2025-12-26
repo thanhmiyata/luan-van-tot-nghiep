@@ -1,313 +1,284 @@
 question_analysis_task:
   description: >
-    Analyze the following question and its database schema and produce a rich,
-    machine-readable analysis that is strictly aligned with the ACTUAL schema.
+    6-step: Analyzer stage. Extract intent, complexity, expected_output_fields (ordered), and single_table_ok flag with gold-like patterns.
 
-    **Question:** {question}
-    **Raw Schema (Spider JSON):** ```{raw_db_schema}```
+    Inputs:
+    - Question: {question}
+    - Raw Schema (Spider JSON): ```{raw_db_schema}```
 
-    Tasks:
-    1. Carefully inspect `table_names_original` and `column_names_original`.
-       - Every field you mention MUST correspond to an existing table/column.
-       - Never invent table or column names.
-    2. Determine:
-       - **Intent:** COUNT, LIST, MAX_MIN, AGGREGATION, BOOLEAN, or OTHER.
-       - **Complexity:** EASY (1 table), MEDIUM (2–3 tables), HARD (more / complex logic).
-    3. **CRITICAL – Expected Output Fields:**
-       - Identify what fields the SQL SELECT should return, based on the question.
-       - Map them to actual `(table, column)` pairs from the schema.
-       - Preserve question order when meaningful.
-       - Examples:
-         - "Find courses" → return course identifier column (e.g. `course_id`), NOT title unless explicitly asked.
-         - "List department names and buildings" → `dept_name`, `building` (exact order).
-         - "Show semester and year" → `semester`, `year` (preserve order).
-    4. Extract structured constraints:
-       - `filters` for WHERE / HAVING (which table/column, operator, value).
-       - `group_by` columns if aggregation per group is needed.
-       - `order_by` columns and direction if the question implies ordering.
-       - High-level `join_hints` describing which tables must be connected.
+    Requirements:
+    1) Map every expected field to real schema columns; never invent names.
+    2) expected_output_fields list preserves the question's requested order; set field_order_critical=true.
+    3) Mark single_table_ok=true when one table already has all required columns for SELECT and filters.
+    4) Prefer raw columns over aggregates when the question asks to "list/show" values (e.g., date_from, date_to instead of MIN/MAX).
+    5) For "first/earliest/latest" style questions, model expected_output_fields as raw columns plus order_by + limit=1 (not MIN/MAX).
+    6) For "how many X" without explicit "distinct", default to COUNT(*) on the appropriate table; only use COUNT_DISTINCT when the question explicitly refers to "distinct/unique".
+    7) Provide structured filters/group_by/order_by/join_hints aligned to actual columns.
 
-    **Return JSON ONLY (no markdown, no comments):**
-    ```json
+    **CRITICAL Pattern Recognition:**
+    - "4 or 5 stars" / "rating of 4 or 5" → Mark where_condition_type="RANGE" (use >= 4, NOT IN (4,5))
+    - "directors with more than one movie" / "X with multiple Y" (same entity type) → Mark self_join_hint=true (use self-join, NOT subquery with HAVING)
+    - "movies with 3 or 4 stars" → Check if question means "both 3 AND 4" (INTERSECT) vs "either 3 OR 4" (IN/OR). Mark set_operation_type accordingly.
+    - "null date" / "no date" / "ratingDate is null" → Check if dataset uses string "null" vs SQL NULL. Mark null_handling="STRING_NULL" or "SQL_NULL"
+    - "ordered by X, Y, Z" / "sort by" → Mark order_by as required with all columns
+    - "most rated" / "highest count" → Mark group_by should use PK (mID/id), not display column (title/name)
+    - "average rating per movie" → SELECT should include mID (PK) for GROUP BY, not just title
+
+    Return JSON only (no markdown):
     {
       "intent": "COUNT|LIST|MAX_MIN|AGGREGATION|BOOLEAN|OTHER",
       "complexity": "EASY|MEDIUM|HARD",
       "expected_output_fields": ["field1", "field2"],
       "field_order_critical": true,
+      "single_table_ok": true,
       "output_fields_detailed": [
-        {
-          "table": "table_name_or_null_if_ambiguous",
-          "column": "exact_column_name_from_schema",
-          "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN",
-          "alias": "optional_alias_or_null",
-          "order_index": 0
-        }
+        {"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "alias": null, "order_index": 0}
       ],
-      "filters": [
-        {
-          "table": "table_name_or_null",
-          "column": "column_name_or_null",
-          "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN",
-          "value": "value_as_string_if_present_in_question",
-          "value_type": "NUMBER|STRING|DATE|OTHER"
-        }
-      ],
-      "group_by": [
-        {
-          "table": "table_name",
-          "column": "column_name"
-        }
-      ],
-      "order_by": [
-        {
-          "table": "table_name",
-          "column": "column_name",
-          "direction": "ASC|DESC"
-        }
-      ],
-      "join_hints": [
-        {
-          "from_table": "table_a",
-          "to_table": "table_b",
-          "reason": "why these tables must be joined"
-        }
-      ],
-      "entities": {
-        "tables": ["table1", "table2"],
-        "columns": ["col1", "col2"],
-        "values": ["val1", "val2"]
-      },
+      "filters": [{"table": "t", "column": "c", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "v", "value_type": "NUMBER|STRING|DATE|OTHER"}],
+      "group_by": [{"table": "t", "column": "c"}],
+      "order_by": [{"table": "t", "column": "c", "direction": "ASC|DESC"}],
+      "join_hints": [{"from_table": "a", "to_table": "b", "reason": "why join"}],
+      "entities": {"tables": ["t1"], "columns": ["c1"], "values": ["v1"]},
+      "self_join_hint": false,
+      "set_operation_type": "NONE|INTERSECT|UNION|OR",
+      "null_handling": "SQL_NULL|STRING_NULL|UNKNOWN",
+      "where_condition_type": "RANGE|IN|EQUALS|LIKE",
       "confidence": 0.95
     }
-    ```
-
   expected_output: >
-    JSON object with question analysis including intent, complexity, entities and confidence score.
-      
+    JSON with expected_output_fields, single_table_ok flag, and structured hints.
   agent: question_analyzer
 
 select_needed_schema_task:
   description: >
-    Filter database schema to keep only what's needed, while NEVER removing any
-    table or column required for outputs, filters, grouping or ordering.
+    Filter schema using Analyzer output. Keep minimal tables/columns but preserve PK/FK needed for joins.
 
-    **Question:** {question}
-    **Original Schema:** ```{raw_db_schema}```
-    **Analysis:** ```{question_analysis}```
+    Inputs:
+    - Question: {question}
+    - Original Schema: ```{raw_db_schema}```
+    - Analysis: ```{question_analysis}```
 
-    Based on question analysis:
-    1. Start from:
-       - all tables in `entities.tables`
-       - all tables referenced by `output_fields_detailed`, `filters`, `group_by`, `order_by`
-    2. For every selected table:
-       - Keep columns mentioned in `entities.columns`
-       - Keep all columns referenced in `output_fields_detailed`, `filters`, `group_by`, `order_by`
-    3. Preserve all primary keys and foreign keys for the kept tables, so JOINs remain possible.
-    4. Optionally keep intermediate tables needed to connect selected tables via foreign-key relationships.
-    5. It is BETTER to keep a few extra tables/columns than to accidentally drop a required one.
+    Steps:
+    1) Start from tables in entities.tables and all tables referenced in output_fields_detailed/filters/group_by/order_by.
+    2) Keep columns used in outputs/filters/group_by/order_by and all PK/FK for those tables.
+    3) Optionally keep intermediate tables needed to connect required tables.
+    4) Prefer a small safe superset over dropping a needed column.
 
-    **Return JSON with same format as original schema:**
-    ```json
-    {
-      "db_id": "database_name",
-      "table_names_original": ["table1", "table2"],
-      "column_names_original": [[0, "col1"], [1, "col2"]],
-      "column_types": ["text", "number"]
-    }
-    ```
-
+    Return JSON with same structure as input schema (db_id, table_names_original, column_names_original, column_types).
   expected_output: >
-    JSON object containing filtered schema with same structure as original schema.
-      
+    Filtered schema JSON preserving PK/FK connectivity.
   agent: schema_selector
-
-generate_sql_task:
-  description: >
-    Generate SQL query from the question:
-    
-    **Question:** "{question}"
-    **Schema:** ```{db_schema}```
-    **Analysis:** ```{question_analysis}```
-    **Query Plan:** ```{query_plan}```
-    
-    **CRITICAL RULES - Based on Error Analysis:**
-    1. **FIELD SELECTION (TOP PRIORITY - 52.6% of errors):**
-       - Use EXACT fields from analysis "expected_output_fields"
-       - "Find courses" → SELECT course_id (NOT title)
-       - "List A and B" → SELECT A, B (exact order from analysis)
-       - NEVER substitute course_id with title, or id with name
-       - Preserve field order from "expected_output_fields"
-    
-    2. **SIMPLICITY RULES:**
-       - "course_id from SECTION" → Use SECTION table directly (no JOIN to course)
-       - Only JOIN when you need data from MULTIPLE tables
-       - If all fields are in one table, use that table only
-    
-    3. **UNION vs OR Logic:**
-       - "courses in Fall 2009 OR Spring 2010" → Use UNION (separate result sets)
-       - "instructors in dept A OR dept B" → Use simple WHERE with OR/IN
-       - UNION: When combining different result sets from same table
-       - OR: When filtering single table with multiple conditions
-    
-    4. **COUNT logic:**
-       - Count departments → COUNT(DISTINCT dept_name)
-       - Count courses → COUNT(DISTINCT course_id) (if duplicates exist)
-       - Count students with advisors → COUNT(DISTINCT s_id)
-
-    5. **FOLLOW THE PLAN (MANDATORY):**
-       - The plan provides `steps[]`. Implement ALL steps in a single SQL.
-       - Apply joins/filters/group_by/order_by/set_op/limit exactly as described.
-       - Do NOT ignore or reorder steps unless required by SQL validity.
-    
-    **CRITICAL - SQL Format Requirements:**
-    - Return ONLY complete, executable SQL queries
-    - SQL must be a single line without line breaks
-    - Do NOT break SQL into multiple lines or fragments
-    - Every SQL must start with SELECT, INSERT, UPDATE, or DELETE
-    - Test your SQL mentally before returning
-    
-    **Return JSON:**
-    ```json
-    {
-      "sql": "SELECT column FROM table WHERE condition"
-    }
-    ```
-
-  expected_output: >
-    JSON object containing the generated SQL query.
-
-  agent: sql_expert
-
-validate_sql_task:
-  description: >
-    Validate and fix SQL query:
-    
-    **SQL:** "{sql}"
-    **Question:** "{question}"
-    **Schema:** ```{db_schema}```
-    **Analysis:** ```{question_analysis}```
-    
-    Check:
-    1. **FIELD SELECTION VALIDATION (TOP PRIORITY):**
-       - Does SELECT return the correct fields from analysis?
-       - Question asks "Find courses" → SQL must SELECT course_id (NOT title)
-       - Question asks "List A and B" → SQL must SELECT A, B (exact order)
-       - REJECT SQL that returns wrong fields or wrong order
-       - Use `expected_output_fields` and `output_fields_detailed` to check name/order/aggregation
-    2. **Is syntax correct?** (SELECT, FROM, WHERE, etc.)
-    3. **Do table/column names exist?**
-    4. **Is logic correct?** (JOIN, WHERE conditions)
-    5. **Can it be executed?**
-    6. **Is SQL complete?** (Not a fragment or partial query)
-    7. **Is SQL single-line?** (No line breaks or formatting issues)
-    
-    If errors exist, fix:
-    - **CRITICAL - Field Selection Fixes:**
-      - Wrong SELECT fields → Replace with correct fields from analysis
-      - SELECT title instead of course_id → Change to course_id
-      - Wrong field order → Reorder to match question/analysis
-      - Missing fields → Add required fields from analysis
-    - Fix incorrect table/column names (check schema carefully!)
-    - **Remove unnecessary JOINs: if all columns in single table, use direct access**
-    - **Fix UNION vs OR logic: use UNION for separate result sets, OR for filtering**
-    - **Convert ID to lowercase id for consistency**
-    - **Fix COUNT logic: use COUNT(DISTINCT) for unique entities, COUNT(*) for records**
-    - **Fix column order: match expected output from analysis**
-    - Fix JOIN conditions
-    - Simplify complex queries (prefer simple table access over complex JOINs)
-    - Verify column consistency in set operations (EXCEPT/INTERSECT)
-    - Combine SQL fragments into complete queries
-    - Remove line breaks and format as single line
-    
-    **Return JSON:**
-    ```json
-    {
-      "sql": "Fixed SQL query (or original if correct)",
-      "explain": "Explanation of what this SQL does",
-      "error": "Error message if cannot be fixed (empty if OK)"
-    }
-    ```
-
-  expected_output: >
-    JSON object containing validated/fixed SQL query, explanation and error message (if any).
-
-  agent: sql_validator
 
 query_planning_task:
   description: >
-    Create a detailed query execution plan (NOT SQL) for the question.
+    6-step: Query Planner. Build minimal plan before SQL.
 
-    **Question:** "{question}"
-    **Schema:** ```{db_schema}```
-    **Analysis:** ```{question_analysis}```
+    Inputs:
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
 
-    Design a step-by-step logical plan:
-      1. List sub-goals (e.g. filter rows, join tables, aggregate, sort)
-      2. For each sub-goal, specify:
-         - involved tables
-         - join conditions (if any)
-         - filters (WHERE)
-         - aggregations / GROUP BY / HAVING
-         - set operations (UNION/INTERSECT/EXCEPT) if needed
-         - limit (if the question implies top-k)
-      3. Ensure the plan will produce exactly the expected_output_fields in correct order.
+    Plan rules:
+    - List minimal tables; state "no join needed" if single_table_ok.
+    - If joining, specify PK/FK pairs explicitly and avoid adding extra tables not required by outputs/filters.
+    - For pure counts (no fields in SELECT except aggregate), prefer COUNT(*) unless the question clearly requires distinct entities (then mark COUNT_DISTINCT).
+    - For "top-k/most/least" with non-aggregated display fields, plan GROUP BY only on those display fields (typically ids and their details) and ORDER BY COUNT(*) DESC/ASC with LIMIT k.
+    - For extremum-of-column questions where expected_output_fields are raw columns, plan ORDER BY <column> ASC/DESC + LIMIT 1 instead of MIN/MAX.
+    - Add ORDER BY only when question implies ranking/sorting or extremum.
+    - Specify needed set operations (UNION/INTERSECT/EXCEPT) explicitly when the question is about "both / either / but not", instead of emulating them via HAVING on counts.
 
-    **Return JSON:**
-    ```json
-    {
-      "steps": [
-        {
-          "description": "text",
-          "tables": ["table1", "table2"],
-          "joins": [
-            {"from_table": "table1", "from_column": "col_a", "to_table": "table2", "to_column": "col_b"}
-          ],
-          "filters": [
-            {"table": "table1", "column": "col_a", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "v", "value_type": "NUMBER|STRING|DATE|OTHER"}
-          ],
-          "group_by": [{"table": "table1", "column": "col_a"}],
-          "order_by": [{"table": "table1", "column": "col_a", "direction": "ASC|DESC"}],
-          "set_op": "NONE|UNION|INTERSECT|EXCEPT",
-          "limit": "optional integer or null"
-        }
-      ]
-    }
-    ```
+    **CRITICAL Planning Rules:**
+    1. **Self-Join Detection:**
+       - If analysis says self_join_hint=true → MUST use self-join pattern in plan
+       - Example: "directors with >1 movie" → JOIN Movie AS T1 JOIN Movie AS T2 ON T1.director = T2.director WHERE T1.title != T2.title
+       - DO NOT plan subquery with HAVING COUNT(*) > 1 when self-join is needed
 
+    2. **Set Operations:**
+       - If analysis says set_operation_type=INTERSECT → Plan MUST use INTERSECT (two SELECT statements)
+       - If analysis says set_operation_type=OR → Plan MUST use OR in WHERE clause, NOT UNION
+       - If analysis says set_operation_type=UNION → Plan MUST use UNION (two separate result sets)
+       - "both A and B" / "A that also has B" → INTERSECT
+       - "either A or B" (single result set) → OR in WHERE
+       - "A combined with B" (different sets) → UNION
+
+    3. **GROUP BY Strategy:**
+       - When counting/aggregating per entity → GROUP BY the PK (id/mID), NOT display column
+       - Example: "movie rated most" → GROUP BY mID, not title
+       - Only GROUP BY display column if explicitly needed for output
+
+    4. **WHERE Conditions:**
+       - If analysis says where_condition_type=RANGE → Plan to use >= or <= (inclusive), NOT IN
+       - Example: "4 or 5 stars" → Use >= 4, not IN (4,5)
+       - If analysis says null_handling=STRING_NULL → Plan to use = "null", NOT IS NULL
+       - If analysis says null_handling=SQL_NULL → Plan to use IS NULL
+
+    5. **ORDER BY:**
+       - If analysis marks order_by as required → MUST include in plan with all specified columns
+       - "ordered by X, Y, Z" → Plan must specify all columns and direction
+
+    Return JSON:
+    { "steps": [ { "description": "text", "tables": ["t1"], "joins": [{"from_table":"t1","from_column":"id","to_table":"t2","to_column":"f_id"}], "filters": [...], "group_by": [...], "order_by": [...], "set_op": "NONE|UNION|INTERSECT|EXCEPT", "limit": null, "self_join": false, "null_handling": "SQL_NULL|STRING_NULL", "where_condition_type": "RANGE|IN|EQUALS|LIKE" } ] }
   expected_output: >
-    JSON object containing a clear query plan under the "plan" field.
-
+    JSON plan respecting expected_output_fields order and minimal joins.
   agent: query_planner
+
+generate_sql_task:
+  description: >
+    6-step: SQL Expert. Generate one-line SQL following expected_output_fields and planner.
+
+    Inputs:
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Query Plan: ```{query_plan}```
+
+    Core rules:
+    1) SELECT exactly expected_output_fields in given order; no extra/missing/renamed columns, no switching to "description" columns when ids/types are requested.
+    2) When counting:
+       - Default to COUNT(*) for "how many X" unless query_plan/analysis explicitly require COUNT_DISTINCT.
+       - Use COUNT(DISTINCT id/PK) only when the plan says we are counting distinct entities.
+       - GROUP BY only the non-aggregated SELECT fields (typically ids/details) required by the plan; do not add extra GROUP BY columns.
+    3) For extremum-of-column questions where expected_output_fields are raw columns (e.g., date_from, date_to), prefer ORDER BY <column> ASC/DESC + LIMIT 1 over MIN/MAX aggregates.
+    4) Join only if needed; use correct PK=FK; if planner says "no join needed", avoid joins completely and do not add extra tables like *_Types.
+    5) ORDER BY only when asked or when plan specifies it (top-k / earliest / latest). Use the exact columns and direction from the plan.
+    6) Correct set ops: use INTERSECT/UNION/EXCEPT exactly when the plan specifies them; do NOT replace them with HAVING COUNT(DISTINCT ...) or other approximations.
+    7) Avoid SELECT * unless explicitly asked; SQL must be a single executable line without comments.
+
+    **CRITICAL Pattern Enforcement:**
+    1. **Self-Join Pattern:**
+       - If plan says self_join=true → MUST use self-join, NOT subquery
+       - Example: JOIN Movie AS T1 JOIN Movie AS T2 ON T1.director = T2.director WHERE T1.title != T2.title
+       - DO NOT use: WHERE director IN (SELECT director FROM Movie GROUP BY director HAVING COUNT(*) > 1)
+
+    2. **Set Operations:**
+       - If plan says set_op=INTERSECT → MUST use INTERSECT (two SELECT statements with same columns)
+       - If plan says set_op=OR → Use OR in WHERE clause, NOT UNION
+       - If plan says set_op=UNION → Use UNION (two separate result sets)
+       - Example INTERSECT: SELECT title FROM ... WHERE stars=3 INTERSECT SELECT title FROM ... WHERE stars=4
+
+    3. **WHERE Conditions:**
+       - If plan says where_condition_type=RANGE → Use >= or <=, NOT IN
+       - Example: "4 or 5 stars" → Use WHERE stars >= 4, NOT WHERE stars IN (4,5)
+       - If plan says null_handling=STRING_NULL → Use = "null", NOT IS NULL
+       - If plan says null_handling=SQL_NULL → Use IS NULL
+
+    4. **GROUP BY:**
+       - If plan specifies GROUP BY mID → Use mID, NOT title or other display column
+       - When aggregating per entity, GROUP BY the PK/ID column from the plan
+       - If SELECT includes mID and title, GROUP BY mID (not title)
+
+    5. **SELECT Columns:**
+       - If GROUP BY uses mID → SELECT should include mID (for grouping), not just title
+       - Match expected_output_fields exactly, but ensure GROUP BY columns are included if needed
+  expected_output: >
+    JSON {"sql": "<single-line SQL>"} following the plan and core rules.
+  agent: sql_expert
 
 refine_sql_task:
   description: >
-    Review and refine an initial SQL query based on the question, analysis and plan.
+    6-step: SQL Refiner. Single-pass fix of the generated SQL.
 
-    **Initial SQL:** "{sql}"
-    **Question:** "{question}"
-    **Schema:** ```{db_schema}```
-    **Analysis:** ```{question_analysis}```
-    **Plan:** ```{query_plan}```
+    Inputs:
+    - Initial SQL: "{sql}"
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Plan: ```{query_plan}```
 
-    Steps:
-      1. Compare SELECT fields vs expected_output_fields (order and content)
-      2. Check that logic follows the plan (tables, joins, filters, grouping)
-      3. Simplify unnecessary joins/subqueries while keeping correctness
-      4. Fix COUNT vs COUNT(DISTINCT), set operations, and GROUP BY if needed
-      5. Ensure SQL is a single, complete, executable statement on one line
+    Checklist:
+    - Enforce SELECT to match expected_output_fields exactly (names & order); if SQL uses description columns instead of ids/types, switch back to the fields in expected_output_fields.
+    - Remove unnecessary joins; fix join keys; if single_table_ok=true and all SELECT/filters exist in one table, rewrite SQL to use that table only.
+    - For counts:
+      - If plan/analysis do NOT require distinct entities, rewrite COUNT(DISTINCT ...) back to COUNT(*).
+      - Ensure GROUP BY only contains the minimal non-aggregated SELECT fields; drop extra GROUP BY columns.
+    - For extremum-of-column questions with raw column outputs, replace MIN/MAX aggregates with ORDER BY column ASC/DESC + LIMIT 1 when needed.
+    - Enforce set operations from the plan (e.g., replace ad hoc HAVING logic with INTERSECT/UNION/EXCEPT when specified).
+    - Drop unasked ORDER BY; ensure set ops and filters follow the plan.
+    - Keep final SQL single-line and executable.
 
-    If the initial SQL is already optimal, keep it and explain why.
+    **CRITICAL Pattern Fixes:**
+    1. **Self-Join Fix:**
+       - If SQL uses subquery with HAVING COUNT(*) > 1 for "more than one" → Replace with self-join pattern
+       - Check: JOIN same table twice with WHERE condition excluding self (T1.title != T2.title)
+       - Example: Replace "WHERE director IN (SELECT director FROM Movie GROUP BY director HAVING COUNT(*) > 1)" with self-join
 
-    **Return JSON:**
-    ```json
-    {
-      "sql": "Refined or original SQL",
-      "notes": "Short explanation of changes (or why none were needed)",
-      "diagnostics": ["optional list of issues found/fixed"]
-    }
-    ```
+    2. **Set Operation Fix:**
+       - If SQL uses `IN (3,4)` but plan says INTERSECT → Replace with INTERSECT pattern (two SELECTs)
+       - If SQL uses UNION but plan says OR → Replace with OR in WHERE clause
+       - If SQL uses OR but plan says UNION → Replace with UNION (two separate SELECTs)
 
+    3. **WHERE Condition Fix:**
+       - If SQL uses `IN (4,5)` for "4 or 5" and plan says RANGE → Replace with `>= 4` (if inclusive range)
+       - If SQL uses `IS NULL` but plan says STRING_NULL → Replace with `= "null"`
+
+    4. **GROUP BY Fix:**
+       - If SQL uses `GROUP BY title` but should group by entity → Replace with `GROUP BY mID` (or appropriate PK)
+       - Ensure SELECT includes the GROUP BY column if needed (e.g., SELECT mID, title, avg(...) GROUP BY mID)
+
+    5. **DISTINCT vs GROUP BY:**
+       - If SQL uses `GROUP BY year` just to get unique years → Replace with `DISTINCT year` (simpler, no aggregation needed)
+
+    6. **ORDER BY Fix:**
+       - If plan requires ORDER BY but SQL missing it → Add ORDER BY with all specified columns
+       - Check column order matches plan exactly
+
+    Return JSON {"sql": "...", "notes": "...", "diagnostics": ["..."]}.
   expected_output: >
-    JSON object containing the refined SQL and short notes.
-
+    Refined single-line SQL plus brief notes.
   agent: sql_refiner
+
+validate_sql_task:
+  description: >
+    6-step: Final Validator. Enforce final checklist and fix if needed.
+
+    Inputs:
+    - SQL: "{sql}"
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+
+    Validate:
+    - SELECT = expected_output_fields (content/order); if not, rewrite SELECT to match exactly (including using ids/types instead of descriptions when required).
+    - For counts:
+      - Use COUNT(*) by default when counting rows/records; only keep COUNT(DISTINCT ...) when the plan/analysis clearly require distinct entities.
+      - Ensure GROUP BY is minimal and consistent with non-aggregated SELECT fields.
+    - Check extremum patterns: if expected_output_fields are raw columns and the question is about earliest/latest, prefer ORDER BY + LIMIT 1 over MIN/MAX where appropriate.
+    - No unnecessary joins; correct PK/FK; if single_table_ok=true and extra joins exist, simplify back to the single table.
+    - Remove ORDER BY unless the question/plan requires ranking or extremum.
+    - Names exist in schema; SQL complete, single line, no comments.
+    - Fix issues and return corrected SQL with short explain; if unfixable, include error.
+
+    **CRITICAL Final Pattern Checks:**
+    1. **Self-Join Validation:**
+       - If analysis/plan says self_join_hint=true or self_join=true → SQL MUST use self-join, NOT subquery
+       - Fix if wrong pattern detected (replace subquery with self-join)
+
+    2. **Set Operation Validation:**
+       - If plan says set_op=INTERSECT → SQL MUST use INTERSECT (two SELECTs with same columns)
+       - If plan says set_op=OR → SQL MUST use OR in WHERE, NOT UNION
+       - If plan says set_op=UNION → SQL MUST use UNION (two separate SELECTs)
+       - Fix if wrong operation used
+
+    3. **WHERE Condition Validation:**
+       - Check if `IN (4,5)` should be `>= 4` (for inclusive ranges when plan says RANGE)
+       - Check if `IS NULL` should be `= "null"` (for string nulls when plan says STRING_NULL)
+       - Fix based on plan's where_condition_type and null_handling
+
+    4. **GROUP BY Validation:**
+       - If aggregating per entity → GROUP BY should use PK (mID), not display column
+       - If SQL uses `GROUP BY title` but should use mID → Fix to GROUP BY mID
+       - Ensure SELECT includes GROUP BY column if needed
+
+    5. **ORDER BY Validation:**
+       - If plan requires ORDER BY → SQL MUST have ORDER BY
+       - Check all columns from plan are included in ORDER BY
+       - Fix if missing or incomplete
+
+    6. **DISTINCT Validation:**
+       - If SQL uses `GROUP BY year` just for uniqueness → Suggest `DISTINCT year` instead
+       - Only use GROUP BY when aggregation is needed
+
+    Return JSON {"sql": "...", "explain": "...", "error": ""}.
+  expected_output: >
+    Final validated SQL JSON.
+  agent: sql_validator
