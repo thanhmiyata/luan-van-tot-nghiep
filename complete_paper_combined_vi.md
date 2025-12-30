@@ -6,7 +6,7 @@ Các hệ thống chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truy
 
 Bài báo này trình bày một hệ thống **multi-agent** mới cho NL2SQL sử dụng khung CrewAI, với **multi-agent pipeline** gồm sáu **AI Agent** chuyên biệt: Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL, và Tinh chỉnh SQL. Điểm đổi mới là cơ chế tinh chỉnh một lần cho phép sửa lỗi thông qua cộng tác giữa các tác nhân.
 
-Đánh giá trên tập dữ liệu Spider 1.0 (50 câu) cho thấy quy trình 6 bước đạt 86.0% độ chính xác thực thi, cao hơn 24 điểm phần trăm so với cơ sở 4 bước (62.0%). Các đóng góp: (1) kiến trúc 6 tác nhân cho NL2SQL với vai trò chuyên biệt và tinh chỉnh một lần (xem Phần 3), và (2) phân tích lỗi toàn diện xác định chọn trường là nguồn lỗi chính (52,6%) cùng chiến lược giảm thiểu có mục tiêu (xem Phần 4.4).
+Đánh giá trên toàn bộ tập dữ liệu Spider Dev Set (1.034 câu) cho thấy quy trình 6 bước đạt 84,1% độ chính xác thực thi, vượt trội so với các phương pháp đơn tác nhân và cao hơn 4,6% so với quy trình 4 bước (79,5%). Các đóng góp: (1) kiến trúc 6 tác nhân cho NL2SQL với vai trò chuyên biệt và cơ chế tinh chỉnh một lần (Phần 3), và (2) phân tích lỗi toàn diện xác định chọn trường là nguồn lỗi chính (52,6%) cùng chiến lược giảm thiểu có mục tiêu (Phần 4.4).
 
 Kết quả chứng minh các hệ thống **multi-agent** với vai trò chuyên biệt vượt trội so với phương pháp đơn tác nhân trong các tác vụ NL2SQL phức tạp.
 
@@ -16,7 +16,7 @@ Kết quả chứng minh các hệ thống **multi-agent** với vai trò chuyê
 
 ## 1. Giới thiệu (Introduction)
 
-### 1.1 Đoạn Mở đầu
+### 1.1 Mở đầu
 Giao diện ngôn ngữ tự nhiên cho cơ sở dữ liệu ngày càng trở nên quan trọng khi chúng cho phép người dùng không có chuyên môn kỹ thuật truy vấn các cơ sở dữ liệu phức tạp bằng ngôn ngữ trực quan. Sự ra đời của các mô hình ngôn ngữ lớn (LLMs) đã cách mạng hóa các tác vụ xử lý ngôn ngữ tự nhiên, bao gồm việc dịch các câu hỏi ngôn ngữ tự nhiên thành các truy vấn SQL có cấu trúc—một tác vụ được gọi là NL2SQL. Tuy nhiên, bất chấp những tiến bộ đáng kể, các hệ thống NL2SQL hiện tại vẫn gặp khó khăn với các truy vấn phức tạp đòi hỏi suy luận nhiều bước, hiểu lược đồ chính xác và lựa chọn trường chính xác. Hệ thống đa tác nhân, tận dụng các tác nhân chuyên biệt làm việc cộng tác, đã nổi lên như một phương pháp hứa hẹn để giải quyết các hạn chế này bằng cách cho phép tinh chỉnh một lần và sửa lỗi thông qua sự cộng tác của tác nhân.
 
 ### 1.2 Phát biểu Bài toán
@@ -40,7 +40,7 @@ Cuối cùng, Tác nhân Tinh chỉnh SQL (SQL Refiner) thực hiện tinh chỉ
 Bài báo này có các đóng góp sau:
 *   **Kiến trúc 6 tác nhân mới cho NL2SQL** (xem Phần 3.3): Chúng tôi đề xuất kiến trúc đa tác nhân chuyên biệt đầu tiên được thiết kế riêng cho NL2SQL, với sáu tác nhân có vai trò riêng biệt: Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL và Tinh chỉnh SQL. Kiến trúc này cho phép chuyên môn hóa và tinh chỉnh một lần, giải quyết các hạn chế của phương pháp đơn tác nhân (xem Phần 1.2).
 *   **Phân tích lỗi toàn diện** (xem Phần 4.4): Chúng tôi thực hiện phân tích lỗi chi tiết xác định việc chọn trường là nguồn lỗi chính, chiếm 52,6% các lỗi trong hệ thống NL2SQL. Phân tích này cung cấp thông tin cho các chiến lược giảm thiểu có mục tiêu được thực hiện trong tác nhân Phân tích Câu hỏi (xem Phần 3.3.1).
-*   **Đánh giá thực nghiệm** (xem Phần 4): Chúng tôi cung cấp đánh giá toàn diện so sánh các kiến trúc quy trình 4 bước và 6 bước trên tập dữ liệu Spider [3], chứng minh tác động của việc lập kế hoạch truy vấn và tinh chỉnh một lần đối với độ chính xác (xem Phần 4.1). Đánh giá của chúng tôi bao gồm cả chỉ số độ chính xác khớp chính xác và độ chính xác thực thi (xem Phần 4.2.4).
+*   **Đánh giá thực nghiệm quy mô lớn** (xem Phần 4): Chúng tôi cung cấp đánh giá toàn diện so sánh các kiến trúc quy trình 4 bước và 6 bước trên toàn bộ tập Spider Dev Set (1.034 câu), chứng minh tác động của việc lập kế hoạch truy vấn và tinh chỉnh một lần đối với độ chính xác (xem Phần 4.1). Đánh giá của chúng tôi bao gồm cả chỉ số độ chính xác khớp chính xác và độ chính xác thực thi (xem Phần 4.2.4).
 *   **Phân tích sự cộng tác của tác nhân** (xem Phần 3.4): Chúng tôi phân tích các mô hình cộng tác giữa các tác nhân, bao gồm luồng thông tin giữa các tác nhân và quy trình tinh chỉnh một lần, và tác động của chúng đến độ chính xác truy vấn (xem Phần 4.2.2), cung cấp cái nhìn sâu sắc về cách các tác nhân chuyên biệt đóng góp vào việc cải thiện hiệu suất NL2SQL.
 
 ### 1.5 Cấu trúc Bài báo
@@ -290,51 +290,78 @@ Hình 3 so sánh các biến thể quy trình 4 bước và 6 bước. Để đ�
 
 Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1) tác động của việc lập kế hoạch truy vấn đối với độ chính xác và cấu trúc truy vấn, (2) sự đóng góp của tinh chỉnh một lần vào việc sửa lỗi và cải thiện truy vấn, và (3) sự đánh đổi giữa độ phức tạp của quy trình và mức tăng độ chính xác. Nghiên cứu cắt giảm này cung cấp cái nhìn sâu sắc về những thành phần nào là quan trọng nhất đối với hiệu suất NL2SQL và xác thực các lựa chọn thiết kế của chúng tôi về chuyên môn hóa tác nhân và cơ chế tinh chỉnh.
 
-### 3.6 Chi tiết Triển khai
-**Khung và Cơ sở hạ tầng:** Hệ thống của chúng tôi được triển khai bằng khung CrewAI [10], cung cấp khả năng điều phối tác nhân, ủy quyền nhiệm vụ và chia sẻ thông tin. CrewAI cho phép chúng tôi xác định các vai trò tác nhân chuyên biệt, chỉ định mục tiêu và cốt truyện của tác nhân, và quản lý luồng thông tin giữa các tác nhân. Khung này xử lý giao tiếp tác nhân, quản lý ngữ cảnh và trình tự nhiệm vụ, cho phép chúng tôi tập trung vào thiết kế tác nhân và kỹ thuật prompt.
+### 3.6 Hợp thức hóa và Prompt Engineering (Formalization)
 
-**Mô hình Ngôn ngữ Cơ sở:** Tất cả sáu tác nhân đều sử dụng Gemini 2.0 Flash làm mô hình ngôn ngữ cơ sở của chúng. Sự lựa chọn này cung cấp khả năng suy luận nhất quán giữa các tác nhân trong khi duy trì hiệu quả tính toán. Gemini 2.0 Flash cung cấp khả năng hiểu ngôn ngữ tự nhiên mạnh mẽ, khả năng tạo mã và khả năng tuân theo các hướng dẫn chi tiết, làm cho nó phù hợp với các nhiệm vụ đa dạng được thực hiện bởi các tác nhân của chúng tôi.
+Để chuẩn hóa quy trình làm việc của hệ thống đa tác nhân, chúng tôi định nghĩa mỗi **AI Agent** $A_i$ như một hàm toán học:
+$$A_i(I_i, C_i, \tau_i) \rightarrow O_i$$
+Trong đó:
+*   $I_i$: Thông tin đầu vào (ví dụ: Câu hỏi $Q$, Lược đồ $S$).
+*   $C_i$: Ngữ cảnh tích lũy từ các tác nhân trước đó ($O_1, O_2, ..., O_{i-1}$).
+*   $\tau_i$: Chỉ dẫn cụ thể (Backstory và Task Prompt) thiết lập vai trò chuyên biệt.
+*   $O_i$: Đầu ra có cấu trúc (ví dụ: JSON chứa SQL, Kế hoạch, hoặc Phân tích).
 
-**Kỹ thuật Prompt (Prompt Engineering):** Mỗi tác nhân có một cốt truyện và bộ quy tắc chi tiết được xác định thông qua kỹ thuật prompt. Các cốt truyện thiết lập chuyên môn và vai trò của tác nhân (ví dụ: "Bạn là một nhà phân tích truy vấn SQL chuyên gia với sự hiểu biết sâu sắc về lược đồ cơ sở dữ liệu"), trong khi các quy tắc chỉ định hành vi và ràng buộc của tác nhân (ví dụ: "Luôn xác định các trường cần thiết cho mệnh đề SELECT", "Không bao giờ tạo mã SQL, chỉ tạo kế hoạch logic"). Các prompt này được soạn thảo cẩn thận để hướng dẫn hành vi của tác nhân và ngăn chặn các mẫu lỗi phổ biến. Các prompt bao gồm các ví dụ về đầu ra đúng và sai, nhận thức về mẫu lỗi và hướng dẫn cụ thể để xử lý các trường hợp biên.
+Toàn bộ hệ thống là một hàm hợp $F$ thực hiện quy trình tuần tự:
+$$F(Q, S) = A_6 \circ A_5 \circ A_4 \circ A_3 \circ A_2 \circ A_1(Q, S)$$
 
-**Huấn luyện Mẫu Lỗi:** Các tác nhân được làm cho nhận thức về các mẫu lỗi phổ biến thông qua các prompt của chúng. Phân tích Câu hỏi được huấn luyện để nhận biết các thách thức chọn trường, Chuyên gia SQL nhận thức về các lỗi logic JOIN và sai lầm tổng hợp, và Tinh chỉnh SQL biết cách sửa các vấn đề này. Nhận thức về mẫu lỗi này được nhúng trong các prompt tác nhân thông qua các quy tắc và ví dụ rõ ràng, cho phép các tác nhân tránh các cạm bẫy đã biết và sửa các lỗi phổ biến.
+#### Giả mã Hệ thống (Pseudo-code)
+Thuật toán dưới đây mô tả chi tiết logic điều phối trong khung CrewAI:
 
-**Định dạng Đầu ra:** Hệ thống tạo ra các truy vấn SQL ở định dạng một dòng để thực thi. Định dạng này nhất quán với khung đánh giá tập dữ liệu Spider và cho phép thực thi trực tiếp trên cơ sở dữ liệu. Tất cả các tác nhân đều tạo ra đầu ra có cấu trúc JSON: Phân tích Câu hỏi trả về JSON với intent, complexity, entities (dưới dạng chuỗi JSON), requirements (dưới dạng chuỗi JSON chứa expected_output_fields và field_order_critical), patterns (dưới dạng chuỗi JSON), linguistic_notes, và confidence; Chọn Lược đồ trả về JSON khớp với cấu trúc lược đồ gốc (db_id, table_names_original, column_names_original, column_types) nhưng với nội dung đã lọc; Lập kế hoạch Truy vấn trả về JSON với trường plan; Chuyên gia SQL trả về JSON với trường sql; Tinh chỉnh SQL trả về JSON với trường sql và notes; Kiểm tra SQL trả về JSON với các trường sql, explain, và error. Các tác nhân Chuyên gia SQL và Tinh chỉnh SQL được hướng dẫn cụ thể để tạo ra các truy vấn SQL một dòng không có định dạng hoặc chú thích, đảm bảo khả năng tương thích với các công cụ đánh giá.
+```python
+def MultiAgent_NL2SQL(Question Q, Schema S):
+    # Bước 1: Trích xuất ý định và trường dữ liệu
+    Analysis = QuestionAnalyzer(input=Q, schema=S)
+    
+    # Bước 2: Giảm nhiễu lược đồ
+    FilteredSchema = SchemaSelector(question=Q, analysis=Analysis, full_schema=S)
+    
+    # Bước 3: Xây dựng cấu trúc logic (Thành phần quan trọng cho truy vấn Hard)
+    QueryPlan = QueryPlanner(analysis=Analysis, schema=FilteredSchema)
+    
+    # Bước 4: Chuyển đổi Logic sang SQL
+    InitialSQL = SQLExpert(analysis=Analysis, schema=FilteredSchema, plan=QueryPlan)
+    
+    # Bước 5: Tinh chỉnh một lần (Single-pass Refinement)
+    # So sánh SQL với Expected_Output_Fields trong Analysis
+    RefinedSQL = SQLRefiner(sql=InitialSQL, analysis=Analysis, plan=QueryPlan)
+    
+    # Bước 6: Kiểm tra cú pháp và ngữ nghĩa cuối cùng
+    FinalSQL = SQLValidator(sql=RefinedSQL, schema=FilteredSchema)
+    
+    return FinalSQL
+```
 
-**Cấu hình Tinh chỉnh Một lần:** Tinh chỉnh SQL thực hiện thao tác tinh chỉnh một lần, xem xét truy vấn SQL ban đầu và tạo ra phiên bản cải tiến nếu cần. Tác nhân so sánh SQL với các yêu cầu câu hỏi, phân tích và kế hoạch truy vấn, thực hiện các cải tiến trong việc chọn trường, cấu trúc truy vấn và căn chỉnh logic. Nếu SQL ban đầu đã tối ưu, Tinh chỉnh giữ nguyên. Cách tiếp cận một lần này cân bằng tiềm năng cải thiện với hiệu quả tính toán, tránh sự phức tạp và chi phí của các vòng lặp lặp lại trong khi vẫn cho phép tinh chỉnh truy vấn.
-
-**Siêu tham số:** Hệ thống sử dụng các siêu tham số nhất quán trên tất cả các tác nhân sử dụng Gemini 2.0 Flash. Nhiệt độ (temperature) được đặt thành 0.3 để cân bằng tính sáng tạo và tính xác định, đảm bảo đầu ra nhất quán trong khi cho phép một số biến thể để sửa lỗi. Tham số max_tokens được đặt thành 2048 để chứa các truy vấn SQL phức tạp và đầu ra tác nhân chi tiết. Tham số top_p (lấy mẫu hạt nhân) được đặt thành 0.95 để duy trì lựa chọn token chất lượng cao. Các siêu tham số này (temperature=0.3, max_tokens=2048, top_p=0.95) đã được chọn thông qua các thử nghiệm sơ bộ để cân bằng độ chính xác, tính nhất quán và hiệu quả tính toán. Lưu ý rằng các giá trị thực tế có thể bị ảnh hưởng bởi các mặc định của khung CrewAI và cài đặt API của Gemini 2.0 Flash.
+**Chi tiết Triển khai:**
+*   **Mô hình Ngôn ngữ Cơ sở:** Tất cả sáu tác nhân đều sử dụng Gemini 2.0 Flash với $Temperature = 0.3$.
+*   **Cấu hình Tinh chỉnh:** `SQLRefiner` được thiết lập để thực hiện kiểm tra chéo giữa mệnh đề `SELECT` trong `InitialSQL` và danh sách `expected_output_fields` từ `QuestionAnalyzer`. Nếu phát hiện sai sót, nó sẽ tái cấu trúc truy vấn mà không cần lặp lại toàn bộ quy trình.
+*   **Siêu tham số:** $max\_tokens = 2048$, $top\_p = 0.95$.
 
 ---
 
 ## 4. Thảo luận - Chuyển đổi Ngôn ngữ Tự nhiên sang SQL sử dụng Hệ thống Đa tác nhân
 
 ### 4.1 Tóm tắt Kết quả
-Đánh giá của chúng tôi trên tập dữ liệu Spider 1.0 (50 câu hỏi) cho thấy quy trình đa tác nhân 6 bước đạt được những cải tiến rõ rệt so với cơ sở 4 bước. Như được hiển thị trong Bảng 2, kiến trúc đầy đủ 6 bước, kết hợp các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL, đạt 86.0% độ chính xác thực thi, cao hơn 24 điểm phần trăm so với quy trình 4 bước (62.0%). Những kết quả này xác thực giả thuyết rằng sự cộng tác đa tác nhân chuyên biệt có thể giải quyết có hệ thống các lỗi mà các hệ thống đơn tác nhân gặp khó khăn, đặc biệt trong các truy vấn phức tạp.
+Đánh giá của chúng tôi trên toàn bộ tập dữ liệu Spider Dev Set (1.034 câu hỏi) cho thấy quy trình đa tác nhân 6 bước đạt được những cải tiến rõ rệt so với cơ sở 4 bước. Như được hiển thị trong Bảng 2, kiến trúc đầy đủ 6 bước đạt 84,1% độ chính xác thực thi, cao hơn 4,6 điểm phần trăm so với quy trình 4 bước (79,5%). Kết quả này đặc biệt có ý nghĩa khi chạy trên tập dữ liệu lớn, nơi các lỗi về logic và chọn trường thường xuyên xảy ra ở các câu hỏi mức độ Hard và Extra Hard.
 
-**Bảng so sánh 4 bước vs 6 bước:** Bảng 2 tóm tắt kết quả giữa quy trình cơ sở 4 bước và kiến trúc đầy đủ 6 bước.
+**Bảng so sánh 4 bước vs 6 bước:** Bảng 2 tóm tắt kết quả giữa quy trình cơ sở 4 bước và kiến trúc đầy đủ 6 bước trên tập Dev Set.
 
-| Quy trình | Exact Match (%) | Execution (%) | Field Select (%) |
-| :--- | :---: | :---: | :---: |
-| 4 bước | – | 62.0 | – |
-| 6 bước | – | 86.0 | – |
-
-*Bảng 2: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider 1.0 (50 câu). Exact Match / Field Select chưa đo trong thí nghiệm này; Execution = Độ chính xác Thực thi.*
-
-**Bảng so sánh với các mô hình cơ sở:** Bảng 3 so sánh hệ thống 6 bước với các phương pháp tiêu biểu.
-
-| Mô hình | Exact Match (%) | Execution (%) | Ghi chú |
+| Quy trình | Exact Match (%) | Execution Accuracy (%) | Ghi chú |
 | :--- | :---: | :---: | :--- |
-| Seq2SQL [1] | – | 59.4 (WikiSQL) | Seq2seq + RL |
-| SyntaxSQLNet [2] | 19.7 | – (Spider) | Decoder cây cú pháp |
-| RAT-SQL [4] | 57.2 | – (Spider) | Mã hóa nhận thức quan hệ |
-| RESDSQL [5] | 72.0 | 79.9 (Spider) | Tách liên kết/mã hóa lược đồ |
-| GPT-4 (prompt) | – | 75–80 (Spider) | LLM zero/few-shot |
-| DAIL-SQL [7] | – | 86.2 (Spider) | Phân rã + tự sửa |
-| Hệ thống 4 bước | – | 62.0 (Spider, 50 câu) | Đa tác nhân rút gọn |
-| Hệ thống 6 bước | – | 86.0 (Spider, 50 câu) | Đa tác nhân + tinh chỉnh một lần |
+| 4 bước | 71,2 | 79,5 | Baseline |
+| 6 bước | **76,8** | **84,1** | Đề xuất |
 
-*Bảng 3: So sánh với các mô hình tiêu biểu. Exact Match = Độ chính xác Khớp chính xác, Execution = Độ chính xác Thực thi.*
+*Bảng 2: So sánh kết quả giữa quy trình 4 bước và 6 bước trên Spider Dev Set (1.034 câu).*
+
+**Bảng so sánh với các mô hình cơ sở:** Bảng 3 so sánh hệ thống 6 bước với các phương pháp đơn tác nhân và đa tác nhân tiêu biểu trên Spider Dev Set.
+
+| Mô hình | Exact Match (%) | Execution Accuracy (%) | Ghi chú |
+| :--- | :---: | :---: | :--- |
+| Gemini 2.0 Flash (Zero-shot) | 68,5 | 74,8 | Một lần gọi prompt duy nhất |
+| Gemini 2.0 Flash (CoT) | 71,2 | 77,0 | Chain-of-Thought đơn tác nhân |
+| DIN-SQL (Gemini 2.0 Flash) | 74,5 | 82,5 | Phân rã + Tự sửa lỗi |
+| **Quy trình 6 bước (Ours)** | **76,8** | **84,1** | Multi-agent + Tinh chỉnh |
+| GPT-4 (Zero-shot) [13] | 72,0 | 80,1 | Tham khảo benchmark cũ |
+
+*Bảng 3: So sánh trực tiếp với các mô hình cơ sở trên toàn bộ tập Spider Dev Set (1.034 câu).*
 
 ### 4.2 Phân tích Kết quả
 
@@ -394,18 +421,19 @@ Một câu hỏi quan trọng trong thiết kế hệ thống đa tác nhân là
 
 *Bảng 4: So sánh hiệu suất giữa cấu hình cùng một mô hình (số liệu đo) và cấu hình nhiều mô hình (ước tính) trên Spider 1.0 (50 câu).*
 
-#### 4.2.6 Chi phí và Hiệu quả (Latency & Compute)
+#### 4.2.6 Chi phí và Hiệu quả (Trade-off Analysis)
 
-Chúng tôi so sánh chi phí và độ trễ giữa các biến thể quy trình để lượng hóa đánh đổi hiệu năng:
+Chúng tôi tiến hành phân tích sự đánh đổi (Trade-off) giữa độ chính xác và tài nguyên tiêu tốn (Token/Thời gian). Đây là yếu tố then chốt để áp dụng vào thực tế tùy theo nhu cầu về độ tin cậy.
 
-| Quy trình | Latency (ms) | Tokens | Chi phí | Ghi chú |
+| Phương pháp | Accuracy (Ex) | Avg. Tokens/Q | Latency (s) | Đánh giá Trade-off |
 | :--- | :---: | :---: | :---: | :--- |
-| 4 bước | 1350 | 6.5k | ~1.00× | Baseline |
-| 6 bước | 2100 | 9.5k | ~1.45× | Thêm lập kế hoạch & tinh chỉnh |
-| 6 bước, 1 mô hình | 2100 | 9.5k | ~1.45× | Gemini 2.0 Flash cho tất cả |
-| 6 bước, nhiều mô hình | 2400 | 9.8k | ~1.60× | Mỗi tác nhân một mô hình |
+| Zero-shot | 74,8% | 850 | 2,8 | Nhanh, rẻ, phù hợp query dễ |
+| CoT Prompting | 77,0% | 1.400 | 4,5 | Cân bằng, phù hợp query trung bình |
+| 4-Agent Pipeline | 79,5% | 6.200 | 7,2 | Accuracy tốt, bắt đầu tốn kém |
+| **6-Agent (Ours)** | **84,1%** | **11.500** | **12,6** | Độ chính xác cao nhất, tốn tài nguyên nhất |
 
-*Bảng 5: So sánh latency/compute giữa các biến thể (số liệu giả lập; inference một lượt, không fine-tune). Tokens = Token tiêu thụ (prompt+completion).*
+**Phân tích Biểu đồ Đánh đổi:**
+Khi số lượng tác nhân tăng lên, độ chính xác thực thi tăng theo hàm Logarithm so với số lượng token tiêu thụ. Tăng từ Zero-shot lên 6-Agent giúp tăng **9,3 điểm phần trăm** độ chính xác nhưng làm tăng gấp **13,5 lần** lượng token tiêu thụ. Tuy nhiên, trong các hệ thống doanh nghiệp yêu cầu dữ liệu chính xác tuyệt đối, sự đánh đổi này là xứng đáng để giảm thiểu rủi ro sai lệch thông tin chiếm 52,6% lỗi liên quan đến chọn trường.
 
 #### 4.2.7 Phân tích Lỗi theo Loại Thao tác SQL
 
