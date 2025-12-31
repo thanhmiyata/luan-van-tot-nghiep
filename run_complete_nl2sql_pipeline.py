@@ -178,7 +178,9 @@ def get_test_questions(num_questions=40):
                 'gold_query': item['query'],  # Thêm ground truth
                 'table_names_original': table_schema['table_names_original'],
                 'column_names_original': table_schema['column_names_original'],
-                'column_types': table_schema['column_types']
+                'column_types': table_schema['column_types'],
+                'foreign_keys': table_schema.get('foreign_keys', []),
+                'primary_keys': table_schema.get('primary_keys', [])
             })
 
     print(
@@ -289,6 +291,8 @@ def run_nl2sql_system(test_questions):
                     table_names_original=question['table_names_original'],
                     column_names_original=question['column_names_original'],
                     column_types=question['column_types'],
+                    foreign_keys=question.get('foreign_keys', []),
+                    primary_keys=question.get('primary_keys', []),
                 )
             ).kickoff()
 

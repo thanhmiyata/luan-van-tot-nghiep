@@ -11,6 +11,7 @@ question_analysis_task:
     2) expected_output_fields preserves requested order; set field_order_critical=true.
     3) Mark single_table_ok=true when one table already has all needed columns.
     4) Provide structured filters/group_by/order_by/join_hints using real columns.
+    5) Use provided `foreign_keys` and `primary_keys` to identify table relationships. Do not guess joins based on name similarity.
 
     Return JSON only (no markdown):
     {
@@ -63,12 +64,14 @@ generate_sql_task:
     - Analysis: ```{question_analysis}```
 
     Core rules:
-    1) SELECT exactly expected_output_fields in order; no extra/missing/renamed columns.
+    1) SELECT exactly `expected_output_fields` in order; NEVER add ID columns or extra columns like `COUNT(*)` unless explicitly in the field list. If the question asks for "details", select the specific "Details" or "Name" column.
     2) If counting entities → COUNT(DISTINCT id/PK); GROUP BY all non-aggregates; avoid GROUP BY when only aggregate/single row.
-    3) If single_table_ok=true, do not join; otherwise join only when needed for columns using correct PK=FK.
-    4) ORDER BY only when question requires ranking/sorting.
-    5) Correct set ops: AND/OR vs UNION/INTERSECT/EXCEPT as intended.
-    6) No SELECT * unless explicitly asked; SQL must be a single executable line without comments.
+    3) If single_table_ok=true, do not join; otherwise join only when needed for columns using ONLY the provided `foreign_keys` in the schema.
+    4) Use `=` operator for specific values (e.g., Name = 'Alison'). Use `LIKE` ONLY if keywords like "contains" or "starts with" are used.
+    5) Match values correctly: if 'game1' is a label, use the `Name` column, not `Filename`.
+    6) ORDER BY only when question requires ranking/sorting.
+    7) Correct set ops: AND/OR vs UNION/INTERSECT/EXCEPT as intended.
+    8) No SELECT * unless explicitly asked; SQL must be a single executable line without comments.
   expected_output: >
     JSON {"sql": "<single-line SQL>"} honoring expected_output_fields and single_table_ok.
   agent: sql_expert

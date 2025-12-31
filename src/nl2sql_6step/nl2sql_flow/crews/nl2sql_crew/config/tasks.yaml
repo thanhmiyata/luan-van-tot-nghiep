@@ -14,6 +14,7 @@ question_analysis_task:
     5) For "first/earliest/latest" style questions, model expected_output_fields as raw columns plus order_by + limit=1 (not MIN/MAX).
     6) For "how many X" without explicit "distinct", default to COUNT(*) on the appropriate table; only use COUNT_DISTINCT when the question explicitly refers to "distinct/unique".
     7) Provide structured filters/group_by/order_by/join_hints aligned to actual columns.
+    8) Use the provided `foreign_keys` and `primary_keys` in the schema to identify relationships; never assume joins based on name similarity alone.
 
     **CRITICAL Pattern Recognition:**
     - "4 or 5 stars" / "rating of 4 or 5" → Mark where_condition_type="RANGE" (use >= 4, NOT IN (4,5))
@@ -80,7 +81,8 @@ query_planning_task:
 
     Plan rules:
     - List minimal tables; state "no join needed" if single_table_ok.
-    - If joining, specify PK/FK pairs explicitly and avoid adding extra tables not required by outputs/filters.
+    - If joining, MUST use the provided `foreign_keys` mappings. Do not join on columns that are not marked as FK/PK unless it's a very specific self-join case.
+    - Avoid adding extra tables not required by outputs/filters.
     - For pure counts (no fields in SELECT except aggregate), prefer COUNT(*) unless the question clearly requires distinct entities (then mark COUNT_DISTINCT).
     - For "top-k/most/least" with non-aggregated display fields, plan GROUP BY only on those display fields (typically ids and their details) and ORDER BY COUNT(*) DESC/ASC with LIMIT k.
     - For extremum-of-column questions where expected_output_fields are raw columns, plan ORDER BY <column> ASC/DESC + LIMIT 1 instead of MIN/MAX.
@@ -138,11 +140,13 @@ generate_sql_task:
        - Default to COUNT(*) for "how many X" unless query_plan/analysis explicitly require COUNT_DISTINCT.
        - Use COUNT(DISTINCT id/PK) only when the plan says we are counting distinct entities.
        - GROUP BY only the non-aggregated SELECT fields (typically ids/details) required by the plan; do not add extra GROUP BY columns.
-    3) For extremum-of-column questions where expected_output_fields are raw columns (e.g., date_from, date_to), prefer ORDER BY <column> ASC/DESC + LIMIT 1 over MIN/MAX aggregates.
-    4) Join only if needed; use correct PK=FK; if planner says "no join needed", avoid joins completely and do not add extra tables like *_Types.
-    5) ORDER BY only when asked or when plan specifies it (top-k / earliest / latest). Use the exact columns and direction from the plan.
-    6) Correct set ops: use INTERSECT/UNION/EXCEPT exactly when the plan specifies them; do NOT replace them with HAVING COUNT(DISTINCT ...) or other approximations.
-    7) Avoid SELECT * unless explicitly asked; SQL must be a single executable line without comments.
+    4) Join only if needed; use ONLY the provided `foreign_keys` from the schema. If planner says "no join needed", avoid joins completely.
+    5) SELECT list MUST be EXACT: Only include columns requested by `expected_output_fields`. NEVER add ID columns or extra details like `COUNT(*)` unless explicitly in the field list. If the question says "show details", it usually refers to the specific "Details" or "Name" column, not the PK.
+    6) Use `=` operator by default for specific values (e.g., WHERE Name = 'Alison'). ONLY use `LIKE` if the question uses keywords like "contains", "starts with", or "ends with".
+    7) Match values to the most semantic column: if the value is a label (like 'game1'), check the `Name` or `Label` column before assuming it's a `Filename` or `ID`.
+    8) Correct set ops: use INTERSECT/UNION/EXCEPT exactly when the plan specifies them; do NOT replace them with HAVING COUNT(DISTINCT ...) or other approximations.
+    9) Avoid SELECT * unless explicitly asked; SQL must be a single executable line without comments.
+    10) For extremum-of-column questions where expected_output_fields are raw columns (e.g., date_from, date_to), prefer ORDER BY <column> ASC/DESC + LIMIT 1 over MIN/MAX aggregates.
 
     **CRITICAL Pattern Enforcement:**
     1. **Self-Join Pattern:**

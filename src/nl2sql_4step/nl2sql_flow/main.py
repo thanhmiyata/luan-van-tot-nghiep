@@ -49,6 +49,8 @@ class SQLDbSchema(BaseModel):
     table_names_original: List[str] = []
     column_names_original: List[Tuple[int, str]] = []
     column_types: List[str] = []
+    foreign_keys: List[List[int]] = []
+    primary_keys: List[int] = []
 
 
 class NL2SQLState(BaseModel):
