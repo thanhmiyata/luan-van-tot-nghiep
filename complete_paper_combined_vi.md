@@ -174,12 +174,12 @@ graph TD
     
     subgraph CrewAI["Điều phối bởi CrewAI Framework"]
         direction TB
-        A1[<b>Question Analyzer</b><br/>Phân tích Ý định & Trường]
-        A2[<b>Schema Selector</b><br/>Lọc Lược đồ liên quan]
-        A3[<b>Query Planner</b><br/>Lập Kế hoạch Logic]
-        A4[<b>SQL Expert</b><br/>Sinh mã SQL]
-        A5[<b>SQL Refiner</b><br/>Tinh chỉnh lỗi (1-pass)]
-        A6[<b>SQL Validator</b><br/>Xác thực & Kiểm tra]
+        A1["<b>Question Analyzer</b><br/>Phân tích Ý định & Trường"]
+        A2["<b>Schema Selector</b><br/>Lọc Lược đồ liên quan"]
+        A3["<b>Query Planner</b><br/>Lập Kế hoạch Logic"]
+        A4["<b>SQL Expert</b><br/>Sinh mã SQL"]
+        A5["<b>SQL Refiner</b><br/>Tinh chỉnh lỗi (1-pass)"]
+        A6["<b>SQL Validator</b><br/>Xác thực & Kiểm tra"]
     end
     
     Q --> A1
@@ -303,13 +303,13 @@ Hình 2 minh họa luồng cộng tác của tác nhân, tuân theo một quy tr
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as User / DB
-    participant QA as Question Analyzer
-    participant SS as Schema Selector
-    participant QP as Query Planner
-    participant SE as SQL Expert
-    participant SR as SQL Refiner
-    participant SV as SQL Validator
+    participant U as "User / DB"
+    participant QA as "Question Analyzer"
+    participant SS as "Schema Selector"
+    participant QP as "Query Planner"
+    participant SE as "SQL Expert"
+    participant SR as "SQL Refiner"
+    participant SV as "SQL Validator"
 
     U->>QA: Gửi Q + Schema
     Note right of QA: Xác định expected_output_fields
@@ -352,19 +352,23 @@ Hình 3 so sánh các biến thể quy trình 4 bước và 6 bước. Để đ�
 **Hình 3: So sánh Kiến trúc 4 tác nhân (Baseline) vs 6 tác nhân (Proposed)**
 
 ```mermaid
-graph LR
-    subgraph P4["Quy trình 4 bước"]
-        direction TB
-        B1(QA) --> B2(SS) --> B3(SQLExp) --> B4(SQLVal)
-    end
-    
-    subgraph P6["Quy trình 6 bước (Hệ thống đề xuất)"]
-        direction TB
-        A1(QA) --> A2(SS) --> A3(QP) --> A4(SQLExp) --> A5(SQLRef) --> A6(SQLVal)
+graph TD
+    subgraph P6 ["HỆ THỐNG ĐỀ XUẤT (6 TÁC NHÂN - ĐỘ CHÍNH XÁC CAO)"]
+        direction LR
+        A1["Analysis"] --> A2["Schema"] --> A3["<b>Planner</b>"] --> A4["Expert"] --> A5["<b>Refiner</b>"] --> A6["Validator"]
     end
 
-    style P4 fill:#fff0f0,stroke:#ff5555
-    style P6 fill:#f0fff0,stroke:#55ff55
+    subgraph P4 ["QUY TRÌNH CƠ SỞ (4 TÁC NHÂN - TRUYỀN THỐNG)"]
+        direction LR
+        B1["Analysis"] --> B2["Schema"] --> B4["Expert"] --> B6["Validator"]
+    end
+
+    %% Highlight the critical added agents
+    style A3 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,stroke-dasharray: 5 5
+    style A5 fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5
+    
+    style P6 fill:#f5faff,stroke:#0055aa
+    style P4 fill:#fafafa,stroke:#9e9e9e
 ```
 
 
@@ -523,10 +527,10 @@ graph LR
         L2[Color = Latency]
     end
 
-    ZS(Zero-shot<br/>74.8% Acc<br/>850 Tok)
-    CoT(CoT<br/>77.0% Acc<br/>1.4k Tok)
-    P4(4-Agent<br/>79.5% Acc<br/>6.2k Tok)
-    P6(6-Agent - Ours<br/>84.1% Acc<br/>11.5k Tok)
+    ZS("Zero-shot<br/>74.8% Acc<br/>850 Tok")
+    CoT("CoT<br/>77.0% Acc<br/>1.4k Tok")
+    P4("4-Agent<br/>79.5% Acc<br/>6.2k Tok")
+    P6("6-Agent - Ours<br/>84.1% Acc<br/>11.5k Tok")
 
     ZS --- CoT --- P4 --- P6
 
