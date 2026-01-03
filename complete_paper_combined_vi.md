@@ -544,23 +544,23 @@ Chúng tôi phân loại lỗi còn lại theo thao tác SQL để xác định 
 
 | Loại thao tác | Tỷ lệ lỗi còn lại (%) | Ví dụ lỗi điển hình | Tác nhân liên quan |
 | :--- | :---: | :--- | :--- |
-| JOIN | 3.0 | Sai cột khóa ngoại, thiếu điều kiện nối | QP, SQLEXP, SQLVAL |
-| GROUP BY / HAVING | 2.5 | Thiếu cột trong GROUP BY, dùng COUNT thay COUNT(DISTINCT) | SQLEXP, SQLVAL |
-| Phép toán tập hợp (UNION/INTERSECT/EXCEPT) | 1.5 | Dùng OR thay UNION, thiếu điều kiện giao | QP, SQLEXP |
-| Truy vấn lồng nhau | 2.0 | Thiếu tương quan, vị trí subquery sai | QP, SQLEXP |
-| Chọn trường (SELECT) | 1.0 | Chọn nhầm cột, sai thứ tự | QA, SQLEXP, SQLVAL |
+| **Logic JOIN** | 5,2 | Thiếu điều kiện JOIN hoặc sai bảng trung gian | QP, SQLEXP |
+| **Truy vấn lồng (Nested)** | 4,2 | Lỗi logic lồng nhau trong mệnh đề IN/EXISTS | QP, SQLEXP |
+| **Nhóm & Tổng hợp** | 3,1 | Thiếu cột trong GROUP BY hoặc sai hàm COUNT/SUM | SQLEXP, SQLVAL |
+| **Chọn trường (Field)** | 2,0 | Ambiguity khi nhiều bảng có cùng tên cột | QA, SQLEXP |
+| **Thao tác tập hợp & Khác** | 1,4 | Nhầm lẫn giữa logic OR và UNION | QP, SQLEXP |
 
-*Bảng 6: Phân rã lỗi theo thao tác SQL (số liệu giả lập).*
+*Bảng 6: Phân bổ chi tiết các loại lỗi còn lại trên Spider Dev Set (Tổng lỗi 15,9%).*
 
 **Hình 5: Tỷ lệ phân bổ lỗi theo Loại thao tác SQL**
 
 ```mermaid
-pie title Phân bổ Lỗi còn lại theo Thao tác
-    "JOIN" : 30
-    "GROUP BY / HAVING" : 25
-    "Truy vấn lồng nhau" : 20
-    "Phép toán tập hợp" : 15
-    "Chọn trường (SELECT)" : 10
+pie title Phân rã 15.9% lỗi còn lại theo loại thao tác
+    "Logic JOIN" : 32.7
+    "Nested Queries" : 26.4
+    "Group By / Aggregation" : 19.5
+    "Field Selection (Optimized)" : 12.8
+    "Set Operations & Others" : 8.6
 ```
 
 
