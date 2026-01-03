@@ -165,6 +165,42 @@ Công việc hiện tại trong NL2SQL, hệ thống đa tác nhân và học c�
 ### 3.1 Tổng quan
 Như được hiển thị trong Hình 1, kiến trúc đa tác nhân của chúng tôi cho việc chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) tận dụng khung làm việc CrewAI để điều phối sáu tác nhân chuyên biệt làm việc cộng tác. Kiến trúc hệ thống tuân theo một quy trình tuần tự trong đó mỗi tác nhân thực hiện một vai trò cụ thể trong quá trình tạo truy vấn: phân tích câu hỏi, chọn lược đồ, lập kế hoạch truy vấn, tạo SQL, tinh chỉnh một lần và xác thực.
 
+**Hình 1: Kiến trúc Hệ thống Đa tác nhân cho NL2SQL**
+
+```mermaid
+graph TD
+    User([Người dùng]) --> Q[Câu hỏi Ngôn ngữ Tự nhiên]
+    DB[(Cơ sở dữ liệu)] --> S[Lược đồ Schema]
+    
+    subgraph CrewAI["Điều phối bởi CrewAI Framework"]
+        direction TB
+        A1[<b>Question Analyzer</b><br/>Phân tích Ý định & Trường]
+        A2[<b>Schema Selector</b><br/>Lọc Lược đồ liên quan]
+        A3[<b>Query Planner</b><br/>Lập Kế hoạch Logic]
+        A4[<b>SQL Expert</b><br/>Sinh mã SQL]
+        A5[<b>SQL Refiner</b><br/>Tinh chỉnh lỗi (1-pass)]
+        A6[<b>SQL Validator</b><br/>Xác thực & Kiểm tra]
+    end
+    
+    Q --> A1
+    S --> A1
+    A1 --> A2
+    A2 --> A3
+    A3 --> A4
+    A4 --> A5
+    A5 --> A6
+    A6 --> FinalSQL([Truy vấn SQL hoàn thiện])
+
+    style CrewAI fill:#f5faff,stroke:#0055aa,stroke-width:2px
+    style A1 fill:#e1f5fe,stroke:#01579b
+    style A2 fill:#e1f5fe,stroke:#01579b
+    style A3 fill:#e1f5fe,stroke:#01579b
+    style A4 fill:#fff9c4,stroke:#fbc02d
+    style A5 fill:#c8e6c9,stroke:#2e7d32
+    style A6 fill:#ffccbc,stroke:#d84315
+```
+
+
 Luồng cộng tác của tác nhân diễn ra như sau: một câu hỏi ngôn ngữ tự nhiên trước tiên được phân tích bởi Phân tích Câu hỏi để xác định ý định và các trường cần thiết. Sau đó, Chọn Lược đồ lọc các bảng và cột liên quan từ lược đồ cơ sở dữ liệu. Lập kế hoạch Truy vấn tạo ra một kế hoạch thực thi logic, tiếp theo là Chuyên gia SQL tạo ra truy vấn SQL. Sau đó, Tinh chỉnh SQL xem xét và tinh chỉnh truy vấn SQL đã tạo, và cuối cùng, Kiểm tra SQL kiểm tra tính đúng đắn về cú pháp và ngữ nghĩa.
 
 Để đánh giá tác động của các thành phần kiến trúc khác nhau, chúng tôi so sánh hai biến thể quy trình: quy trình cơ sở 4 bước (Phân tích Câu hỏi → Chọn Lược đồ → Chuyên gia SQL → Kiểm tra SQL) và kiến trúc đầy đủ 6 bước bao gồm Lập kế hoạch Truy vấn và Tinh chỉnh SQL. Sự so sánh này cho phép chúng tôi đánh giá sự đóng góp của việc lập kế hoạch truy vấn và tinh chỉnh một lần vào độ chính xác tổng thể của hệ thống.
@@ -262,6 +298,31 @@ Tác nhân Tinh chỉnh SQL xem xét và tinh chỉnh các truy vấn SQL dựa 
 ### 3.4 Luồng Cộng tác Tác nhân
 Hình 2 minh họa luồng cộng tác của tác nhân, tuân theo một quy trình tuần tự với tinh chỉnh một lần. Luồng cộng tác diễn ra như sau: Đầu tiên, Phân tích Câu hỏi xử lý câu hỏi ngôn ngữ tự nhiên và tạo ra phân tích có cấu trúc. Phân tích này được chuyển đến Chọn Lược đồ, lọc lược đồ cơ sở dữ liệu thô dựa trên các yêu cầu câu hỏi. Lược đồ đã lọc và phân tích câu hỏi sau đó được cung cấp cho Lập kế hoạch Truy vấn, tạo ra một kế hoạch thực thi logic. Chuyên gia SQL nhận tất cả ba đầu ra (phân tích, lược đồ đã lọc, kế hoạch) và tạo ra truy vấn SQL ban đầu. Tinh chỉnh SQL sau đó xem xét truy vấn này dựa trên câu hỏi, phân tích, lược đồ đã lọc và kế hoạch, tạo ra một truy vấn SQL đã tinh chỉnh. Cuối cùng, Kiểm tra SQL kiểm tra truy vấn đã tinh chỉnh về các lỗi cú pháp và ngữ nghĩa, sửa bất kỳ vấn đề nào khi có thể và trả về truy vấn SQL đã xác thực cuối cùng.
 
+**Hình 2: Luồng Truyền tin và Cộng tác Tuần tự**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User / DB
+    participant QA as Question Analyzer
+    participant SS as Schema Selector
+    participant QP as Query Planner
+    participant SE as SQL Expert
+    participant SR as SQL Refiner
+    participant SV as SQL Validator
+
+    U->>QA: Gửi Q + Schema
+    Note right of QA: Xác định expected_output_fields
+    QA->>SS: Phân tích JSON
+    SS->>QP: Lược đồ đã lọc
+    QP->>SE: Kế hoạch thực thi (Logic)
+    SE->>SR: SQL ban đầu
+    SR->>SR: Tinh chỉnh dựa trên Analysis & Plan
+    SR->>SV: SQL đã tinh chỉnh
+    SV->>U: Trả về SQL kết quả (hoặc thông báo lỗi)
+```
+
+
 **Thuật toán:** Thuật toán 1 chính thức hóa luồng cộng tác tác nhân và quy trình tinh chỉnh một lần.
 
 ```
@@ -287,6 +348,25 @@ Thuật toán hiển thị luồng tuần tự qua tất cả sáu tác nhân (d
 
 ### 3.5 Các Biến thể Quy trình
 Hình 3 so sánh các biến thể quy trình 4 bước và 6 bước. Để đánh giá tác động của các thành phần kiến trúc khác nhau, chúng tôi thực hiện hai biến thể quy trình. **Quy trình cơ sở 4 bước** bao gồm: Phân tích Câu hỏi → Chọn Lược đồ → Chuyên gia SQL → Kiểm tra SQL. Quy trình đơn giản hóa này loại trừ các tác nhân Lập kế hoạch Truy vấn và Tinh chỉnh SQL, đại diện cho cách tiếp cận tạo một lần truyền thống hơn với xác thực cơ bản. **Quy trình đầy đủ 6 bước** bao gồm tất cả sáu tác nhân: Phân tích Câu hỏi → Chọn Lược đồ → Lập kế hoạch Truy vấn → Chuyên gia SQL → Tinh chỉnh SQL → Kiểm tra SQL. Kiến trúc đầy đủ này cho phép lập kế hoạch truy vấn và tinh chỉnh một lần, đại diện cho hệ thống đa tác nhân hoàn chỉnh của chúng tôi.
+
+**Hình 3: So sánh Kiến trúc 4 tác nhân (Baseline) vs 6 tác nhân (Proposed)**
+
+```mermaid
+graph LR
+    subgraph P4["Quy trình 4 bước"]
+        direction TB
+        B1(QA) --> B2(SS) --> B3(SQLExp) --> B4(SQLVal)
+    end
+    
+    subgraph P6["Quy trình 6 bước (Hệ thống đề xuất)"]
+        direction TB
+        A1(QA) --> A2(SS) --> A3(QP) --> A4(SQLExp) --> A5(SQLRef) --> A6(SQLVal)
+    end
+
+    style P4 fill:#fff0f0,stroke:#ff5555
+    style P6 fill:#f0fff0,stroke:#55ff55
+```
+
 
 Sự so sánh giữa hai biến thể này cho phép chúng tôi đánh giá: (1) tác động của việc lập kế hoạch truy vấn đối với độ chính xác và cấu trúc truy vấn, (2) sự đóng góp của tinh chỉnh một lần vào việc sửa lỗi và cải thiện truy vấn, và (3) sự đánh đổi giữa độ phức tạp của quy trình và mức tăng độ chính xác. Nghiên cứu cắt giảm này cung cấp cái nhìn sâu sắc về những thành phần nào là quan trọng nhất đối với hiệu suất NL2SQL và xác thực các lựa chọn thiết kế của chúng tôi về chuyên môn hóa tác nhân và cơ chế tinh chỉnh.
 
@@ -433,7 +513,31 @@ Chúng tôi tiến hành phân tích sự đánh đổi (Trade-off) giữa độ
 | **6-Agent (Ours)** | **84,1%** | **11.500** | **12,6** | Độ chính xác cao nhất, tốn tài nguyên nhất |
 
 **Phân tích Biểu đồ Đánh đổi:**
+
+**Hình 4: Tương quan giữa Độ chính xác (Accuracy) và Chi phí (Tokens/Latency)**
+
+```mermaid
+graph LR
+    subgraph Legend
+        L1[Size = Tokens]
+        L2[Color = Latency]
+    end
+
+    ZS(Zero-shot<br/>74.8% Acc<br/>850 Tok)
+    CoT(CoT<br/>77.0% Acc<br/>1.4k Tok)
+    P4(4-Agent<br/>79.5% Acc<br/>6.2k Tok)
+    P6(6-Agent - Ours<br/>84.1% Acc<br/>11.5k Tok)
+
+    ZS --- CoT --- P4 --- P6
+
+    style ZS fill:#e8f5e9,stroke:#2e7d32
+    style CoT fill:#c8e6c9,stroke:#2e7d32
+    style P4 fill:#fff9c4,stroke:#fbc02d
+    style P6 fill:#ffccbc,stroke:#d84315
+```
+
 Khi số lượng tác nhân tăng lên, độ chính xác thực thi tăng theo hàm Logarithm so với số lượng token tiêu thụ. Tăng từ Zero-shot lên 6-Agent giúp tăng **9,3 điểm phần trăm** độ chính xác nhưng làm tăng gấp **13,5 lần** lượng token tiêu thụ. Tuy nhiên, trong các hệ thống doanh nghiệp yêu cầu dữ liệu chính xác tuyệt đối, sự đánh đổi này là xứng đáng để giảm thiểu rủi ro sai lệch thông tin chiếm 52,6% lỗi liên quan đến chọn trường.
+
 
 #### 4.2.7 Phân tích Lỗi theo Loại Thao tác SQL
 
@@ -448,6 +552,18 @@ Chúng tôi phân loại lỗi còn lại theo thao tác SQL để xác định 
 | Chọn trường (SELECT) | 1.0 | Chọn nhầm cột, sai thứ tự | QA, SQLEXP, SQLVAL |
 
 *Bảng 6: Phân rã lỗi theo thao tác SQL (số liệu giả lập).*
+
+**Hình 5: Tỷ lệ phân bổ lỗi theo Loại thao tác SQL**
+
+```mermaid
+pie title Phân bổ Lỗi còn lại theo Thao tác
+    "JOIN" : 30
+    "GROUP BY / HAVING" : 25
+    "Truy vấn lồng nhau" : 20
+    "Phép toán tập hợp" : 15
+    "Chọn trường (SELECT)" : 10
+```
+
 
 ### 4.3 Phân tích Cắt giảm (Ablation Studies Analysis)
 
