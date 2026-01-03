@@ -361,15 +361,23 @@ Hình 3 so sánh các biến thể quy trình 4 bước và 6 bước. Để đ�
 
 ```mermaid
 graph TD
-    subgraph P6 ["HỆ THỐNG ĐỀ XUẤT (6 TÁC NHÂN - ĐỘ CHÍNH XÁC CAO)"]
+    Title6["<b>HỆ THỐNG ĐỀ XUẤT (6 TÁC NHÂN - ĐỘ CHÍNH XÁC CAO)</b>"]
+    Title6 --- P6
+    style Title6 fill:none,stroke:none,color:#fff
+
+    subgraph P6 [" "]
         direction LR
         A1["Analysis"] --> A2["Schema"] --> A3["<b>Planner</b>"] --> A4["Expert"] --> A5["<b>Refiner</b>"] --> A6["Validator"]
     end
 
-    %% Khoảng cách giữa 2 diagram
-    P6 ~~~ P4
+    %% Khoảng cách
+    P6 ~~~ Title4
 
-    subgraph P4 ["QUY TRÌNH CƠ SỞ (4 TÁC NHÂN - TRUYỀN THỐNG)"]
+    Title4["<b>QUY TRÌNH CƠ SỞ (4 TÁC NHÂN - TRUYỀN THỐNG)</b>"]
+    Title4 --- P4
+    style Title4 fill:none,stroke:none,color:#fff
+
+    subgraph P4 [" "]
         direction LR
         B1["Analysis"] --> B2["Schema"] --> B4["Expert"] --> B6["Validator"]
     end
@@ -381,7 +389,7 @@ graph TD
     style P6 fill:transparent,stroke:#0055aa,color:#fff
     style P4 fill:transparent,stroke:#9e9e9e,color:#fff
 
-    %% Node styles for dark mode visibility
+    %% Node styles
     style A1 fill:#222,stroke:#01579b,color:#fff
     style A2 fill:#222,stroke:#01579b,color:#fff
     style A4 fill:#222,stroke:#fbc02d,color:#fff
@@ -542,26 +550,32 @@ Chúng tôi tiến hành phân tích sự đánh đổi (Trade-off) giữa độ
 **Hình 4: Tương quan giữa Độ chính xác (Accuracy) và Chi phí (Tokens/Latency)**
 
 ```mermaid
-graph LR
-    subgraph Legend
-        L1[Size = Tokens]
-        L2[Color = Latency]
+graph BT
+    subgraph Chart ["Biểu đồ So sánh Độ chính xác (%)"]
+        direction BT
+        P6["<b>6-Agent (Ours)</b><br/>84.1%"] --- P4["4-Agent<br/>79.5%"]
+        P4 --- CoT["CoT<br/>77.0%"]
+        CoT --- ZS["Zero-shot<br/>74.8%"]
     end
 
-    ZS("Zero-shot<br/>74.8% Acc<br/>850 Tok")
-    CoT("CoT<br/>77.0% Acc<br/>1.4k Tok")
-    P4("4-Agent<br/>79.5% Acc<br/>6.2k Tok")
-    P6("6-Agent - Ours<br/>84.1% Acc<br/>11.5k Tok")
+    %% Mô phỏng độ cao cột bằng style
+    style P6 fill:#d84315,stroke:#fff,color:#fff,stroke-width:4px
+    style P4 fill:#fbc02d,stroke:#fff,color:#fff,stroke-width:3px
+    style CoT fill:#2e7d32,stroke:#fff,color:#fff,stroke-width:2px
+    style ZS fill:#555,stroke:#fff,color:#fff,stroke-width:1px
 
-    ZS --- CoT --- P4 --- P6
-
-    style ZS fill:#e8f5e9,stroke:#2e7d32
-    style CoT fill:#c8e6c9,stroke:#2e7d32
-    style P4 fill:#fff9c4,stroke:#fbc02d
-    style P6 fill:#ffccbc,stroke:#d84315
+    subgraph Legend ["Thông tin tài nguyên/thời gian"]
+        direction LR
+        L1["Kích thước = Tokens tiêu thụ"]
+        L2["Độ dày viền = Độ trễ (Latency)"]
+    end
+    
+    style Chart fill:transparent,stroke:#fff
+    style Legend fill:#222,stroke:#ccc,color:#fff
 ```
 
 Khi số lượng tác nhân tăng lên, độ chính xác thực thi tăng theo hàm Logarithm so với số lượng token tiêu thụ. Tăng từ Zero-shot lên 6-Agent giúp tăng **9,3 điểm phần trăm** độ chính xác nhưng làm tăng gấp **13,5 lần** lượng token tiêu thụ. Tuy nhiên, trong các hệ thống doanh nghiệp yêu cầu dữ liệu chính xác tuyệt đối, sự đánh đổi này là xứng đáng để giảm thiểu rủi ro sai lệch thông tin chiếm 52,6% lỗi liên quan đến chọn trường.
+
 
 
 #### 4.2.7 Phân tích Lỗi theo Loại Thao tác SQL
