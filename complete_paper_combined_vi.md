@@ -169,10 +169,10 @@ Như được hiển thị trong Hình 1, kiến trúc đa tác nhân của chú
 
 ```mermaid
 graph TD
-    User([Người dùng]) --> Q[Câu hỏi Ngôn ngữ Tự nhiên]
-    DB[(Cơ sở dữ liệu)] --> S[Lược đồ Schema]
+    User([Người dùng]) --> Q["Câu hỏi Ngôn ngữ Tự nhiên"]
+    DB[(Cơ sở dữ liệu)] --> S["Lược đồ Schema"]
     
-    subgraph CrewAI["Điều phối bởi CrewAI Framework"]
+    subgraph CrewAI ["Điều phối bởi CrewAI Framework"]
         direction TB
         A1["<b>Question Analyzer</b><br/>Phân tích Ý định & Trường"]
         A2["<b>Schema Selector</b><br/>Lọc Lược đồ liên quan"]
@@ -191,13 +191,21 @@ graph TD
     A5 --> A6
     A6 --> FinalSQL([Truy vấn SQL hoàn thiện])
 
-    style CrewAI fill:#f5faff,stroke:#0055aa,stroke-width:2px
-    style A1 fill:#e1f5fe,stroke:#01579b
-    style A2 fill:#e1f5fe,stroke:#01579b
-    style A3 fill:#e1f5fe,stroke:#01579b
-    style A4 fill:#fff9c4,stroke:#fbc02d
-    style A5 fill:#c8e6c9,stroke:#2e7d32
-    style A6 fill:#ffccbc,stroke:#d84315
+    %% Cải thiện độ tương phản: Nền tối, chữ trắng, viền có màu
+    style CrewAI fill:transparent,stroke:#0055aa,stroke-width:2px,color:#fff
+    style A1 fill:#222,stroke:#01579b,color:#fff
+    style A2 fill:#222,stroke:#01579b,color:#fff
+    style A3 fill:#222,stroke:#01579b,color:#fff
+    style A4 fill:#222,stroke:#fbc02d,color:#fff
+    style A5 fill:#222,stroke:#2e7d32,color:#fff
+    style A6 fill:#222,stroke:#d84315,color:#fff
+    
+    %% Các node ngoài
+    style User fill:#333,stroke:#fff,color:#fff
+    style DB fill:#333,stroke:#fff,color:#fff
+    style Q fill:#333,stroke:#fff,color:#fff
+    style S fill:#333,stroke:#fff,color:#fff
+    style FinalSQL fill:#333,stroke:#fff,color:#fff
 ```
 
 
@@ -358,17 +366,30 @@ graph TD
         A1["Analysis"] --> A2["Schema"] --> A3["<b>Planner</b>"] --> A4["Expert"] --> A5["<b>Refiner</b>"] --> A6["Validator"]
     end
 
+    %% Khoảng cách giữa 2 diagram
+    P6 ~~~ P4
+
     subgraph P4 ["QUY TRÌNH CƠ SỞ (4 TÁC NHÂN - TRUYỀN THỐNG)"]
         direction LR
         B1["Analysis"] --> B2["Schema"] --> B4["Expert"] --> B6["Validator"]
     end
 
-    %% Highlight the critical added agents
-    style A3 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,stroke-dasharray: 5 5
-    style A5 fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5
+    %% Style
+    style A3 fill:#333,stroke:#fbc02d,stroke-width:2px,stroke-dasharray: 5 5,color:#fff
+    style A5 fill:#333,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5,color:#fff
     
-    style P6 fill:#f5faff,stroke:#0055aa
-    style P4 fill:#fafafa,stroke:#9e9e9e
+    style P6 fill:transparent,stroke:#0055aa,color:#fff
+    style P4 fill:transparent,stroke:#9e9e9e,color:#fff
+
+    %% Node styles for dark mode visibility
+    style A1 fill:#222,stroke:#01579b,color:#fff
+    style A2 fill:#222,stroke:#01579b,color:#fff
+    style A4 fill:#222,stroke:#fbc02d,color:#fff
+    style A6 fill:#222,stroke:#d84315,color:#fff
+    style B1 fill:#222,stroke:#9e9e9e,color:#fff
+    style B2 fill:#222,stroke:#9e9e9e,color:#fff
+    style B4 fill:#222,stroke:#9e9e9e,color:#fff
+    style B6 fill:#222,stroke:#9e9e9e,color:#fff
 ```
 
 
