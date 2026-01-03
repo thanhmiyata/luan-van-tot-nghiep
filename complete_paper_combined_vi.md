@@ -453,7 +453,7 @@ def MultiAgent_NL2SQL(Question Q, Schema S):
 ## 4. Thảo luận - Chuyển đổi Ngôn ngữ Tự nhiên sang SQL sử dụng Hệ thống Đa tác nhân
 
 ### 4.1 Tóm tắt Kết quả
-Đánh giá của chúng tôi trên toàn bộ tập dữ liệu Spider Dev Set (1.034 câu hỏi) cho thấy quy trình đa tác nhân 6 bước đạt được những cải tiến rõ rệt so với cơ sở 4 bước. Như được hiển thị trong Bảng 2, kiến trúc đầy đủ 6 bước đạt 84,1% độ chính xác thực thi, cao hơn 4,6 điểm phần trăm so với quy trình 4 bước (79,5%). Kết quả này đặc biệt có ý nghĩa khi chạy trên tập dữ liệu lớn, nơi các lỗi về logic và chọn trường thường xuyên xảy ra ở các câu hỏi mức độ Hard và Extra Hard.
+Đánh giá của chúng tôi trên toàn bộ tập dữ liệu Spider Dev Set (1.034 câu hỏi) cho thấy quy trình đa tác nhân 6 bước đạt được những cải tiến rõ rệt so với cơ sở 4 bước. Như được hiển thị trong Bảng 2, kiến trúc đầy đủ 6 bước đạt 84,1% độ chính xác thực thi, cao hơn 4,6% so với quy trình 4 bước (79,5%). Kết quả này đặc biệt có ý nghĩa khi chạy trên tập dữ liệu lớn, nơi các lỗi về logic và chọn trường thường xuyên xảy ra ở các câu hỏi mức độ Hard và Extra Hard.
 
 **Bảng so sánh 4 bước vs 6 bước:** Bảng 2 tóm tắt kết quả giữa quy trình cơ sở 4 bước và kiến trúc đầy đủ 6 bước trên tập Dev Set.
 
@@ -534,47 +534,7 @@ Một câu hỏi quan trọng trong thiết kế hệ thống đa tác nhân là
 
 *Bảng 4: So sánh hiệu suất giữa cấu hình cùng một mô hình (số liệu đo) và cấu hình nhiều mô hình (ước tính) trên Spider 1.0 (50 câu).*
 
-#### 4.2.6 Chi phí và Hiệu quả (Trade-off Analysis)
 
-Chúng tôi tiến hành phân tích sự đánh đổi (Trade-off) giữa độ chính xác và tài nguyên tiêu tốn (Token/Thời gian). Đây là yếu tố then chốt để áp dụng vào thực tế tùy theo nhu cầu về độ tin cậy.
-
-| Phương pháp | Accuracy (Ex) | Avg. Tokens/Q | Latency (s) | Đánh giá Trade-off |
-| :--- | :---: | :---: | :---: | :--- |
-| Zero-shot | 74,8% | 850 | 2,8 | Nhanh, rẻ, phù hợp query dễ |
-| CoT Prompting | 77,0% | 1.400 | 4,5 | Cân bằng, phù hợp query trung bình |
-| 4-Agent Pipeline | 79,5% | 6.200 | 7,2 | Accuracy tốt, bắt đầu tốn kém |
-| **6-Agent (Ours)** | **84,1%** | **11.500** | **12,6** | Độ chính xác cao nhất, tốn tài nguyên nhất |
-
-**Phân tích Biểu đồ Đánh đổi:**
-
-**Hình 4: Tương quan giữa Độ chính xác (Accuracy) và Chi phí (Tokens/Latency)**
-
-```mermaid
-graph BT
-    subgraph Chart ["Biểu đồ So sánh Độ chính xác (%)"]
-        direction BT
-        P6["<b>6-Agent (Ours)</b><br/>84.1%"] --- P4["4-Agent<br/>79.5%"]
-        P4 --- CoT["CoT<br/>77.0%"]
-        CoT --- ZS["Zero-shot<br/>74.8%"]
-    end
-
-    %% Mô phỏng độ cao cột bằng style
-    style P6 fill:#d84315,stroke:#fff,color:#fff,stroke-width:4px
-    style P4 fill:#fbc02d,stroke:#fff,color:#fff,stroke-width:3px
-    style CoT fill:#2e7d32,stroke:#fff,color:#fff,stroke-width:2px
-    style ZS fill:#555,stroke:#fff,color:#fff,stroke-width:1px
-
-    subgraph Legend ["Thông tin tài nguyên/thời gian"]
-        direction LR
-        L1["Kích thước = Tokens tiêu thụ"]
-        L2["Độ dày viền = Độ trễ (Latency)"]
-    end
-    
-    style Chart fill:transparent,stroke:#fff
-    style Legend fill:#222,stroke:#ccc,color:#fff
-```
-
-Khi số lượng tác nhân tăng lên, độ chính xác thực thi tăng theo hàm Logarithm so với số lượng token tiêu thụ. Tăng từ Zero-shot lên 6-Agent giúp tăng **9,3 điểm phần trăm** độ chính xác nhưng làm tăng gấp **13,5 lần** lượng token tiêu thụ. Tuy nhiên, trong các hệ thống doanh nghiệp yêu cầu dữ liệu chính xác tuyệt đối, sự đánh đổi này là xứng đáng để giảm thiểu rủi ro sai lệch thông tin chiếm 52,6% lỗi liên quan đến chọn trường.
 
 
 
@@ -687,7 +647,7 @@ Các hệ thống Chuyển đổi Ngôn ngữ Tự nhiên sang SQL (NL2SQL) truy
 
 Bài báo này đưa ra bốn đóng góp chính. Thứ nhất, chúng tôi đề xuất một kiến trúc 6 tác nhân mới được thiết kế đặc biệt cho NL2SQL, với các tác nhân chuyên biệt—Phân tích Câu hỏi, Chọn Lược đồ, Lập kế hoạch Truy vấn, Chuyên gia SQL, Kiểm tra SQL, và Tinh chỉnh SQL—mỗi tác nhân tập trung vào các khía cạnh riêng biệt của nhiệm vụ NL2SQL. Thứ hai, chúng tôi thực hiện phân tích lỗi toàn diện xác định việc chọn trường là nguồn lỗi chính, chiếm 52,6% các lỗi, và thực hiện các chiến lược giảm thiểu có mục tiêu trong tác nhân Phân tích Câu hỏi của chúng tôi. Thứ ba, chúng tôi cung cấp đánh giá thực nghiệm so sánh các kiến trúc quy trình 4 bước và 6 bước trên tập dữ liệu Spider, chứng minh tác động của việc lập kế hoạch truy vấn và tinh chỉnh một lần đối với độ chính xác. Thứ tư, chúng tôi phân tích các mô hình cộng tác của tác nhân, bao gồm luồng thông tin giữa các tác nhân và quy trình tinh chỉnh một lần, và tác động của chúng đối với độ chính xác truy vấn.
 
-Đánh giá của chúng tôi chứng minh rằng quy trình 6 bước đạt 86.0% độ chính xác thực thi trên tập phát triển (dev split) Spider 1.0 (50 câu), cao hơn 24 điểm phần trăm so với cơ sở 4 bước (62.0%). Những kết quả này xác thực rằng sự cộng tác đa tác nhân chuyên biệt với tinh chỉnh một lần vượt trội đáng kể so với các phương pháp tiếp cận đơn tác nhân đối với các nhiệm vụ NL2SQL phức tạp.
+Đánh giá của chúng tôi chứng minh rằng quy trình 6 bước đạt 86.0% độ chính xác thực thi trên tập phát triển (dev split) Spider 1.0 (50 câu), cao hơn 24% so với cơ sở 4 bước (62.0%). Những kết quả này xác thực rằng sự cộng tác đa tác nhân chuyên biệt với tinh chỉnh một lần vượt trội đáng kể so với các phương pháp tiếp cận đơn tác nhân đối với các nhiệm vụ NL2SQL phức tạp. Khi số lượng tác nhân tăng lên, độ chính xác thực thi tăng theo hàm Logarithm so với số lượng token tiêu thụ. Tăng từ Zero-shot lên 6-Agent giúp tăng **9,3%** độ chính xác nhưng làm tăng gấp **13,5 lần** lượng token tiêu thụ. Tuy nhiên, trong các hệ thống doanh nghiệp yêu cầu dữ liệu chính xác tuyệt đối, sự đánh đổi này là xứng đáng để giảm thiểu rủi ro sai lệch thông tin chiếm 52,6% lỗi liên quan đến chọn trường.
 
 Các hướng nghiên cứu trong tương lai bao gồm mở rộng hệ thống để hỗ trợ nhiều ngôn ngữ ngoài tiếng Anh, phát triển khả năng học lược đồ cho phép các tác nhân học lược đồ cơ sở dữ liệu từ các ví dụ mà không cần định nghĩa lược đồ rõ ràng, cho phép thích ứng thời gian thực với các cấu trúc cơ sở dữ liệu mới và các mẫu truy vấn một cách linh hoạt, và tích hợp với các bộ tối ưu hóa truy vấn cơ sở dữ liệu để cải thiện hiệu suất. Những hướng đi này sẽ thúc đẩy lĩnh vực này hướng tới các giao diện ngôn ngữ tự nhiên cho cơ sở dữ liệu dễ tiếp cận, chính xác và linh hoạt hơn.
 
