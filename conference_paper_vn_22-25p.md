@@ -12,7 +12,7 @@ NL2SQL cho phép người dùng đặt câu hỏi bằng ngôn ngữ tự nhiên
 
 Trong vài năm gần đây, việc dùng mô hình ngôn ngữ lớn (LLM) cho NL2SQL trở nên phổ biến nhờ khả năng suy luận và tạo mã linh hoạt. Tuy nhiên, cách tiếp cận “một lượt sinh SQL” vẫn dễ mắc lỗi hệ thống. Hai dạng khó khăn thường gặp là (i) liên kết lược đồ (schema linking) không ổn định khi lược đồ lớn, nhiều cột tên gần giống; và (ii) lựa chọn trường đầu ra (field selection) sai, dù hệ thống có thể nắm đúng ý định logic ở mức tổng quan. Thực tế này cho thấy cần một quy trình có phân vai rõ ràng: bước nào chịu trách nhiệm phân tích ý định, bước nào chịu trách nhiệm lọc lược đồ, bước nào lập kế hoạch logic, và bước nào được phép sửa lỗi ngữ nghĩa.
 
-Một vấn đề phương pháp luận là nhiều nghiên cứu tập trung tối ưu prompt hoặc tối ưu mô hình, trong khi “khung đánh giá” (evaluation framework) cho phép phân tích vai trò từng bước vẫn còn hạn chế. Nếu pipeline là một khối đen, việc đánh giá thường chỉ phản ánh năng lực tổng hợp của toàn hệ thống. Khi kết quả thay đổi, ta khó truy nguyên: lỗi giảm là do phân tích tốt hơn, do lập kế hoạch tốt hơn, hay do tinh chỉnh/kiểm tra tốt hơn. Với NL2SQL, điều này đặc biệt quan trọng vì nhiều lỗi có tính hệ thống và lặp lại theo mẫu (ví dụ nhầm cột có tên gần nhau, hoặc dùng COUNT thay vì COUNT(DISTINCT)).
+Một vấn đề phương pháp luận là nhiều hệ NL2SQL vẫn được đánh giá như một khối đen. Khi thay đổi prompt hoặc quy trình, ta khó truy nguyên vai trò của từng bước: lỗi giảm là do phân tích tốt hơn, do lập kế hoạch tốt hơn, hay do tinh chỉnh/kiểm tra tốt hơn. Với NL2SQL, điều này đặc biệt quan trọng vì nhiều lỗi có tính hệ thống và lặp lại theo mẫu (ví dụ nhầm cột gần nghĩa, hoặc dùng COUNT thay vì COUNT(DISTINCT)).
 
 Chúng tôi đề xuất một framework NL2SQL đa tác nhân theo hướng mô-đun hóa pipeline. Thay vì xem NL2SQL là một lần gọi LLM, framework tách pipeline thành các tác nhân (agents) với vai trò riêng, chạy theo thứ tự cố định và trao đổi ngữ cảnh có cấu trúc. Cách thiết kế này có hai mục tiêu: (i) tạo ra một quy trình sinh SQL dễ quan sát và dễ gỡ lỗi hơn; và (ii) quan trọng không kém, cho phép cấu hình pipeline để đánh giá có cấu trúc (ví dụ bật/tắt các thành phần lập kế hoạch hoặc tinh chỉnh).
 
@@ -47,7 +47,9 @@ Từ góc nhìn bài báo này, điều quan trọng là: các công trình truy
 
 ### 2.2 LLM-based Text-to-SQL
 
-LLM giúp đơn giản hóa triển khai NL2SQL nhờ khả năng học theo ngữ cảnh và sinh mã. Với một prompt phù hợp, LLM có thể tạo SQL mà không cần tinh chỉnh mô hình. Tuy vậy, các hệ dựa trên LLM vẫn gặp lỗi hệ thống, đặc biệt với truy vấn nhiều bước và liên kết lược đồ. Một vấn đề điển hình là LLM “hiểu câu hỏi” ở mức mô tả, nhưng chọn sai trường đầu ra do suy luận thiếu kiểm soát hoặc do các cột tên gần nhau trong lược đồ [REF].
+LLM giúp đơn giản hóa triển khai NL2SQL nhờ khả năng học theo ngữ cảnh và sinh mã. Với một prompt phù hợp, LLM có thể tạo SQL mà không cần tinh chỉnh mô hình. Tuy vậy, trong các bài toán nhiều bước và khi lược đồ lớn, hệ thống vẫn có thể thất bại theo những mẫu lỗi lặp lại.
+
+In our runs on Spider, a recurring failure mode is **field selection**: the model often captures the overall intent yet selects a semantically plausible but incorrect output column when schemas contain near-synonymous fields. This observation motivates our explicit `expected_output_fields` contract (Question Analyzer) and the constrained single-pass Refiner that aligns the final SELECT clause with the analyzed intent.
 
 Khi dùng LLM, người phát triển thường đối mặt với hai loại quyết định: (i) **quyết định prompt/ngữ cảnh** (đưa gì vào input: lược đồ đầy đủ, lược đồ rút gọn, ví dụ few-shot, hay tập quy tắc), và (ii) **quyết định quy trình** (sinh một lần hay nhiều lần; có kiểm tra/đánh giá/ghi nhận lỗi hay không). Ở mức hệ thống, lỗi NL2SQL thường xuất phát từ việc LLM phải “gánh” quá nhiều trách nhiệm trong một lượt: vừa hiểu câu hỏi, vừa chọn bảng/cột, vừa suy luận đường JOIN, vừa đảm bảo cú pháp. Khi không có phân vai, một sai lệch nhỏ ở bước chọn cột có thể lan sang cấu trúc truy vấn.
 
@@ -139,6 +141,8 @@ Trong framework này, **Refiner** là tác nhân duy nhất được phép sửa
 | SQL Expert | `analysis`, `schema_filtered`, `plan` | `y0` (initial SQL) | Sinh SQL từ kế hoạch và lược đồ |
 | SQL Refiner | `y0`, \(Q\), `analysis`, `schema_filtered`, `plan` | `y1` (refined SQL + note) | Tinh chỉnh một lần, sửa sai lệch ngữ nghĩa |
 | SQL Validator | `y1`, `schema_filtered` | `report` (ok/error + diagnostics) | Kiểm tra kỹ thuật, đối soát lược đồ |
+
+**Implementation as a configurable research framework.** Beyond a conceptual pipeline, we implement the proposed system as a modular research framework with (i) per-agent prompt/config files, (ii) a pipeline manager that can switch between 4-step and 6-step configurations via a single flag, and (iii) a unified evaluation runner for Spider. For reproducibility and analysis, the framework logs intermediate artifacts for each example: `analysis`, `schema_filtered`, `plan` (if enabled), initial SQL `y0`, refined SQL `y1` (if enabled), and the validator `report`. This design enables component-level ablations and systematic error analysis without altering the evaluation protocol.
 
 ### 3.3 Modular Pipeline Design (Phase 1/2/3)
 
@@ -306,6 +310,11 @@ Trong cả hai cấu hình, đầu ra cuối cùng là SQL sau bước Validator
 
 Khác biệt duy nhất giữa hai cấu hình là việc bật/tắt hai thành phần Planner và Refiner. Điều này giúp diễn giải kết quả ở Table 1 theo đúng mục tiêu của bài: đánh giá vai trò của lập kế hoạch và tinh chỉnh trong một framework đa tác nhân.
 
+**LLM and prompting.** All agents in both configurations use the same underlying LLM to isolate the effect of pipeline design. The model is **Google Gemini 2.0 Flash** (Google). We use a **zero-shot** prompting setup with **no chain-of-thought revealed**. Each agent receives an explicit role instruction and produces **structured outputs** (JSON-like fields) to reduce ambiguity across steps. We keep decoding parameters fixed across all runs (`temperature=0.3`, `top_p=0.95`, `max_tokens=2048`) and sample **n=1** per question. We do not apply self-consistency voting.  
+**Invalid-SQL policy.** If the generated SQL is invalid (syntax error or references missing tables/columns), we record it as a failure for EM/EX. We do **not** perform automatic retries or multi-pass repair beyond the single-pass Refiner in the 6-step configuration.  
+**Schema representation.** The full schema is provided as a compact text serialization including table names, column names, data types (when available), and foreign-key relations. The Schema Selector returns a filtered sub-schema while preserving original identifiers to ensure executability.  
+**Evaluation protocol.** We evaluate on **Spider 1.0 dev (1,034 questions)** using the **official Spider evaluation script/evaluator** from the Spider repository (e.g., `https://github.com/taoyds/spider`). We report **Exact Match (EM)** under Spider’s equivalence criteria and **Execution Accuracy (EX)** by executing predicted SQL and comparing result sets with the gold SQL on the corresponding database. Queries that fail to execute are counted as incorrect for EX.
+
 ### 4.2 Main Results
 
 Table 1 trình bày so sánh giữa **base configuration (4-step)** và **full configuration (6-step)** trên Spider 1.0 (1.034 câu hỏi).
@@ -388,55 +397,35 @@ Từ góc nhìn hệ thống, taxonomy này cũng cho thấy “vì sao” một
 
 ### 5.2 Qualitative Analysis with One Example
 
-Dưới đây là một ví dụ ngắn (mang tính minh họa) cho lỗi **field selection**. Ý tưởng này phản ánh một mẫu lỗi phổ biến: hệ thống trả về một cột “có vẻ hợp lý” nhưng không đúng với yêu cầu câu hỏi.
-
-**Câu hỏi (Q).** “Tìm mã khóa học của các khóa học do khoa X cung cấp.”
-
-**Lược đồ rút gọn (minified).**
-
-- `course(course_id, title, dept_name, ...)`
-
-**SQL đúng (gold).**
-
+**Case study template (to be filled with an actual Spider example).**  
+- `db_id`: **[TODO: Spider db_id]**  
+- Question: **[TODO: exact question text from Spider dev]**  
+- Gold SQL:  
 ```sql
-SELECT course_id
-FROM course
-WHERE dept_name = 'X'
+[TODO: exact gold SQL]
+```
+- Predicted SQL (base configuration, 4-step):  
+```sql
+[TODO: exact predicted SQL]
+```
+- Predicted SQL (full configuration, 6-step):  
+```sql
+[TODO: exact predicted SQL]
 ```
 
-**SQL sai điển hình (predicted).**
-
-```sql
-SELECT title
-FROM course
-WHERE dept_name = 'X'
-```
-
-Trong trường hợp này, logic lọc theo `dept_name` là đúng, nhưng trường đầu ra sai (`title` thay vì `course_id`). Với base configuration, lỗi có thể xuất hiện nếu SQL Expert ưu tiên cột “dễ hiểu” (title) khi đọc câu hỏi. Với full configuration, Analyzer có thể trích rõ `expected_output_fields = [course.course_id]`, và Refiner có thể đối chiếu SELECT với danh sách này để sửa. Dù vậy, lỗi vẫn có thể tồn tại khi câu hỏi mơ hồ (“tìm các khóa học” có thể hiểu là mã hoặc tên), hoặc khi lược đồ có nhiều cột gần nghĩa.
-
-**Bài học rút ra từ ví dụ.** Ví dụ trên cho thấy một đặc trưng của lỗi field selection: nó thường không làm SQL “bị lỗi kỹ thuật” (vẫn chạy được), nhưng làm câu trả lời sai. Vì vậy, nếu pipeline chỉ dựa vào Validator (kiểm tra tên bảng/cột, cú pháp), hệ thống có thể bỏ sót lỗi này. Trong framework, chúng tôi xem việc tách riêng Analyzer (để “chốt” trường đầu ra) và Refiner (để đối chiếu SQL với trường đã chốt) là một cách giảm rủi ro kiểu lỗi này.
-
-**Liên hệ với các nhóm lỗi khác.** Dù ví dụ tập trung vào field selection, các nhóm lỗi khác cũng có dạng “gần đúng” tương tự:
-
-- Với **aggregation**, SQL có thể chạy và trả kết quả, nhưng sai vì dùng COUNT(*) thay vì COUNT(DISTINCT), hoặc thiếu GROUP BY. Những sai khác này khó phát hiện nếu chỉ nhìn cú pháp; cần đối chiếu với intent/plan.
-- Với **join path**, SQL có thể chạy nhưng join sai bảng trung gian, dẫn tới trùng lặp hoặc thiếu bản ghi. Đây là nhóm lỗi mà Planner được kỳ vọng hỗ trợ tốt hơn bằng cách nêu rõ đường join ngay từ kế hoạch logic.
-- Với **value grounding**, SQL có thể lọc đúng cột nhưng sai giá trị do chuẩn hóa chuỗi/ngày tháng; lỗi này thường cần thêm tiền xử lý hoặc cơ chế chuẩn hóa nhất quán (ngoài phạm vi bài báo).
-
-Nhìn chung, error analysis theo taxonomy không nhằm “đổ lỗi” cho một tác nhân, mà nhằm chỉ ra rằng các lỗi NL2SQL thuộc nhiều tầng quyết định khác nhau. Điều này củng cố lựa chọn thiết kế framework: tách pipeline theo pha để có thể can thiệp đúng chỗ, thay vì tăng độ dài prompt cho một tác nhân duy nhất.
+**How to use this template.** We use this case-study format to ground error analysis in an auditable Spider instance. Once the fields are filled, we annotate (i) which taxonomy category applies, (ii) where the divergence first appears in the pipeline artifacts (`analysis`, `schema_filtered`, `plan`, `y0`, `y1`, `report`), and (iii) whether the Refiner/Validator behavior matches the intended responsibilities. We do not include a fabricated example here to avoid introducing unverifiable claims.
 
 ## 6. Discussion
 
 Mục này thảo luận về các đánh đổi và phạm vi áp dụng của framework, dựa trên thiết kế và quan sát thực nghiệm, trong khi giữ giọng văn trung tính và tránh kết luận vượt quá dữ liệu.
 
-**Chất lượng vs chi phí suy luận.** Full configuration thêm hai bước (Planner, Refiner), nên chi phí token và độ trễ dự kiến cao hơn so với base configuration. Điều này tạo ra trade-off tự nhiên: chất lượng (EM/EX) tăng nhưng chi phí cũng tăng. Với các hệ thời gian thực, cấu hình base có thể là lựa chọn thực dụng; với các truy vấn phức tạp hoặc yêu cầu độ tin cậy cao, cấu hình full có thể phù hợp hơn. Việc framework hỗ trợ cấu hình pipeline giúp người dùng hệ thống chọn điểm cân bằng phù hợp theo bối cảnh.
-
-**Tính minh bạch và khả năng phân tích.** Một lợi ích quan trọng của thiết kế đa tác nhân là khả năng quan sát trung gian: analysis, schema đã lọc, plan, SQL ban đầu, và SQL sau tinh chỉnh. Các “artefact” trung gian này không chỉ phục vụ debug, mà còn hỗ trợ nghiên cứu: có thể phân tích lỗi theo pha, hoặc thiết kế ablation theo đúng thành phần, thay vì chỉ thay đổi prompt một cách khó kiểm soát.
+**Chất lượng vs chi phí suy luận.** Full configuration thêm hai bước (Planner, Refiner), nên chi phí token và độ trễ dự kiến cao hơn so với base configuration. Điều này tạo ra trade-off tự nhiên: chất lượng (EM/EX) tăng nhưng chi phí cũng tăng. Với các hệ thời gian thực, cấu hình base có thể là lựa chọn thực dụng; với các truy vấn phức tạp hoặc yêu cầu độ tin cậy cao, cấu hình full có thể phù hợp hơn.
 
 **Giới hạn của tinh chỉnh một lần.** Single-pass refinement giúp giữ chi phí thấp hơn so với các vòng lặp tự sửa nhiều lượt, nhưng cũng có giới hạn rõ: nếu SQL ban đầu sai cấu trúc ở mức “gốc” (ví dụ thiếu hẳn một bảng cần join, hoặc chọn sai chiến lược nested query), một lần tinh chỉnh có thể không đủ để đảo chiều quyết định. Hơn nữa, nếu Refiner sửa quá mạnh mà không bám sát `analysis`/`plan`, hệ thống có nguy cơ tạo ra truy vấn “khác mục tiêu”. Vì vậy, chúng tôi thiết kế Refiner theo hướng đối soát có kiểm soát: ưu tiên sửa các sai lệch có thể kiểm chứng (SELECT fields, COUNT vs COUNT(DISTINCT), GROUP BY/HAVING) và hạn chế thay đổi chiến lược truy vấn.
 
 **Giới hạn về mơ hồ ngôn ngữ và tri thức miền.** Spider là bộ dữ liệu chuẩn, nhưng nhiều câu hỏi trong thực tế còn mơ hồ hơn hoặc đòi hỏi tri thức miền không nằm trong lược đồ. Framework của chúng tôi không giải quyết triệt để vấn đề này vì pipeline vẫn dựa vào câu hỏi và lược đồ cung cấp. Do đó, với các trường hợp mơ hồ, hệ thống có thể tạo SQL hợp lệ nhưng khác ý định chuẩn; giải pháp tiềm năng là cơ chế hỏi lại (clarification) hoặc tương tác nhiều lượt, nằm ngoài phạm vi bài báo.
 
-**Tái lập và sai khác do prompt.** Với hệ NL2SQL dựa trên LLM, prompt và cách trình bày lược đồ là một phần quan trọng của hệ thống. Ngay cả khi giữ mô hình nền cố định, thay đổi nhỏ trong template hoặc ví dụ few-shot có thể làm thay đổi hành vi. Vì vậy, một điểm thực dụng của framework là: nó khuyến khích lưu lại prompt/config theo phiên bản (Appendix), đồng thời tách prompt theo vai trò tác nhân để giảm hiệu ứng “mọi thứ dồn vào một prompt”. Trong các phiên bản tiếp theo, chúng tôi kỳ vọng việc công bố artefact và cấu hình chạy sẽ giúp giảm khoảng cách tái lập giữa các môi trường.
+**Tái lập và sai khác do prompt.** Với hệ NL2SQL dựa trên LLM, prompt và cách trình bày lược đồ là một phần quan trọng của hệ thống. Ngay cả khi giữ mô hình nền cố định, thay đổi nhỏ trong template hoặc ví dụ few-shot có thể làm thay đổi hành vi. Vì vậy, framework ghi log artefact trung gian và tách prompt theo vai trò tác nhân để hỗ trợ tái lập và phân tích.
 
 **Khả năng tổng quát.** Dù bài báo tập trung vào NL2SQL, ý tưởng “pipeline mô-đun hóa + cấu hình được để đánh giá” có thể áp dụng cho các tác vụ tạo đầu ra có cấu trúc khác (ví dụ tạo API call, tạo truy vấn hệ tri thức, hoặc tạo code có ràng buộc). Tuy nhiên, để khẳng định tính tổng quát theo nghĩa thực nghiệm cần thêm đánh giá trên nhiều bộ dữ liệu và miền, do đó chúng tôi coi đây là hướng mở.
 
@@ -509,6 +498,4 @@ pipeline:
 [11] E. Gan et al., “BRIDGE,” NAACL 2021.  
 [12] T. Scholak et al., “PICARD,” EMNLP 2021.  
 [17] Z. Yuan et al., “CRITIC,” arXiv 2023.  
-[18] Agentic RAG surveys/blogs, 2023–2024. [REF]  
-[19] Tool learning / function-calling surveys, 2023–2024. [REF]  
 
