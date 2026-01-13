@@ -27,5 +27,33 @@
 *   **so với các hệ thống dựa trên llm (din-sql, dail-sql):**
     *   mặc dù **din-sql** cũng sử dụng phân rã bài toán, nhưng nghiên cứu này khác biệt ở cơ chế **single-pass refinement** trong môi trường đa tác nhân có "backstory" và "knowledge" chuyên biệt cho từng vai trò.
     *   nghiên cứu nhấn mạnh vào việc **xác định trường mục tiêu sớm (early field identification)**, thay vì để llm tự suy luận tập trường cùng lúc với việc viết logic sql phức tạp.
-*   **tính mới:** đề xuất một cấu trúc 6 bước có tính hệ thống cao, kết hợp giữa lập kế hoạch logic (logical planning) và kiểm soát chất lượng (standardized validation), cung cấp một framework có khả năng mở rộng tốt cho các hệ quản trị cơ sở dữ liệu thực tế.
+### **4. hệ thống thực nghiệm (experimental system)**
+nghiên cứu thực hiện so sánh và đánh giá hiệu quả giữa hai cấu hình quy trình:
+
+#### **4.1 quy trình 4 bước (baseline model)**
+quy trình rút gọn tập trung vào các bước cốt lõi từ phân tích đến xác thực kỹ thuật.
+*   **luồng thực hiện:** question analyzer → schema selector → sql expert → sql validator.
+*   **mục tiêu:** thiết lập điểm chuẩn (benchmark) để đánh giá giá trị biên của các bước lập kế hoạch và tinh chỉnh.
+
+#### **4.2 quy trình 6 bước (proposed model)**
+quy trình đầy đủ tích hợp thêm khâu lập kế hoạch logic và tinh chỉnh hành vi.
+*   **luồng thực hiện:** question analyzer → schema selector → **query planner** → sql expert → **sql refiner** → sql validator.
+*   **mục tiêu:** tối ưu hóa độ chính xác cho các câu hỏi phức tạp thông qua việc phân rã bài toán và hậu kiểm ngữ nghĩa.
+
+#### **4.3 cấu hình hybrid multi-agent (experimental configuration)**
+trong các thử nghiệm tối ưu chuyên sâu, hệ thống sử dụng sự kết hợp linh hoạt giữa các dòng llm để tận dụng ưu thế riêng của từng mô hình:
+
+*   **multi agent: kiến trúc 3 agent cốt lõi:**
+    *   **schema selector agent (claude 3.5 haiku):**
+        *   nhiệm vụ: phân tích câu hỏi và lọc lược đồ cơ sở dữ liệu liên quan.
+        *   logic: loại bỏ bảng, cột không cần thiết để tối ưu hóa cửa sổ ngữ cảnh.
+        *   output: schema json đã lọc chỉ chứa thành phần liên quan.
+    *   **sql expert agent (gemini 2.0 flash):**
+        *   nhiệm vụ: sinh câu truy vấn sql dựa trên câu hỏi và schema đã lọc.
+        *   logic: xử lý logic phức tạp và tối ưu hóa query.
+        *   output: câu truy vấn sql hoàn chỉnh.
+    *   **sql validator agent (openai o3-mini):**
+        *   nhiệm vụ: kiểm tra cú pháp, logic và cấu trúc sql.
+        *   logic: tự động sửa lỗi nếu phát hiện và cung cấp giải thích về chức năng của query.
+        *   output: sql đã validate + explanation + error handling.
 
