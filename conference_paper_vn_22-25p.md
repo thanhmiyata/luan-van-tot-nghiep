@@ -22,7 +22,7 @@ Kết quả thực nghiệm cho thấy cấu hình đầy đủ đạt **EM 76.8
 - **C2 (Đánh giá)**: Thiết kế và so sánh cấu hình cơ sở (4 bước) với cấu hình đầy đủ (6 bước) để định lượng vai trò của từng thành phần.
 - **C3 (Thực nghiệm)**: Cung cấp bằng chứng thực nghiệm trên Spider 1.0, phân loại lỗi chi tiết và giao thức thí nghiệm cắt giảm cho các nghiên cứu kế thừa.
 
-Phần còn lại của bài báo được tổ chức như sau. Mục 2 điểm qua các hướng nghiên cứu liên quan về NL2SQL, LLM cho chuyển đổi văn bản sang SQL, và hệ thống đa tác nhân. Mục 3 mô tả khung và phương pháp, bao gồm kiến trúc tổng thể, thiết kế chuỗi xử lý mô-đun, các cấu hình chuỗi xử lý, và Thuật toán 1. Mục 4 trình bày thực nghiệm, bao gồm thiết lập, kết quả chính (Bảng 1), và kế hoạch thí nghiệm cắt giảm (Mục 4.3). Mục 5 phân tích lỗi theo phân loại và đưa một ví dụ minh họa. Mục 6 thảo luận các đánh đổi và tính tổng quát. Mục 7 kết luận và nêu hướng tương lai. Phần Phụ lục cung cấp chỗ giữ chỗ cho cấu hình/lời nhắc và liên kết mã nguồn.
+Phần còn lại của bài báo được tổ chức như sau. Mục 2 điểm qua các hướng nghiên cứu liên quan về NL2SQL, LLM cho chuyển đổi văn bản sang SQL, và hệ thống đa tác nhân. Mục 3 mô tả khung và phương pháp, bao gồm kiến trúc tổng thể, thiết kế chuỗi xử lý mô-đun, các cấu hình chuỗi xử lý, và Thuật toán 1. Mục 4 trình bày thực nghiệm, bao gồm thiết lập, kết quả chính (Bảng 1), và kế hoạch thí nghiệm cắt giảm (Mục 4.3). Mục 5 phân tích lỗi theo phân loại và trình bày các trường hợp điển hình. Mục 6 thảo luận các đánh đổi và tính tổng quát. Mục 7 kết luận và nêu hướng tương lai. Phần Phụ lục cung cấp chỗ giữ chỗ cho cấu hình/lời nhắc và liên kết mã nguồn.
 
 ## 2. Công trình liên quan
 
@@ -88,7 +88,7 @@ Chúng tôi chia chuỗi xử lý thành ba pha, phù hợp với các nguồn l
 
 Lược đồ lọc giúp thu hẹp không gian tìm kiếm, trong khi `expected_output_fields` đóng vai trò "hợp đồng" ràng buộc các bước sinh SQL phía sau.
 
-**Đầu ra ví dụ (rút gọn).** Để tránh đưa lời nhắc dài vào thân bài, chúng tôi chỉ minh họa cấu trúc đầu ra ở mức tối thiểu:
+**Cấu trúc đầu ra mẫu.** Để đảm bảo tính súc tích, cấu trúc đầu ra được thể hiện ở mức tối thiểu như sau:
 
 ```json
 {
@@ -110,9 +110,9 @@ Lược đồ lọc giúp thu hẹp không gian tìm kiếm, trong khi `expected
 ```
 Trong đó, intent biểu thị kiểu yêu cầu (ví dụ truy xuất/tổng hợp), expected_output_fields là “hợp đồng” về trường đầu ra, còn constraints mô tả các ràng buộc như lọc, tổng hợp và sắp xếp.
 
-Các ký hiệu giữ chỗ (<TABLE>, <COLUMN>, <VALUE>) biểu thị các thành phần phụ thuộc lược đồ và chỉ được dùng ở đây để minh họa giao diện đầu ra có cấu trúc, không phải một trường hợp cụ thể của bộ dữ liệu.
+Các ký hiệu giữ chỗ (<TABLE>, <COLUMN>, <VALUE>) biểu thị các thành phần phụ thuộc lược đồ và chỉ được dùng ở đây nhằm làm rõ giao diện đầu ra có cấu trúc, không phải một trường hợp cụ thể của bộ dữ liệu.
 
-Trong ví dụ trên, `expected_output_fields` đóng vai trò như một “hợp đồng” giữa tác nhân Phân tích câu hỏi và các bước sau: Chuyên gia SQL và Tinh chỉnh SQL cần tôn trọng danh sách trường này, thay vì tự suy đoán.
+Trong cấu trúc mẫu trên, `expected_output_fields` đóng vai trò như một “hợp đồng” giữa tác nhân Phân tích câu hỏi và các bước sau: Chuyên gia SQL và Tinh chỉnh SQL cần tôn trọng danh sách trường này, thay vì tự suy đoán.
 
 #### Pha 2: Lập kế hoạch & sinh SQL
 
@@ -140,7 +140,7 @@ Việc tách bạch logic (kế hoạch) và cú pháp (sinh SQL) giúp giải q
 ```
 Trong đó, subgoals mô tả kế hoạch theo từng bước, join_path neo đường JOIN, còn aggregation và set_operator lần lượt biểu thị tổng hợp và phép toán tập hợp (nếu có).
 
-Biểu diễn kế hoạch ở mức trừu tượng này tránh “gắn” ví dụ vào một cơ sở dữ liệu Spider cụ thể, đồng thời vẫn giữ được cấu trúc logic mà bước lập kế hoạch cung cấp.
+Biểu diễn kế hoạch ở mức trừu tượng này tránh việc ràng buộc vào một cơ sở dữ liệu Spider cụ thể, đồng thời vẫn giữ được cấu trúc logic mà bước lập kế hoạch cung cấp.
 
 Với các câu hỏi phức tạp hơn, `join_path` và `aggregation` đóng vai trò như các “điểm neo” để Chuyên gia SQL không tự ý chọn đường JOIN hoặc kiểu tổng hợp.
 
@@ -152,7 +152,7 @@ Với các câu hỏi phức tạp hơn, `join_path` và `aggregation` đóng va
 - **Kiểm tra SQL**: Xác thực cú pháp và ràng buộc lược đồ kỹ thuật.
 Thứ tự Tinh chỉnh → Kiểm tra đảm bảo lỗi logic được xử lý trước khi tiến hành xác thực hình thức, tối ưu hóa sự cân bằng giữa chất lượng và chi phí suy luận.
 
-**Các loại chỉnh sửa mà tác nhân tinh chỉnh được phép thực hiện (ví dụ).**
+**Các loại chỉnh sửa điển hình của tác nhân tinh chỉnh:**
 
 - Sửa cột trong SELECT để khớp `expected_output_fields`.
 - Thay đổi COUNT/COUNT(DISTINCT) khi `plan` yêu cầu “thực thể duy nhất”.
@@ -295,7 +295,7 @@ Ghi chú: Bản thân bài chỉ mô tả ý tưởng và trách nhiệm của t
 
 ### B. Cấu hình chuỗi xử lý
 
-Ví dụ cấu hình YAML (minh họa):
+Cấu hình YAML mẫu:
 
 ```yaml
 llm:
