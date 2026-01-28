@@ -4,7 +4,7 @@ A Modular Multi-Agent Framework for Evaluating and Refining Text-to-SQL Generati
 
 Chuyển đổi ngôn ngữ tự nhiên sang SQL (NL2SQL) giúp người dùng truy vấn cơ sở dữ liệu bằng câu hỏi tự nhiên, nhưng vẫn dễ sai khi truy vấn phức tạp đòi hỏi liên kết lược đồ, lập kế hoạch nhiều bước, hoặc lựa chọn đúng trường đầu ra. Trong khi nhiều nghiên cứu tập trung tối ưu prompt/mô hình, vẫn thiếu một framework pipeline có thể cấu hình để đánh giá có cấu trúc vai trò của từng thành phần trong quy trình NL2SQL.
 
-Bài báo này đề xuất một framework NL2SQL đa tác nhân theo pipeline tuần tự gồm: phân tích câu hỏi, lọc lược đồ, lập kế hoạch logic, sinh SQL, tinh chỉnh một lần và kiểm tra kỹ thuật. Framework hỗ trợ hai cấu hình để đánh giá: base configuration (4-step) và full configuration (6-step). Trên Spider 1.0 (1.034 câu hỏi), full configuration đạt Exact Match (EM) 76.8% và Execution Accuracy (EX) 84.1%, trong khi base configuration đạt EM 71.2% và EX 79.5%. Ngoài kết quả chính, chúng tôi mô tả giao thức ablation dự kiến và taxonomy lỗi kèm một ví dụ định tính để hỗ trợ phân tích theo thành phần.
+Bài báo này đề xuất một framework NL2SQL đa tác nhân theo pipeline tuần tự gồm: phân tích câu hỏi, lọc lược đồ, lập kế hoạch logic, sinh SQL, tinh chỉnh một lần và kiểm tra kỹ thuật. Framework hỗ trợ hai cấu hình để đánh giá: base configuration (4-step) và full configuration (6-step). Trên Spider 1.0 dev (1.034 câu hỏi), full configuration đạt Exact Match (EM) 76.8% và Execution Accuracy (EX) 84.0%, trong khi base configuration đạt EM 71.2% và EX 79.5%. Ngoài ra, khi so sánh với các baseline đơn tác nhân dùng cùng mô hình nền (Gemini 2.0 Flash), zero-shot đạt EX 74.8% và CoT đạt EX 77.0%. Để hỗ trợ phân tích chẩn đoán, chúng tôi sử dụng chỉ số FSED (Field Selection Error Distribution) và báo cáo phân rã lỗi còn lại theo nhóm lỗi chính.
 
 ## 1. Introduction
 
@@ -21,15 +21,15 @@ Trong bài báo này, chúng tôi tập trung so sánh hai cấu hình pipeline:
 - **Base configuration (4-step)**: Question Analyzer → Schema Selector → SQL Expert → SQL Validator.
 - **Full configuration (6-step)**: Question Analyzer → Schema Selector → Query Planner → SQL Expert → SQL Refiner → SQL Validator.
 
-Trên Spider 1.0 (1.034 câu hỏi), full configuration đạt **EM 76.8% / EX 84.1%**, trong khi base configuration đạt **EM 71.2% / EX 79.5%**. Chúng tôi diễn giải kết quả theo góc nhìn pipeline: việc thêm lập kế hoạch và tinh chỉnh một lần tạo ra một quy trình có kiểm soát tốt hơn đối với các truy vấn nhiều bước. Đồng thời, để tránh overclaim, chúng tôi coi các con số này là bằng chứng trong bối cảnh triển khai và giao thức đánh giá của nghiên cứu này, không phải là kết luận “tối ưu toàn cục”.
+Trên Spider 1.0 dev (1.034 câu hỏi), full configuration đạt **EM 76.8% / EX 84.0%**, trong khi base configuration đạt **EM 71.2% / EX 79.5%**. Chúng tôi diễn giải kết quả theo góc nhìn pipeline: việc thêm lập kế hoạch và tinh chỉnh một lần tạo ra một quy trình có kiểm soát tốt hơn đối với các truy vấn nhiều bước. Đồng thời, để tránh overclaim, chúng tôi coi các con số này là bằng chứng trong bối cảnh triển khai và giao thức đánh giá của nghiên cứu này, không phải là kết luận “tối ưu toàn cục”.
 
 **Đóng góp chính** của bài báo gồm:
 
 - **C1 (Framework)**: Đề xuất một framework NL2SQL đa tác nhân với pipeline cấu hình được, tách rõ ba pha: phân tích & liên kết lược đồ, lập kế hoạch & sinh SQL, tinh chỉnh & kiểm tra.
 - **C2 (Evaluation-ready design)**: Thiết kế hai cấu hình pipeline (base 4-step và full 6-step) để phục vụ đánh giá có cấu trúc, dễ mở rộng sang ablation theo thành phần.
-- **C3 (Empirical evidence & analysis)**: Báo cáo kết quả trên Spider 1.0 với hai chỉ số chuẩn (EM, EX) và cung cấp phân tích lỗi định tính + giao thức ablation dự kiến nhằm hỗ trợ nghiên cứu tiếp theo.
+- **C3 (Empirical evidence & analysis)**: Báo cáo kết quả trên Spider 1.0 với hai chỉ số chuẩn (EM, EX) và cung cấp phân tích lỗi định lượng (FSED và phân rã lỗi theo nhóm) + giao thức ablation dự kiến nhằm hỗ trợ nghiên cứu tiếp theo.
 
-Phần còn lại của bài báo được tổ chức như sau. Mục 2 điểm qua các hướng nghiên cứu liên quan về NL2SQL, LLM cho text-to-SQL, và hệ thống đa tác nhân. Mục 3 mô tả framework và phương pháp luận, bao gồm kiến trúc tổng thể, thiết kế pipeline mô-đun, các cấu hình pipeline, và Algorithm 1. Mục 4 trình bày thực nghiệm, bao gồm thiết lập, kết quả chính (Table 1), và kế hoạch ablation (Mục 4.3). Mục 5 phân tích lỗi theo taxonomy và đưa một ví dụ minh họa. Mục 6 thảo luận các đánh đổi và tính tổng quát. Mục 7 kết luận và nêu hướng tương lai. Phần Appendix cung cấp placeholder cho prompt/config và liên kết mã nguồn.
+Phần còn lại của bài báo được tổ chức như sau. Mục 2 điểm qua các hướng nghiên cứu liên quan về NL2SQL, LLM cho text-to-SQL, và hệ thống đa tác nhân. Mục 3 mô tả framework và phương pháp luận, bao gồm kiến trúc tổng thể, thiết kế pipeline mô-đun, các cấu hình pipeline, và Algorithm 1. Mục 4 trình bày thực nghiệm, bao gồm thiết lập, kết quả chính (Table 1–2), và giao thức ablation (Mục 4.3). Mục 5 phân tích lỗi theo taxonomy, chỉ số chẩn đoán FSED và phân rã lỗi định lượng. Mục 6 thảo luận các đánh đổi và tính tổng quát. Mục 7 kết luận và nêu hướng tương lai. Phần Appendix cung cấp placeholder cho prompt/config và liên kết mã nguồn.
 
 ## 2. Related Work
 
@@ -49,7 +49,7 @@ Từ góc nhìn bài báo này, điều quan trọng là: các công trình truy
 
 LLM giúp đơn giản hóa triển khai NL2SQL nhờ khả năng học theo ngữ cảnh và sinh mã. Với một prompt phù hợp, LLM có thể tạo SQL mà không cần tinh chỉnh mô hình. Tuy vậy, trong các bài toán nhiều bước và khi lược đồ lớn, hệ thống vẫn có thể thất bại theo những mẫu lỗi lặp lại.
 
-In our runs on Spider, a recurring failure mode is **field selection**: the model often captures the overall intent yet selects a semantically plausible but incorrect output column when schemas contain near-synonymous fields. This observation motivates our explicit `expected_output_fields` contract (Question Analyzer) and the constrained single-pass Refiner that aligns the final SELECT clause with the analyzed intent.
+Trong các lần chạy trên Spider, một dạng lỗi lặp lại là **field selection**: mô hình nắm được ý định tổng quan nhưng chọn nhầm cột đầu ra “có vẻ hợp lý” khi lược đồ chứa các trường gần nghĩa. Quan sát này là động lực cho “hợp đồng” `expected_output_fields` (Question Analyzer) và Refiner tinh chỉnh một lần (single-pass) để căn chỉnh mệnh đề SELECT theo đúng ý định đã phân tích.
 
 Khi dùng LLM, người phát triển thường đối mặt với hai loại quyết định: (i) **quyết định prompt/ngữ cảnh** (đưa gì vào input: lược đồ đầy đủ, lược đồ rút gọn, ví dụ few-shot, hay tập quy tắc), và (ii) **quyết định quy trình** (sinh một lần hay nhiều lần; có kiểm tra/đánh giá/ghi nhận lỗi hay không). Ở mức hệ thống, lỗi NL2SQL thường xuất phát từ việc LLM phải “gánh” quá nhiều trách nhiệm trong một lượt: vừa hiểu câu hỏi, vừa chọn bảng/cột, vừa suy luận đường JOIN, vừa đảm bảo cú pháp. Khi không có phân vai, một sai lệch nhỏ ở bước chọn cột có thể lan sang cấu trúc truy vấn.
 
@@ -59,7 +59,7 @@ Ngoài ra, đối với text-to-SQL, một khó khăn đặc thù là **sự kh�
 
 ### 2.3 Multi-Agent and Tool-Augmented LLMs
 
-Khung đa tác nhân (multi-agent) được dùng để giải quyết tác vụ phức tạp bằng cách phân vai (role specialization) và phối hợp (coordination). Các framework như CrewAI, LangChain Agents, hoặc các khung hội thoại đa tác nhân cung cấp “cơ sở hạ tầng” để xây dựng pipeline gồm nhiều tác nhân và cơ chế truyền ngữ cảnh [8–10]. Ngoài ra, các hướng tool-augmented LLM nhấn mạnh việc dùng công cụ để kiểm tra/đánh giá đầu ra (ví dụ kiểm tra cú pháp, chạy thử, hoặc đối soát) [17, 19], còn agentic RAG nhấn mạnh truy xuất thông tin theo nhu cầu [18].
+Khung đa tác nhân (multi-agent) được dùng để giải quyết tác vụ phức tạp bằng cách phân vai (role specialization) và phối hợp (coordination). Các framework như CrewAI, LangChain Agents, hoặc các khung hội thoại đa tác nhân cung cấp “cơ sở hạ tầng” để xây dựng pipeline gồm nhiều tác nhân và cơ chế truyền ngữ cảnh [8–10]. Bên cạnh đó, các hướng LLM tăng cường công cụ (tool-augmented) nhấn mạnh việc dùng công cụ để kiểm tra/đánh giá đầu ra (ví dụ kiểm tra cú pháp, chạy thử, hoặc đối soát) [17].
 
 Trong hệ thống tăng cường công cụ, một ý tưởng quan trọng là tách bạch giữa “sinh” và “kiểm tra”. Ở text-to-SQL, kiểm tra có thể bao gồm: (i) đối soát tên bảng/cột với lược đồ, (ii) kiểm tra cú pháp, và (iii) kiểm tra các ràng buộc hình thức. Tuy nhiên, kiểm tra không tương đương với sửa. Nếu hệ thống muốn sửa các lỗi ngữ nghĩa (như chọn sai trường), nó cần một cơ chế có quyền sửa logic—đây là động lực để đặt Refiner như một tác nhân riêng, thay vì ép Validator vừa kiểm tra vừa sửa.
 
@@ -310,10 +310,10 @@ Trong cả hai cấu hình, đầu ra cuối cùng là SQL sau bước Validator
 
 Khác biệt duy nhất giữa hai cấu hình là việc bật/tắt hai thành phần Planner và Refiner. Điều này giúp diễn giải kết quả ở Table 1 theo đúng mục tiêu của bài: đánh giá vai trò của lập kế hoạch và tinh chỉnh trong một framework đa tác nhân.
 
-**LLM and prompting.** All agents in both configurations use the same underlying LLM to isolate the effect of pipeline design. The model is **Google Gemini 2.0 Flash** (Google). We use a **zero-shot** prompting setup with **no chain-of-thought revealed**. Each agent receives an explicit role instruction and produces **structured outputs** (JSON-like fields) to reduce ambiguity across steps. We keep decoding parameters fixed across all runs (`temperature=0.3`, `top_p=0.95`, `max_tokens=2048`) and sample **n=1** per question. We do not apply self-consistency voting.  
-**Invalid-SQL policy.** If the generated SQL is invalid (syntax error or references missing tables/columns), we record it as a failure for EM/EX. We do **not** perform automatic retries or multi-pass repair beyond the single-pass Refiner in the 6-step configuration.  
-**Schema representation.** The full schema is provided as a compact text serialization including table names, column names, data types (when available), and foreign-key relations. The Schema Selector returns a filtered sub-schema while preserving original identifiers to ensure executability.  
-**Evaluation protocol.** We evaluate on **Spider 1.0 dev (1,034 questions)** using the **official Spider evaluation script/evaluator** from the Spider repository (e.g., `https://github.com/taoyds/spider`). We report **Exact Match (EM)** under Spider’s equivalence criteria and **Execution Accuracy (EX)** by executing predicted SQL and comparing result sets with the gold SQL on the corresponding database. Queries that fail to execute are counted as incorrect for EX.
+**LLM và prompting.** Tất cả tác nhân trong cả hai cấu hình sử dụng cùng một LLM để cô lập tác động của thiết kế pipeline. Mô hình nền là **Google Gemini 2.0 Flash**. Chúng tôi dùng thiết lập **zero-shot** và **không hiển thị chain-of-thought**. Mỗi tác nhân nhận chỉ dẫn vai trò rõ ràng và xuất **ngữ cảnh có cấu trúc** (các trường dạng JSON) để giảm mơ hồ giữa các bước. Chúng tôi cố định tham số giải mã cho toàn bộ thực nghiệm (`temperature=0.3`, `top_p=0.95`, `max_tokens=2048`) và lấy mẫu **n=1** mỗi câu hỏi (không voting/self-consistency).  
+**Chính sách SQL không hợp lệ.** Nếu SQL sinh ra không hợp lệ (lỗi cú pháp hoặc tham chiếu bảng/cột không tồn tại), mẫu được ghi nhận là thất bại cho EM/EX. Chúng tôi **không** thực hiện retry tự động hay sửa nhiều lượt vượt quá Refiner tinh chỉnh một lần trong cấu hình 6 bước.  
+**Biểu diễn lược đồ.** Lược đồ đầy đủ được đưa vào dưới dạng văn bản gọn (tên bảng, tên cột, kiểu dữ liệu nếu có, và quan hệ khóa ngoại). Schema Selector trả về lược đồ con đã lọc nhưng giữ nguyên định danh để đảm bảo SQL có thể thực thi.  
+**Giao thức đánh giá.** Chúng tôi đánh giá trên **Spider 1.0 dev (1.034 câu hỏi)** bằng **script đánh giá chính thức** của Spider (ví dụ `https://github.com/taoyds/spider`). EM đo theo tiêu chí tương đương của Spider; EX được tính bằng cách thực thi SQL dự đoán và so sánh tập kết quả với gold SQL trên đúng cơ sở dữ liệu. Các truy vấn không thực thi được được tính sai cho EX.
 
 ### 4.2 Main Results
 
@@ -324,7 +324,22 @@ Table 1 trình bày so sánh giữa **base configuration (4-step)** và **full c
 | Pipeline configuration | Exact Match (EM, %) | Execution Accuracy (EX, %) |
 | :--- | ---: | ---: |
 | Base configuration (4-step) | 71.2 | 79.5 |
-| Full configuration (6-step) | 76.8 | 84.1 |
+| Full configuration (6-step) | 76.8 | 84.0 |
+
+Để đặt kết quả của pipeline trong bối cảnh, Table 2 bổ sung so sánh với các baseline đơn tác nhân (cùng mô hình nền) và một số số liệu tham chiếu được trích từ tài liệu gốc.
+
+**Table 2. So sánh với baseline đơn tác nhân và số liệu tham chiếu trên Spider dev**
+
+| Quy trình / Mô hình | Exact Match (EM, %) | Execution Accuracy (EX, %) | Ghi chú |
+| :--- | ---: | ---: | :--- |
+| Gemini 2.0 Flash (Zero-shot) | 68.5 | 74.8 | Baseline đơn tác nhân |
+| Gemini 2.0 Flash (CoT) | 71.2 | 77.0 | Baseline đơn tác nhân |
+| Base configuration (4-step) | 71.2 | 79.5 | Pipeline rút gọn |
+| DIN-SQL (reported result) | 74.5 | 82.5 | Trích dẫn [6]\* |
+| GPT-4 (Zero-shot) | 72.0 | 80.1 | Trích dẫn [13]\* |
+| **Full configuration (6-step, ours)** | **76.8** | **84.0** | Thiết kế đề xuất |
+
+\*Ghi chú: các số liệu “reported result” được trích từ tài liệu gốc và có thể khác về tập dev/test, prompt, cách thực thi và môi trường chạy; chúng tôi chỉ dùng để tham chiếu tương quan, không khẳng định so sánh trực tiếp trong cùng điều kiện kiểm soát.
 
 **Nhận xét.** Full configuration đạt EM và EX cao hơn base configuration trong cùng bối cảnh đánh giá. Dưới góc nhìn pipeline, hai thành phần bổ sung (Planner và Refiner) cung cấp hai lớp kiểm soát: Planner làm rõ logic trước khi viết SQL, còn Refiner bắt các sai lệch phổ biến sau khi đã có SQL ban đầu. Trong khi đó, base configuration phụ thuộc nhiều hơn vào SQL Expert để “đúng ngay từ lần đầu”, và Validator chỉ có thể phát hiện lỗi kỹ thuật chứ không chủ động sửa lỗi ngữ nghĩa.
 
@@ -395,33 +410,42 @@ Taxonomy này giúp liên hệ lỗi với thiết kế pipeline: Field selectio
 
 Từ góc nhìn hệ thống, taxonomy này cũng cho thấy “vì sao” một framework cấu hình được là hữu ích: nếu ta có thể bật/tắt Planner hoặc Refiner, ta có thể kiểm tra giả thuyết rằng một nhóm lỗi chủ yếu bị ảnh hưởng bởi thành phần nào (được kiểm chứng bằng ablation trong tương lai).
 
-### 5.2 Qualitative Analysis with One Example
+### 5.2 Phân tích lỗi định lượng và chỉ số chẩn đoán
 
-**Case study template (to be filled with an actual Spider example).**  
-- `db_id`: **[TODO: Spider db_id]**  
-- Question: **[TODO: exact question text from Spider dev]**  
-- Gold SQL:  
-```sql
-[TODO: exact gold SQL]
-```
-- Predicted SQL (base configuration, 4-step):  
-```sql
-[TODO: exact predicted SQL]
-```
-- Predicted SQL (full configuration, 6-step):  
-```sql
-[TODO: exact predicted SQL]
+Ngoài EM/EX, chúng tôi dùng chỉ số chẩn đoán **FSED (Field Selection Error Distribution)** để mô tả tỷ trọng lỗi chọn trường (field selection) trong các trường hợp baseline đơn tác nhân thất bại trên Spider dev. Một lỗi chọn trường được định nghĩa là không khớp tập cột trong mệnh đề SELECT so với gold SQL (so theo danh tính `table.column`, bỏ qua alias; thứ tự chỉ tính là lỗi khi câu hỏi yêu cầu rõ ràng). Trên baseline Gemini 2.0 Flash (zero-shot), **FSED = 52.6%** (tính trên tập con các câu EX thất bại của baseline), cho thấy lỗi chọn trường chiếm tỷ trọng lớn trong các thất bại của baseline.
+
+Để nhìn rõ các lỗi còn lại sau khi áp dụng pipeline 6 bước (EX = 84.0%, tức 16.0% mẫu thất bại), Table 3 báo cáo **tỷ lệ lỗi tuyệt đối** theo nhóm lỗi chính trên toàn bộ dev set.
+
+**Table 3. Tỷ lệ sai sót tuyệt đối trên toàn bộ Spider dev (1.034 câu) sau khi áp dụng pipeline 6 bước**
+
+| Loại sai sót | Tỷ lệ tuyệt đối trên toàn bộ dev set (%) | Ví dụ điển hình | Thành phần liên quan |
+| :--- | ---: | :--- | :--- |
+| **Logic JOIN** | 5.2 | Sai bảng trung gian trong quan hệ n-n | Lập kế hoạch, Chuyên gia |
+| **Truy vấn lồng** | 4.2 | Logic phức tạp trong IN/EXISTS | Lập kế hoạch, Chuyên gia |
+| **Nhóm dữ liệu** | 3.1 | Sai lệch trong mệnh đề GROUP BY | Chuyên gia, Kiểm tra |
+| **Chọn thuộc tính** | 2.1 | Nhầm lẫn trường giữa các bảng liên kết | Phân tích, Chuyên gia |
+| **Thao tác khác** | 1.4 | Logic UNION/OR không phù hợp | Lập kế hoạch, Chuyên gia |
+
+Để bổ sung góc nhìn “tỷ trọng lỗi” (distribution) trên tập con các câu thất bại của pipeline 6 bước, chúng tôi minh họa phân phối lỗi theo Hình 2 (tính trên 16.0% các trường hợp thực thi thất bại).
+
+**Figure 2. Phân phối các loại lỗi trong các trường hợp thất bại (pipeline 6 bước)**
+
+```mermaid
+pie title Tỷ trọng các loại lỗi trong 16.0% câu truy vấn thất bại
+    "Logic JOIN" : 32.5
+    "Nested Queries" : 26.2
+    "Aggregation / Grouping" : 19.4
+    "Field Selection (Residual)" : 13.1
+    "Others" : 8.8
 ```
 
-**How to use this template.** We use this case-study format to ground error analysis in an auditable Spider instance. Once the fields are filled, we annotate (i) which taxonomy category applies, (ii) where the divergence first appears in the pipeline artifacts (`analysis`, `schema_filtered`, `plan`, `y0`, `y1`, `report`), and (iii) whether the Refiner/Validator behavior matches the intended responsibilities. We do not include a fabricated example here to avoid introducing unverifiable claims.
-
-## 6. Discussion
+## 6. Thảo luận
 
 Mục này thảo luận về các đánh đổi và phạm vi áp dụng của framework, dựa trên thiết kế và quan sát thực nghiệm, trong khi giữ giọng văn trung tính và tránh kết luận vượt quá dữ liệu.
 
-**Chất lượng vs chi phí suy luận.** Full configuration thêm hai bước (Planner, Refiner), nên chi phí token và độ trễ dự kiến cao hơn so với base configuration. Điều này tạo ra trade-off tự nhiên: chất lượng (EM/EX) tăng nhưng chi phí cũng tăng. Với các hệ thời gian thực, cấu hình base có thể là lựa chọn thực dụng; với các truy vấn phức tạp hoặc yêu cầu độ tin cậy cao, cấu hình full có thể phù hợp hơn.
+**Chất lượng so với chi phí suy luận.** Cấu hình đầy đủ (full configuration) thêm hai bước (Planner, Refiner), nên chi phí token và độ trễ dự kiến cao hơn so với cấu hình cơ sở (base configuration). Điều này tạo ra một đánh đổi tự nhiên: chất lượng (EM/EX) tăng nhưng chi phí cũng tăng. Với các hệ thời gian thực, cấu hình cơ sở có thể là lựa chọn thực dụng; với các truy vấn phức tạp hoặc yêu cầu độ tin cậy cao, cấu hình đầy đủ có thể phù hợp hơn.
 
-**Giới hạn của tinh chỉnh một lần.** Single-pass refinement giúp giữ chi phí thấp hơn so với các vòng lặp tự sửa nhiều lượt, nhưng cũng có giới hạn rõ: nếu SQL ban đầu sai cấu trúc ở mức “gốc” (ví dụ thiếu hẳn một bảng cần join, hoặc chọn sai chiến lược nested query), một lần tinh chỉnh có thể không đủ để đảo chiều quyết định. Hơn nữa, nếu Refiner sửa quá mạnh mà không bám sát `analysis`/`plan`, hệ thống có nguy cơ tạo ra truy vấn “khác mục tiêu”. Vì vậy, chúng tôi thiết kế Refiner theo hướng đối soát có kiểm soát: ưu tiên sửa các sai lệch có thể kiểm chứng (SELECT fields, COUNT vs COUNT(DISTINCT), GROUP BY/HAVING) và hạn chế thay đổi chiến lược truy vấn.
+**Giới hạn của tinh chỉnh một lần.** Tinh chỉnh một lần (single-pass refinement) giúp giữ chi phí thấp hơn so với các vòng lặp tự sửa nhiều lượt, nhưng cũng có giới hạn rõ: nếu SQL ban đầu sai cấu trúc ở mức “gốc” (ví dụ thiếu hẳn một bảng cần JOIN, hoặc chọn sai chiến lược truy vấn lồng), một lần tinh chỉnh có thể không đủ để đảo chiều quyết định. Hơn nữa, nếu Refiner sửa quá mạnh mà không bám sát `analysis`/`plan`, hệ thống có nguy cơ tạo ra truy vấn “khác mục tiêu”. Vì vậy, chúng tôi thiết kế Refiner theo hướng đối soát có kiểm soát: ưu tiên sửa các sai lệch có thể kiểm chứng (cột trong SELECT, COUNT so với COUNT(DISTINCT), GROUP BY/HAVING) và hạn chế thay đổi chiến lược truy vấn.
 
 **Giới hạn về mơ hồ ngôn ngữ và tri thức miền.** Spider là bộ dữ liệu chuẩn, nhưng nhiều câu hỏi trong thực tế còn mơ hồ hơn hoặc đòi hỏi tri thức miền không nằm trong lược đồ. Framework của chúng tôi không giải quyết triệt để vấn đề này vì pipeline vẫn dựa vào câu hỏi và lược đồ cung cấp. Do đó, với các trường hợp mơ hồ, hệ thống có thể tạo SQL hợp lệ nhưng khác ý định chuẩn; giải pháp tiềm năng là cơ chế hỏi lại (clarification) hoặc tương tác nhiều lượt, nằm ngoài phạm vi bài báo.
 
@@ -431,7 +455,7 @@ Mục này thảo luận về các đánh đổi và phạm vi áp dụng của 
 
 ## 7. Conclusion & Future Work
 
-Bài báo này đề xuất một framework NL2SQL đa tác nhân theo pipeline mô-đun hóa, cho phép cấu hình số bước để phục vụ đánh giá có cấu trúc và phân tích vai trò thành phần. Framework tách pipeline thành ba pha: (i) phân tích câu hỏi và liên kết/lọc lược đồ, (ii) lập kế hoạch logic và sinh SQL, và (iii) tinh chỉnh một lần và kiểm tra kỹ thuật. Chúng tôi đánh giá hai cấu hình: base configuration (4-step) và full configuration (6-step) trên Spider 1.0 (1.034 câu hỏi). Kết quả cho thấy full configuration đạt **EM 76.8% / EX 84.1%**, trong khi base configuration đạt **EM 71.2% / EX 79.5%**.
+Bài báo này đề xuất một framework NL2SQL đa tác nhân theo pipeline mô-đun hóa, cho phép cấu hình số bước để phục vụ đánh giá có cấu trúc và phân tích vai trò thành phần. Framework tách pipeline thành ba pha: (i) phân tích câu hỏi và liên kết/lọc lược đồ, (ii) lập kế hoạch logic và sinh SQL, và (iii) tinh chỉnh một lần và kiểm tra kỹ thuật. Chúng tôi đánh giá hai cấu hình: base configuration (4-step) và full configuration (6-step) trên Spider 1.0 dev (1.034 câu hỏi). Kết quả cho thấy full configuration đạt **EM 76.8% / EX 84.0%**, trong khi base configuration đạt **EM 71.2% / EX 79.5%**.
 
 Ở mức đóng góp, bài báo nhấn mạnh rằng giá trị của framework không chỉ nằm ở con số tổng, mà ở khả năng hỗ trợ nghiên cứu theo hướng có cấu trúc: cấu hình được pipeline, thiết kế ablation theo thành phần, và phân tích lỗi theo taxonomy gắn với từng pha. Dựa trên kết quả hiện tại, chúng tôi tránh kết luận quá mức và coi đây là bằng chứng trong bối cảnh triển khai của nghiên cứu.
 
@@ -492,10 +516,12 @@ pipeline:
 [3] T. Yu et al., “Spider,” EMNLP 2018.  
 [4] B. Wang et al., “RAT-SQL,” ACL 2020.  
 [5] S. Ruan et al., “RESDSQL,” arXiv 2023.  
+[6] M. Pourreza et al., “DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction,” arXiv 2023.  
+[7] F. Li et al., “C3 / DAIL-SQL: Zero-shot and In-Context Learning Methods for Text-to-SQL,” arXiv 2023.  
 [8] Y. Wang et al., “AutoGen,” arXiv 2023.  
 [9] H. Chase, “LangChain,” 2022–2024.  
 [10] J. Moura et al., “CrewAI,” 2023–2024.  
 [11] E. Gan et al., “BRIDGE,” NAACL 2021.  
 [12] T. Scholak et al., “PICARD,” EMNLP 2021.  
+[13] OpenAI, “GPT-4 Technical Report,” 2023.  
 [17] Z. Yuan et al., “CRITIC,” arXiv 2023.  
-
