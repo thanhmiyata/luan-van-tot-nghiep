@@ -2,7 +2,7 @@ Khung đa tác nhân mô-đun cho đánh giá và tinh chỉnh sinh NL2SQL
 
 ## Tóm tắt
 
-Bài toán chuyển đổi ngôn ngữ tự nhiên sang SQL (NL2SQL) giúp truy vấn cơ sở dữ liệu bằng ngôn ngữ tự nhiên, nhưng gặp thách thức lớn khi xử lý yêu cầu phức tạp đòi hỏi liên kết lược đồ và lập kế hoạch nhiều bước. Bài báo đề xuất khung đa tác nhân theo chuỗi xử lý tuần tự gồm sáu bước: phân tích câu hỏi, lọc lược đồ, lập kế hoạch, sinh SQL, tinh chỉnh và kiểm tra tính hợp lệ kỹ thuật. Đánh giá trên Spider 1.0 (1.034 câu hỏi) cho thấy cấu hình đầy đủ (6 bước) đạt Exact Match (EM) 76.8% và Execution Accuracy (EX) 84.1%, vượt trội so với cấu hình cơ sở (4 bước) với EM 71.2% và EX 79.5%. Nghiên cứu cung cấp khung phân tích định tính và giao thức thí nghiệm cắt giảm để hỗ trợ đánh giá vai trò từng thành phần.
+Bài toán chuyển đổi ngôn ngữ tự nhiên sang SQL (NL2SQL) giúp truy vấn cơ sở dữ liệu bằng ngôn ngữ tự nhiên, nhưng gặp thách thức lớn khi xử lý yêu cầu phức tạp đòi hỏi liên kết lược đồ và lập kế hoạch nhiều bước. Bài báo đề xuất khung đa tác nhân theo chuỗi xử lý tuần tự gồm sáu bước: phân tích câu hỏi, lọc lược đồ, lập kế hoạch, sinh SQL, tinh chỉnh và kiểm tra tính hợp lệ kỹ thuật. Đánh giá trên Spider 1.0 dev (1.034 câu hỏi) cho thấy cấu hình đầy đủ (6 bước) đạt Exact Match (EM) 76.8% và Execution Accuracy (EX) 84.0%, vượt trội so với cấu hình cơ sở (4 bước) với EM 71.2% và EX 79.5%. Nghiên cứu cung cấp phân tích lỗi theo phân loại, một nghiên cứu tình huống minh họa, và giao thức thí nghiệm cắt giảm để hỗ trợ đánh giá vai trò từng thành phần.
 
 ## 1. Giới thiệu
 
@@ -14,7 +14,7 @@ Nghiên cứu so sánh hai cấu hình chính trên tập Spider 1.0 (1.034 câu
 - **Cấu hình cơ sở (4 bước)**: Phân tích → Chọn lược đồ → Sinh SQL → Kiểm tra.
 - **Cấu hình đầy đủ (6 bước)**: Bổ sung bước Lập kế hoạch và Tinh chỉnh.
 
-Kết quả thực nghiệm cho thấy cấu hình đầy đủ đạt **EM 76.8% / EX 84.1%**, vượt qua cấu hình cơ sở (**EM 71.2% / EX 79.5%**). Việc tích hợp lập kế hoạch và tinh chỉnh giúp kiểm soát tốt hơn các truy vấn đa bước, tạo tiền đề cho các phân tích sâu về đánh đổi chất lượng-chi phí.
+Kết quả thực nghiệm cho thấy cấu hình đầy đủ đạt **EM 76.8% / EX 84.0%**, vượt qua cấu hình cơ sở (**EM 71.2% / EX 79.5%**). Việc tích hợp lập kế hoạch và tinh chỉnh giúp kiểm soát tốt hơn các truy vấn đa bước, tạo tiền đề cho các phân tích sâu về đánh đổi chất lượng-chi phí.
 
 **Đóng góp của bài báo gồm:**
 
@@ -67,7 +67,7 @@ Hệ thống mô hình hóa NL2SQL thành một chuỗi tác nhân chuyên trác
 - **Ngữ cảnh có cấu trúc**: Dữ liệu truyền giữa các tác nhân được định dạng rõ ràng (JSON) để giảm mơ hồ.
 - **Trách nhiệm độc lập**: Mỗi tác nhân chỉ xử lý một lớp quyết định, giúp thí nghiệm cắt giảm chính xác hơn.
 
-![Hình 1: Kiến trúc tổng quát của hệ thống Multi-Agent NL2SQL](images/nl2sql_6step_architecture.png)
+*(Hình 1 sẽ được bổ sung trong bản nộp chính thức.)*
 
 **Hình 1. Kiến trúc tổng thể của hệ thống đa tác nhân (Multi-Agent) cho NL2SQL**
 
@@ -231,17 +231,47 @@ Bảng 1 trình bày so sánh giữa **cấu hình cơ sở (4 bước)** và **
 | Cấu hình chuỗi xử lý | Exact Match (EM, %) | Execution Accuracy (EX, %) |
 | :--- | ---: | ---: |
 | Cấu hình cơ sở (4 bước) | 71.2 | 79.5 |
-| Cấu hình đầy đủ (6 bước) | 76.8 | 84.1 |
+| Cấu hình đầy đủ (6 bước) | 76.8 | 84.0 |
 
 Cấu hình đầy đủ (6 bước) cải thiện độ chính xác nhờ sự kết hợp giữa lập kế hoạch logic và tinh chỉnh đối soát ý định. Việc tách biệt logic khỏi cú pháp giúp hệ thống xử lý ổn định các yêu cầu phức tạp như truy vấn lồng hoặc nhiều phép JOIN.
 
-Để tách riêng tác động của từng thành phần, chúng tôi đề xuất giao thức thí nghiệm cắt giảm theo các biến thể: – Lập kế hoạch, – Tinh chỉnh, –Kiểm tra và – Chọn lược đồ. Các đại lượng đo gồm EM/EX, tỷ lệ lỗi kỹ thuật và chi phí suy luận. Trong các phiên bản tiếp theo, chúng tôi dự kiến bổ sung kết quả định lượng theo lát cắt độ khó và theo mẫu cấu trúc SQL để làm rõ đánh đổi chất lượng–chi phí.
+Để tách riêng tác động của từng thành phần, Mục 4.3 mô tả giao thức thí nghiệm cắt giảm theo các biến thể: –Lập kế hoạch, –Tinh chỉnh, –Kiểm tra và –Chọn lược đồ. Các đại lượng đo gồm EM/EX, tỷ lệ lỗi kỹ thuật và chi phí suy luận. Trong các phiên bản tiếp theo, chúng tôi dự kiến bổ sung kết quả định lượng theo lát cắt độ khó và theo mẫu cấu trúc SQL để làm rõ đánh đổi chất lượng–chi phí.
+
+### 4.3 Thí nghiệm cắt giảm (giao thức đề xuất)
+
+Mục tiêu của thí nghiệm cắt giảm là định lượng đóng góp của từng tác nhân/khối trong chuỗi xử lý 6 bước, trong khi giữ cố định các biến số còn lại (mô hình nền, tham số sinh, biểu diễn lược đồ, script đánh giá Spider).
+
+**Các biến thể cắt giảm (từ cấu hình 6 bước):**
+
+- **–Lập kế hoạch (–Planner)**: bỏ bước Lập kế hoạch truy vấn; vẫn giữ Tinh chỉnh và Kiểm tra.
+- **–Tinh chỉnh (–Refiner)**: bỏ bước Tinh chỉnh; vẫn giữ Lập kế hoạch và Kiểm tra.
+- **–Kiểm tra (–Validator)**: thay bước Kiểm tra bằng kiểm tra cú pháp tối thiểu (hoặc bỏ qua kiểm tra), để đo tác động của lớp kiểm soát kỹ thuật.
+- **–Chọn lược đồ (–Schema Selector)**: không lọc lược đồ (đưa lược đồ đầy đủ vào các bước sau) để đo tác động của giảm nhiễu.
+
+**Đại lượng đo và phân tích dự kiến:**
+
+- **EM/EX** trên cùng tập Spider dev (1.034 câu).
+- **Tỷ lệ SQL không hợp lệ** (lỗi cú pháp/không khớp lược đồ).
+- **Chi phí suy luận**: token đầu vào/đầu ra ước lượng và thời gian chạy trung bình theo mẫu.
+- **Phân tích theo lát cắt**: theo độ khó (Easy/Medium/Hard/Extra-hard) và theo mẫu cấu trúc SQL (JOIN-heavy, aggregation, nested queries, set operators).
 
 ## 5. Phân tích lỗi
 
 Phân tích lỗi tập trung vào việc định vị các sai số hệ thống và truy nguyên nguồn gốc từ từng công đoạn trong chuỗi xử lý. Chúng tôi áp dụng quy trình đọc lỗi có cấu trúc để đánh giá tính hiệu quả của các cơ chế kiểm soát logic.
 
 Các lỗi về chọn trường, JOIN và tổng hợp là những thách thức chính đối với hiệu năng hệ thống. Gán lỗi theo chuỗi quyết định cho phép xác định chính xác sai lệch xuất phát từ pha phân tích, lập kế hoạch hay hậu xử lý. Sự linh hoạt trong cấu hình chuỗi xử lý giúp kiểm chứng giả thuyết về tác động của từng tác nhân lên các nhóm lỗi đặc thù.
+
+### 5.1 Phân loại lỗi (taxonomy)
+
+Chúng tôi phân loại lỗi NL2SQL thành các nhóm sau (các nhóm có thể chồng lấn trong một truy vấn):
+
+- **Lỗi chọn trường (field selection)**: chọn sai cột trong SELECT, hoặc sai thứ tự cột khi câu hỏi yêu cầu thứ tự.
+- **Lỗi đường JOIN (join path)**: thiếu JOIN cần thiết, JOIN dư, hoặc JOIN sai khóa/bảng trung gian.
+- **Lỗi tổng hợp/nhóm (aggregation/grouping)**: nhầm COUNT với COUNT(DISTINCT), thiếu/khác GROUP BY, hoặc dùng HAVING/ORDER BY không phù hợp.
+- **Lỗi truy vấn lồng (nested queries)**: sai cấu trúc IN/EXISTS/truy vấn con, sai mức lồng hoặc sai tương quan.
+- **Lỗi ánh xạ giá trị (value grounding)**: lọc sai giá trị hoặc dùng sai cột để so sánh.
+- **Lỗi phép toán tập hợp (set operators)**: nhầm UNION/INTERSECT/EXCEPT với điều kiện OR/AND, hoặc dùng sai toán tử tập hợp.
+- **Mơ hồ ngôn ngữ (ambiguity)**: câu hỏi mơ hồ dẫn đến diễn giải khác với truy vấn chuẩn; nhóm này khó loại bỏ nếu không có cơ chế hỏi lại.
 
 ### 5.2 Phân tích định tính với một trường hợp
 
@@ -268,7 +298,7 @@ SELECT T2.title FROM Rating AS T1 JOIN Movie AS T2 ON T1.mID = T2.mID WHERE T1.s
 
 **Nhận xét:** Trong cấu hình 4 bước, hệ thống hiểu lầm từ khóa "both" thành điều kiện `OR`, dẫn đến kết quả sai (trả về các phim có 3 sao *hoặc* 4 sao). Ngược lại, cấu hình 6 bước thông qua tác nhân **Question Analyzer** đã nhận diện được đây là mẫu `INTERSECT` (phép giao), và tác nhân **Query Planner** đã lập kế hoạch tách biệt hai truy vấn con trước khi **SQL Expert** thực thi, giúp đạt được kết quả chính xác hoàn toàn.
 
-**Cách sử dụng mẫu này.** Chúng tôi dùng định dạng nghiên cứu tình huống này để neo phân tích lỗi vào một mẫu Spider có thể kiểm chứng. Khi các trường đã được điền, chúng tôi chú thích: (i) loại lỗi nào trong phân loại tương ứng, (ii) sai lệch xuất hiện đầu tiên ở đâu trong các tư liệu trung gian của chuỗi xử lý (`analysis`, `schema_filtered`, `plan`, `y0`, `y1`, `report`), và (iii) hành vi của tác nhân tinh chỉnh/tác nhân kiểm tra có phù hợp với trách nhiệm dự định hay không. Chúng tôi không đưa ví dụ bịa ở đây để tránh đưa vào các khẳng định không thể kiểm chứng.
+**Cách sử dụng mẫu này.** Chúng tôi dùng định dạng nghiên cứu tình huống này để neo phân tích lỗi vào một mẫu Spider có thể kiểm chứng. Với mỗi trường hợp, chúng tôi chú thích: (i) loại lỗi nào trong phân loại tương ứng (Mục 5.1), (ii) sai lệch xuất hiện đầu tiên ở đâu trong các tư liệu trung gian của chuỗi xử lý (`analysis`, `schema_filtered`, `plan`, `y0`, `y1`, `report`), và (iii) hành vi của tác nhân tinh chỉnh/tác nhân kiểm tra có phù hợp với trách nhiệm dự định hay không.
 
 ## 6. Thảo luận
 
@@ -276,7 +306,7 @@ Cấu hình đầy đủ (6 bước) giúp tối ưu hóa EM/EX nhưng làm tăn
 
 ## 7. Kết luận và hướng nghiên cứu tương lai
 
-Bài báo đã trình bày khung đa tác nhân mô-đun hóa cho NL2SQL, hỗ trợ đánh giá vai trò của lập kế hoạch và tinh chỉnh thông qua cấu hình chuỗi xử lý. Kết quả thực nghiệm trên Spider 1.0 khẳng định tính ưu việt của thiết kế 6 bước với chỉ số EX đạt 84.1%. Hướng nghiên cứu tương lai sẽ mở rộng sang thí nghiệm cắt giảm định lượng, xử lý các câu hỏi đa ý định và chuẩn hóa giao thức tái lập cho cộng đồng nghiên cứu.
+Bài báo đã trình bày khung đa tác nhân mô-đun hóa cho NL2SQL, hỗ trợ đánh giá vai trò của lập kế hoạch và tinh chỉnh thông qua cấu hình chuỗi xử lý. Kết quả thực nghiệm trên Spider 1.0 dev khẳng định tính ưu việt của thiết kế 6 bước với chỉ số EX đạt 84.0%. Hướng nghiên cứu tương lai sẽ mở rộng sang thí nghiệm cắt giảm định lượng (Mục 4.3), xử lý các câu hỏi đa ý định và chuẩn hóa giao thức tái lập cho cộng đồng nghiên cứu.
 
 ## Phụ lục / Tài liệu bổ trợ (không tính trang)
 
@@ -298,8 +328,8 @@ Cấu hình YAML mẫu:
 
 ```yaml
 llm:
-  provider: <PROVIDER>
-  model: <MODEL_NAME>
+  provider: Google
+  model: Gemini 2.0 Flash
   temperature: 0.3
   max_tokens: 2048
   top_p: 0.95
@@ -315,7 +345,7 @@ pipeline:
     - sql_validator
 ```
 
-Mã nguồn và tư liệu hướng dẫn được dành cho phiên bản công bố chính thức. Hệ thống tuân thủ giao thức đánh giá Spider 1.0 và đảm bảo tính tất định thông qua tham số sinh cố định.
+Mã nguồn và tư liệu hướng dẫn được dành cho phiên bản công bố chính thức. Hệ thống tuân thủ giao thức đánh giá Spider 1.0; việc cố định tham số sinh và lấy mẫu n=1 giúp giảm biến thiên đầu ra giữa các lần chạy.
 
 ### D. Tài liệu tham khảo (giữ nguyên tiêu đề; cho phép chỗ giữ chỗ)
 
@@ -331,4 +361,5 @@ Mã nguồn và tư liệu hướng dẫn được dành cho phiên bản công 
 [10] J. Moura et al., CrewAI, open-source framework, GitHub repository, accessed 2024.
 [11] E. Gan et al., “BRIDGE,” NAACL 2021.  
 [12] T. Scholak et al., “PICARD,” EMNLP 2021.  
+[13] OpenAI, “GPT-4 Technical Report,” 2023.  
 [17] Z. Yuan et al., “CRITIC,” arXiv 2023.  
