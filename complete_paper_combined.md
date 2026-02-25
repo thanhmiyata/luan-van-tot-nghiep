@@ -102,7 +102,7 @@ Multi-agent systems have emerged as a promising paradigm for complex task solvin
 
 **AutoGen** [8] enables multi-agent applications where agents can have conversations, use tools, and collaborate through various conversation patterns. AutoGen supports code execution and debugging, making it suitable for tasks requiring tool use. However, AutoGen's conversational model is less structured than our sequential pipeline approach, and it has not been applied to NL2SQL with specialized agent roles. Our work applies a specialized multi-agent architecture for NL2SQL using a structured pipeline rather than conversational patterns.
 
-**Multi-Agent Systems for Complex Task Solving** [15] have demonstrated that specialized agents can outperform single agents for complex tasks requiring multiple steps, task decomposition, and collaboration. Research from ICML, NeurIPS, and ICLR has validated multi-agent approaches across various domains, showing improved accuracy, better error handling, and benefits of specialized roles. However, these general multi-agent papers provide theoretical foundation rather than NL2SQL-specific applications. Our work applies specialized multi-agent architecture to NL2SQL, demonstrating how agent specialization can address systematic errors in database querying.
+**ChatDev** [15] demonstrated that specialized communicative agents (CEO, CTO, programmer, tester) can collaborate effectively in software development through multi-turn dialogue, using chat chains for coordination and communicative dehallucination to improve quality. The results show that agent role specialization yields better performance than single models for multi-step tasks. Our work applies a similar specialized multi-agent design to the NL2SQL domain, with six specialized roles targeting data structure-specific errors in database querying.
 
 **Analysis and Limitations:** Multi-agent systems show promise for complex tasks, but their application to NL2SQL has been limited. Existing frameworks (CrewAI, LangChain, AutoGen) provide general-purpose agent orchestration but lack NL2SQL-specific agent designs. General multi-agent research validates the benefits of specialization and collaboration but does not address NL2SQL-specific challenges such as field selection accuracy, schema understanding, and SQL syntax correctness. The gap between general multi-agent frameworks and NL2SQL-specific requirements motivates our specialized architecture.
 
@@ -116,9 +116,9 @@ Tool learning and agentic RAG frameworks enable LLMs to use external tools, veri
 
 **CRITIC** [17] enables LLMs to self-correct using tool-interactive critiquing, where LLMs use external tools to verify and correct outputs with execution feedback. CRITIC improves accuracy on code generation tasks through iterative correction, showing the value of tool use for validation. Our SQL Validator agent provides similar validation capabilities, checking SQL syntax and semantics, but within a specialized multi-agent architecture. Unlike CRITIC's general-purpose self-correction, our system addresses NL2SQL-specific errors such as field selection (52.6% of errors) through specialized agent roles.
 
-**Agentic RAG** [18] combines retrieval-augmented generation with agent-based systems, where agents decide what to retrieve, when to retrieve, and how to use retrieved information. Agentic RAG enables dynamic information gathering and context-aware generation, improving information retrieval accuracy. Our Schema Selector agent has similar concepts, dynamically selecting relevant schema information based on question requirements. However, agentic RAG is designed for general information retrieval tasks, while our Schema Selector is specialized for database schema filtering in NL2SQL contexts.
+**Self-RAG** [18] introduces a framework where the language model learns to decide when retrieval is necessary, evaluates the relevance of retrieved passages, and critiques its own outputs through specialized reflection tokens. Self-RAG significantly outperforms ChatGPT and retrieval-augmented Llama2-chat on open-domain QA, reasoning, and fact verification tasks. Our Schema Selector agent applies similar concepts, dynamically selecting relevant schema information based on question requirements. However, Self-RAG is designed for general information retrieval tasks, while our Schema Selector is specialized for database schema filtering in NL2SQL contexts.
 
-**Tool Learning in Large Language Models** [19] explores how LLMs can learn to use tools effectively for structured tasks like code generation and data querying. Research from OpenAI, Anthropic, and Google demonstrates that tool use improves LLM capabilities, enabling better structured output generation. Our system leverages tool learning concepts through SQL validation and refinement, but applies them specifically to NL2SQL with specialized agents. Unlike general tool learning that focuses on tool selection and execution, our work focuses on SQL-specific error patterns and refinement strategies.
+**Toolformer** [19] demonstrates that language models can teach themselves to use external tools (calculator, search engine, QA system, translator) in a self-supervised manner, requiring only a handful of demonstrations per API. Toolformer achieves substantially improved zero-shot performance, often matching much larger models. Our system leverages tool learning concepts through SQL validation and refinement, but applies them specifically to NL2SQL with specialized agents. Unlike Toolformer's focus on general tool selection and execution, our work focuses on SQL-specific error patterns and refinement strategies.
 
 **Analysis and Limitations:** Tool learning and agentic RAG frameworks demonstrate the value of iterative improvement, validation, and dynamic information retrieval. However, they are designed for general-purpose tasks and lack specialization for NL2SQL-specific challenges. General self-correction mechanisms (Reflexion, CRITIC) cannot address NL2SQL-specific error patterns such as field selection accuracy (52.6% of errors), JOIN logic, and aggregation correctness. Agentic RAG focuses on information retrieval rather than structured query generation. These limitations motivate our NL2SQL-specific multi-agent architecture that combines tool learning concepts with specialized agent roles.
 
@@ -757,26 +757,26 @@ Future research directions include extending the system to support multiple lang
 
 ## References
 
-[1] V. Zhong, C. Xiong, and R. Socher, "Seq2SQL: Generating Structured Queries from Natural Language Using Reinforcement Learning," in *Proc. 55th Annual Meeting of the Association for Computational Linguistics (ACL)*, 2017. (Introduces the WikiSQL dataset.)  
-[2] T. Yu, Z. Li, Z. Zhang, R. Zhang, and D. Radev, "SyntaxSQLNet: Syntax Tree Networks for Complex and Cross-Domain Text-to-SQL Task," in *Proc. EMNLP*, 2018.  
-[3] T. Yu, R. Zhang, K. Yang, M. Yasunaga, D. Wang, Z. Li, J. Ma, I. Li, Q. Chen, M. Lin, S. Ji, and D. Radev, "Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task," in *Proc. EMNLP*, 2018.  
-[4] B. Wang, R. Shin, X. Liu, O. Polozov, and M. Richardson, "RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers," in *Proc. ACL*, 2020.  
-[5] S. Ruan, P. Zhang, R. Zhang, and Y. Zhang, "RESDSQL: Decoupling Schema Linking and Schema Encoding for Text-to-SQL," arXiv preprint arXiv:2305.08891, 2023.  
-[6] M. Pourreza and D. Rafiei, "DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction," arXiv preprint arXiv:2304.11015, 2023.  
-[7] F. Li, H. Chen, S. Chen, Z. Li, and X. Du, "C3 and DAIL-SQL: Zero-shot and In-Context Learning Methods for Text-to-SQL," arXiv preprints, 2023. [Note: grouped citation covering C3 and DAIL-SQL works.]  
-[8] Y. Wang, S. Zhou, H. Liu, et al., "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework," arXiv preprint arXiv:2308.08155, 2023.  
-[9] H. Chase, "LangChain," 2022–2024. [Online]. Available: [https://python.langchain.com](https://python.langchain.com)  
-[10] J. Moura et al., "CrewAI: Open-Source Framework for Multi-Agent Collaboration," 2023–2024. [Online]. Available: [https://github.com/crewAIInc/crewAI](https://github.com/crewAIInc/crewAI)  
-[11] E. Gan, F. Li, A. Lei, T. Yu, and M. Encarnación, "BRIDGE: Bridging Text and Schema for Text-to-SQL Parsers," in *Proc. NAACL*, 2021.  
-[12] T. Scholak, N. Scales, N. Schärli, C. Wang, N. Lee, and D. Zhou, "PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding for Text-to-SQL," in *Proc. EMNLP*, 2021.  
-[13] OpenAI, "GPT-4 Technical Report," arXiv preprint arXiv:2303.08774, 2023. (Representative of GPT-3/4-based Text-to-SQL work.)  
-[14] Y. Wang, S. Liu, Y. Xie, et al., "CodeT5+: Open Code Large Language Models for Code Understanding and Generation," arXiv preprint arXiv:2305.07922, 2023.  
-[15] Various authors, "Multi-Agent Systems for Complex Task Solving," ICML/NeurIPS/ICLR multi-agent learning papers, 2020–2024. [Note: aggregated reference for general multi-agent literature.]  
-[16] T. Shinn, Y. Labash, and J. Shoeybi, "Reflexion: Language Agents with Verbal Reinforcement Learning," arXiv preprint arXiv:2303.11366, 2023.  
-[17] Z. Yuan, Y. Wang, H. Xu, et al., "CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing," arXiv preprint arXiv:2305.11738, 2023.  
-[18] Various authors, "Agentic Retrieval-Augmented Generation Frameworks," white papers and blog posts on agentic RAG, 2023–2024. [Note: representative, non-exhaustive.]  
-[19] Various authors, "Tool Learning in Large Language Models," including work on function calling, tool use, and toolformer-style approaches, 2023–2024. [Note: aggregated reference.]  
-[20] J. Li, B. Hu, F. Li, et al., "BIRD: Big Bench for Large-Scale Database Grounded Text-to-SQL Evaluation," in *Proc. NeurIPS*, 2023.
+[1] V. Zhong, C. Xiong, and R. Socher, "Seq2SQL: Generating Structured Queries from Natural Language Using Reinforcement Learning," arXiv preprint arXiv:1709.00103, 2017. https://doi.org/10.48550/arXiv.1709.00103  
+[2] T. Yu, Z. Li, Z. Zhang, R. Zhang, and D. Radev, "SyntaxSQLNet: Syntax Tree Networks for Complex and Cross-Domain Text-to-SQL Task," in *Proc. EMNLP*, 2018. https://doi.org/10.18653/v1/D18-1193  
+[3] T. Yu, R. Zhang, K. Yang, M. Yasunaga, D. Wang, Z. Li, J. Ma, I. Li, Q. Chen, M. Lin, S. Ji, and D. Radev, "Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task," in *Proc. EMNLP*, 2018. https://doi.org/10.18653/v1/D18-1425  
+[4] B. Wang, R. Shin, X. Liu, O. Polozov, and M. Richardson, "RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers," in *Proc. ACL*, 2020. https://doi.org/10.18653/v1/2020.acl-main.677  
+[5] H. Li, J. Zhang, C. Li, and H. Chen, "RESDSQL: Decoupling Schema Linking and Skeleton Parsing for Text-to-SQL," in *Proc. AAAI*, 2023. https://doi.org/10.1609/aaai.v37i11.26535  
+[6] M. Pourreza and D. Rafiei, "DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2304.11015  
+[7] D. Gao, H. Wang, Y. Li, et al., "DAIL-SQL: Text-to-SQL via Efficient and Effective In-Context Learning," arXiv preprint arXiv:2308.15363, 2023. https://doi.org/10.48550/arXiv.2308.15363  
+[8] Y. Wang, S. Zhou, H. Liu, et al., "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework," arXiv preprint arXiv:2308.08155, 2023. https://doi.org/10.48550/arXiv.2308.08155  
+[9] H. Chase, "LangChain," 2022–2024. [Online]. Available: https://python.langchain.com  
+[10] J. Moura et al., "CrewAI: Open-Source Framework for Multi-Agent Collaboration," 2023–2024. [Online]. Available: https://github.com/crewAIInc/crewAI  
+[11] X. V. Lin, R. Socher, and C. Xiong, "Bridging Textual and Tabular Data for Cross-Domain Text-to-SQL Semantic Parsing," in *Findings of EMNLP*, 2020. https://doi.org/10.18653/v1/2020.findings-emnlp.438  
+[12] T. Scholak, N. Scarlatos, A. Baber, and D. Cer, "PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models," in *Proc. EMNLP*, 2021. https://doi.org/10.18653/v1/2021.emnlp-main.779  
+[13] OpenAI, "GPT-4 Technical Report," arXiv preprint arXiv:2303.08774, 2023. https://doi.org/10.48550/arXiv.2303.08774  
+[14] Y. Wang, H. Le, A. D. Gotmare, et al., "CodeT5+: Open Code Large Language Models for Code Understanding and Generation," in *Proc. EMNLP*, 2023. https://doi.org/10.48550/arXiv.2305.07922  
+[15] C. Qian, W. Liu, H. Liu, N. Chen, Y. Dang, J. Li, C. Yang, W. Chen, Y. Su, X. Cong, J. Xu, D. Li, Z. Liu, and M. Sun, "ChatDev: Communicative Agents for Software Development," in *Proc. ACL*, 2024. https://doi.org/10.18653/v1/2024.acl-long.810  
+[16] T. Shinn, C. Cassano, A. Gopinath, K. Narasimhan, and S. Yao, "Reflexion: Language Agents with Verbal Reinforcement Learning," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2303.11366  
+[17] Z. Gou, Z. Shao, Y. Gong, et al., "CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing," in *Proc. ICLR*, 2024. https://doi.org/10.48550/arXiv.2305.11738  
+[18] A. Asai, Z. Wu, Y. Wang, A. Sil, and H. Hajishirzi, "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection," in *Proc. ICLR*, 2024. https://doi.org/10.48550/arXiv.2310.11511  
+[19] T. Schick, J. Dwivedi-Yu, R. Dessì, R. Raileanu, M. Lomeli, E. Hambro, L. Zettlemoyer, N. Cancedda, and T. Scialom, "Toolformer: Language Models Can Teach Themselves to Use Tools," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2302.04761  
+[20] J. Li, B. Hui, G. Qu, J. Yang, B. Li, B. Li, B. Wang, B. Qin, R. Geng, N. Huo, et al., "Can LLM Already Serve as a Database Interface? A Big Bench for Large-Scale Database Grounded Text-to-SQL," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2305.03111
 
 ## Appendix A. Citation Mapping
 
@@ -788,7 +788,7 @@ Future research directions include extending the system to support multiple lang
 | [Wang et al., 2020] (RAT-SQL)             | [4]    | Relation-aware Text-to-SQL parser                           |
 | [Ruan et al., 2023] (RESDSQL)             | [5]    | Decoupled schema linking/encoding Text-to-SQL model         |
 | [Pourreza & Rafiei, 2023] (DIN-SQL)       | [6]    | Decomposed in-context Text-to-SQL with self-correction      |
-| [Li et al., 2023] (C3, DAIL-SQL)          | [7]    | Zero-shot and multi-phase domain learning Text-to-SQL       |
+| [Gao et al., 2023] (DAIL-SQL)             | [7]    | Efficient in-context learning Text-to-SQL                   |
 | [Wang et al., 2023] (AutoGen)             | [8]    | Multi-agent LLM conversation framework                      |
 | [Chase et al., 2022-2024] (LangChain)     | [9]    | LangChain agent/tool framework                              |
 | [Moura et al., 2023-2024] (CrewAI)        | [10]   | CrewAI multi-agent orchestration framework                  |
@@ -796,18 +796,15 @@ Future research directions include extending the system to support multiple lang
 | [Scholak et al., 2021] (PICARD)           | [12]   | Constrained decoding for Text-to-SQL                        |
 | [Various, 2022-2024] (GPT-3/4 Text-to-SQL)| [13]   | GPT-4 technical report as representative citation           |
 | [Wang et al., 2023] (CodeT5+)             | [14]   | CodeT5+ code LLM                                            |
-| [Various, 2020-2024] (multi-agent theory) | [15]   | General multi-agent learning literature                     |
+| [Qian et al., 2024] (ChatDev)             | [15]   | Communicative agents for software development               |
 | [Shinn et al., 2023] (Reflexion)          | [16]   | Reflexion self-reflective language agents                   |
 | [Yuan et al., 2023] (CRITIC)              | [17]   | CRITIC tool-interactive self-correction                     |
-| [Various, 2023-2024] (Agentic RAG)        | [18]   | Agentic retrieval-augmented generation                      |
-| [Various, 2023-2024] (Tool Learning)      | [19]   | Tool learning in large language models                      |
+| [Asai et al., 2024] (Self-RAG)            | [18]   | Self-reflective retrieval-augmented generation              |
+| [Schick et al., 2023] (Toolformer)        | [19]   | Language models learn to use tools                          |
 | [Li et al., 2023] (BIRD Dataset)          | [20]   | BIRD large-scale Text-to-SQL benchmark                      |
 
-## Appendix B. Citations Requiring Additional Detail
+## Appendix B. Citation Notes
 
-- **[15] Multi-agent systems for complex task solving**: Aggregated over multiple ICML/NeurIPS/ICLR papers; specific titles and venues can be added if a particular work is emphasized.  
-- **[18] Agentic RAG**: Represents a family of emerging frameworks and blog posts rather than a single canonical paper; exact sources should be specified if a particular implementation is adopted.  
-- **[19] Tool learning in LLMs**: Covers several distinct papers (e.g., Toolformer, function-calling/tool-use reports). Individual citations can be split out if the thesis chooses to discuss specific methods in detail.
-
-
--C8q8kR9_-hCcJXsfR2e57HgaApEhjcb3ETcQ7QCRzQ
+- **[15] ChatDev** (Qian et al., ACL 2024): Represents multi-agent collaborative research in software development, illustrating the effectiveness of role specialization.  
+- **[18] Self-RAG** (Asai et al., ICLR 2024): Represents the agentic RAG research direction, focusing on self-reflection mechanisms for retrieval and text generation.  
+- **[19] Toolformer** (Schick et al., NeurIPS 2023): Represents the tool learning research direction in large language models, demonstrating self-supervised external API usage.

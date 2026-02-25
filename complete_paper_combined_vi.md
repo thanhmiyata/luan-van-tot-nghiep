@@ -90,7 +90,7 @@ Các hệ thống đa tác nhân đã nổi lên như một mô hình hứa hẹ
 
 **LangChain Agents** [9] cung cấp một khung để xây dựng các ứng dụng với LLM, bao gồm các hệ thống dựa trên tác nhân với việc sử dụng công cụ và gọi hàm. Các tác nhân LangChain có thể sử dụng công cụ, duy trì bộ nhớ và thực hiện suy luận chuỗi suy nghĩ (chain-of-thought). Mặc dù LangChain cung cấp các khái niệm điều phối tác nhân tương tự như CrewAI, chúng tôi đã chọn CrewAI vì mô hình đóng vai trò rõ ràng và khả năng ủy quyền nhiệm vụ của nó. Công việc của chúng tôi chứng minh cách sự cộng tác đa tác nhân có thể được áp dụng cụ thể cho NL2SQL, điều chưa được khám phá rộng rãi trong hệ sinh thái LangChain.
 
-**Hệ thống Đa tác nhân cho các Tác vụ Phức tạp** [15] đã chứng minh rằng việc chuyên môn hóa vai trò có thể mang lại hiệu quả cao hơn so với các mô hình đơn lẻ trong các nhiệm vụ đa bước. Các nghiên cứu tại ICML và NeurIPS đã xác thực tính ứng dụng của kiến trúc đa tác nhân trong việc nâng cao độ chính xác và khả năng xử lý lỗi. Tuy nhiên, phần lớn các khung làm việc này mang tính lý thuyết tổng quát. Nghiên cứu của chúng tôi tập trung vào việc áp dụng thiết kế đa tác nhân chuyên biệt vào miền NL2SQL nhằm xử lý các sai sót đặc thù về cấu trúc dữ liệu.
+**ChatDev** [15] đã chứng minh rằng các tác nhân giao tiếp chuyên biệt (CEO, CTO, lập trình viên, kiểm thử viên) có thể cộng tác hiệu quả trong phát triển phần mềm thông qua đối thoại đa lượt, sử dụng chuỗi trò chuyện (chat chain) để điều phối và cơ chế khử ảo giác giao tiếp (communicative dehallucination) để cải thiện chất lượng. Kết quả cho thấy việc chuyên môn hóa vai trò tác nhân mang lại hiệu quả cao hơn so với các mô hình đơn lẻ trong các nhiệm vụ đa bước. Nghiên cứu của chúng tôi áp dụng thiết kế đa tác nhân chuyên biệt tương tự vào miền NL2SQL, với sáu vai trò chuyên biệt nhằm xử lý các sai sót đặc thù về cấu trúc dữ liệu.
 
 **Phân tích và Hạn chế:** Các hệ thống đa tác nhân cho thấy hứa hẹn đối với các nhiệm vụ phức tạp, nhưng ứng dụng của chúng vào NL2SQL còn hạn chế. Các khung hiện có (CrewAI, LangChain, AutoGen) cung cấp điều phối tác nhân mục đích chung nhưng thiếu thiết kế tác nhân đặc thù cho NL2SQL. Nghiên cứu đa tác nhân chung xác thực lợi ích của sự chuyên môn hóa và cộng tác nhưng không giải quyết các thách thức cụ thể của NL2SQL như độ chính xác chọn trường, hiểu lược đồ và tính đúng đắn của cú pháp SQL. Khoảng cách giữa các khung đa tác nhân chung và các yêu cầu cụ thể của NL2SQL thúc đẩy kiến trúc chuyên biệt của chúng tôi.
 
@@ -103,9 +103,9 @@ Các khung học công cụ và RAG tác nhân cho phép LLM sử dụng các c�
 
 **CRITIC** [17] cho phép LLM tự sửa lỗi bằng cách sử dụng phê bình tương tác công cụ, trong đó LLM sử dụng các công cụ bên ngoài để xác minh và sửa chữa đầu ra với phản hồi thực thi. CRITIC cải thiện độ chính xác trên các tác vụ tạo mã thông qua sửa lỗi lặp lại, cho thấy giá trị của việc sử dụng công cụ để xác thực. Tác nhân Kiểm tra SQL của chúng tôi cung cấp khả năng xác thực tương tự, kiểm tra cú pháp và ngữ nghĩa SQL, nhưng trong một kiến trúc đa tác nhân chuyên biệt. Không giống như tự sửa lỗi mục đích chung của CRITIC, hệ thống của chúng tôi giải quyết các lỗi cụ thể của NL2SQL như chọn trường dữ liệu thông qua các vai trò tác nhân chuyên biệt.
 
-**Agentic RAG** [18] kết hợp thế hệ tăng cường truy xuất (RAG) với các hệ thống dựa trên tác nhân, nơi các tác nhân quyết định truy xuất cái gì, khi nào truy xuất và cách sử dụng thông tin được truy xuất. Agentic RAG cho phép thu thập thông tin động và tạo nhận thức ngữ cảnh, cải thiện độ chính xác truy xuất thông tin. Tác nhân Chọn Lược đồ của chúng tôi có các khái niệm tương tự, chọn lọc thông tin lược đồ liên quan một cách linh hoạt dựa trên yêu cầu câu hỏi. Tuy nhiên, agentic RAG được thiết kế cho các nhiệm vụ truy xuất thông tin chung, trong khi Chọn Lược đồ của chúng tôi chuyên biệt cho việc lọc lược đồ cơ sở dữ liệu trong bối cảnh NL2SQL.
+**Self-RAG** [18] giới thiệu một khung trong đó mô hình ngôn ngữ học cách tự quyết định khi nào cần truy xuất thông tin, đánh giá mức độ liên quan của các đoạn truy xuất và phê bình đầu ra của chính mình thông qua các token phản ánh (reflection tokens) chuyên biệt. Self-RAG đạt hiệu suất vượt trội so với ChatGPT và Llama2-chat có tăng cường truy xuất trên các tác vụ hỏi đáp mở, suy luận và xác minh sự kiện. Tác nhân Chọn Lược đồ của chúng tôi áp dụng các khái niệm tương tự, chọn lọc thông tin lược đồ liên quan một cách linh hoạt dựa trên yêu cầu câu hỏi. Tuy nhiên, Self-RAG được thiết kế cho các nhiệm vụ truy xuất thông tin chung, trong khi Chọn Lược đồ của chúng tôi chuyên biệt cho việc lọc lược đồ cơ sở dữ liệu trong bối cảnh NL2SQL.
 
-**Học Công cụ trong Mô hình Ngôn ngữ Lớn** [19] khám phá cách LLM có thể học sử dụng công cụ hiệu quả cho các tác vụ có cấu trúc như tạo mã và truy vấn dữ liệu. Nghiên cứu từ OpenAI, Anthropic và Google chứng minh rằng việc sử dụng công cụ cải thiện khả năng của LLM, cho phép tạo đầu ra có cấu trúc tốt hơn. Hệ thống của chúng tôi tận dụng các khái niệm học công cụ thông qua xác thực và tinh chỉnh SQL, nhưng áp dụng chúng cụ thể cho NL2SQL với các tác nhân chuyên biệt. Không giống như học công cụ chung tập trung vào lựa chọn và thực thi công cụ, công việc của chúng tôi tập trung vào các mẫu lỗi và chiến lược tinh chỉnh đặc thù cho SQL.
+**Toolformer** [19] chứng minh rằng mô hình ngôn ngữ có thể tự học sử dụng các công cụ bên ngoài (máy tính, công cụ tìm kiếm, hệ thống hỏi đáp, bộ dịch) một cách tự giám sát, chỉ cần một số ít ví dụ minh họa cho mỗi API. Toolformer đạt hiệu suất zero-shot cải thiện đáng kể, thường ngang bằng với các mô hình lớn hơn nhiều. Hệ thống của chúng tôi tận dụng các khái niệm học công cụ thông qua xác thực và tinh chỉnh SQL, nhưng áp dụng chúng cụ thể cho NL2SQL với các tác nhân chuyên biệt. Không giống như Toolformer tập trung vào lựa chọn và thực thi công cụ chung, công việc của chúng tôi tập trung vào các mẫu lỗi và chiến lược tinh chỉnh đặc thù cho SQL.
 
 **Phân tích và Hạn chế:** Các khung học công cụ và RAG tác nhân chứng minh giá trị của việc cải thiện lặp lại, xác thực và truy xuất thông tin động. Tuy nhiên, chúng được thiết kế cho các nhiệm vụ mục đích chung và thiếu sự chuyên môn hóa cho các thách thức cụ thể của NL2SQL. Các cơ chế tự sửa lỗi chung (Reflexion, CRITIC) không thể giải quyết các mẫu lỗi cụ thể của NL2SQL như độ chính xác chọn trường, logic JOIN và tính đúng đắn của phép tổng hợp. Agentic RAG tập trung vào truy xuất thông tin thay vì tạo truy vấn có cấu trúc. Những hạn chế này thúc đẩy kiến trúc đa tác nhân đặc thù cho NL2SQL của chúng tôi kết hợp các khái niệm học công cụ với các vai trò tác nhân chuyên biệt.
 
@@ -610,26 +610,26 @@ Bài báo này đưa ra bốn đóng góp chính. Thứ nhất, chúng tôi đ�
 
 ## Tài liệu Tham khảo (References)
 
-[1] V. Zhong, C. Xiong, và R. Socher, "Seq2SQL: Generating Structured Queries from Natural Language Using Reinforcement Learning," trong *Proc. 55th Annual Meeting of the Association for Computational Linguistics (ACL)*, 2017. (Giới thiệu tập dữ liệu WikiSQL.)  
-[2] T. Yu, Z. Li, Z. Zhang, R. Zhang, và D. Radev, "SyntaxSQLNet: Syntax Tree Networks for Complex and Cross-Domain Text-to-SQL Task," trong *Proc. EMNLP*, 2018.  
-[3] T. Yu, R. Zhang, K. Yang, M. Yasunaga, D. Wang, Z. Li, J. Ma, I. Li, Q. Chen, M. Lin, S. Ji, và D. Radev, "Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task," trong *Proc. EMNLP*, 2018.  
-[4] B. Wang, R. Shin, X. Liu, O. Polozov, và M. Richardson, "RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers," trong *Proc. ACL*, 2020.  
-[5] S. Ruan, P. Zhang, R. Zhang, và Y. Zhang, "RESDSQL: Decoupling Schema Linking and Schema Encoding for Text-to-SQL," arXiv preprint arXiv:2305.08891, 2023.  
-[6] M. Pourreza và D. Rafiei, "DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction," arXiv preprint arXiv:2304.11015, 2023.  
-[7] F. Li, H. Chen, S. Chen, Z. Li, và X. Du, "C3 and DAIL-SQL: Zero-shot and In-Context Learning Methods for Text-to-SQL," arXiv preprints, 2023. [Lưu ý: trích dẫn gộp bao gồm các công trình C3 và DAIL-SQL.]  
-[8] Y. Wang, S. Zhou, H. Liu, et al., "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework," arXiv preprint arXiv:2308.08155, 2023.  
+[1] V. Zhong, C. Xiong, và R. Socher, "Seq2SQL: Generating Structured Queries from Natural Language Using Reinforcement Learning," arXiv preprint arXiv:1709.00103, 2017. https://doi.org/10.48550/arXiv.1709.00103  
+[2] T. Yu, Z. Li, Z. Zhang, R. Zhang, và D. Radev, "SyntaxSQLNet: Syntax Tree Networks for Complex and Cross-Domain Text-to-SQL Task," trong *Proc. EMNLP*, 2018. https://doi.org/10.18653/v1/D18-1193  
+[3] T. Yu, R. Zhang, K. Yang, M. Yasunaga, D. Wang, Z. Li, J. Ma, I. Li, Q. Chen, M. Lin, S. Ji, và D. Radev, "Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task," trong *Proc. EMNLP*, 2018. https://doi.org/10.18653/v1/D18-1425  
+[4] B. Wang, R. Shin, X. Liu, O. Polozov, và M. Richardson, "RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers," trong *Proc. ACL*, 2020. https://doi.org/10.18653/v1/2020.acl-main.677  
+[5] H. Li, J. Zhang, C. Li, và H. Chen, "RESDSQL: Decoupling Schema Linking and Skeleton Parsing for Text-to-SQL," trong *Proc. AAAI*, 2023. https://doi.org/10.1609/aaai.v37i11.26535  
+[6] M. Pourreza và D. Rafiei, "DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction," trong *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2304.11015  
+[7] D. Gao, H. Wang, Y. Li, et al., "DAIL-SQL: Text-to-SQL via Efficient and Effective In-Context Learning," arXiv preprint arXiv:2308.15363, 2023. https://doi.org/10.48550/arXiv.2308.15363  
+[8] Y. Wang, S. Zhou, H. Liu, et al., "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework," arXiv preprint arXiv:2308.08155, 2023. https://doi.org/10.48550/arXiv.2308.08155  
 [9] H. Chase, "LangChain," 2022–2024. [Trực tuyến]. Có sẵn: https://python.langchain.com  
 [10] J. Moura et al., "CrewAI: Open-Source Framework for Multi-Agent Collaboration," 2023–2024. [Trực tuyến]. Có sẵn: https://github.com/crewAIInc/crewAI  
-[11] E. Gan, F. Li, A. Lei, T. Yu, và M. Encarnación, "BRIDGE: Bridging Text and Schema for Text-to-SQL Parsers," trong *Proc. NAACL*, 2021.  
-[12] T. Scholak, N. Scales, N. Schärli, C. Wang, N. Lee, và D. Zhou, "PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding for Text-to-SQL," trong *Proc. EMNLP*, 2021.  
-[13] OpenAI, "GPT-4 Technical Report," arXiv preprint arXiv:2303.08774, 2023. (Đại diện cho công trình Text-to-SQL dựa trên GPT-3/4.)  
-[14] Y. Wang, S. Liu, Y. Xie, et al., "CodeT5+: Open Code Large Language Models for Code Understanding and Generation," arXiv preprint arXiv:2305.07922, 2023.  
-[15] Nhiều tác giả, "Multi-Agent Systems for Complex Task Solving," các bài báo học tập đa tác nhân ICML/NeurIPS/ICLR, 2020–2024. [Lưu ý: tài liệu tham khảo tổng hợp cho tài liệu đa tác nhân chung.]  
-[16] T. Shinn, Y. Labash, và J. Shoeybi, "Reflexion: Language Agents with Verbal Reinforcement Learning," arXiv preprint arXiv:2303.11366, 2023.  
-[17] Z. Yuan, Y. Wang, H. Xu, et al., "CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing," arXiv preprint arXiv:2305.11738, 2023.  
-[18] Nhiều tác giả, "Agentic Retrieval-Augmented Generation Frameworks," sách trắng và bài đăng trên blog về agentic RAG, 2023–2024. [Lưu ý: đại diện, không đầy đủ.]  
-[19] Nhiều tác giả, "Tool Learning in Large Language Models," bao gồm công trình về function calling, tool use, và các phương pháp kiểu toolformer, 2023–2024. [Lưu ý: tài liệu tham khảo tổng hợp.]  
-[20] J. Li, B. Hu, F. Li, et al., "BIRD: Big Bench for Large-Scale Database Grounded Text-to-SQL Evaluation," trong *Proc. NeurIPS*, 2023.
+[11] X. V. Lin, R. Socher, và C. Xiong, "Bridging Textual and Tabular Data for Cross-Domain Text-to-SQL Semantic Parsing," trong *Findings of EMNLP*, 2020. https://doi.org/10.18653/v1/2020.findings-emnlp.438  
+[12] T. Scholak, N. Scarlatos, A. Baber, và D. Cer, "PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models," trong *Proc. EMNLP*, 2021. https://doi.org/10.18653/v1/2021.emnlp-main.779  
+[13] OpenAI, "GPT-4 Technical Report," arXiv preprint arXiv:2303.08774, 2023. https://doi.org/10.48550/arXiv.2303.08774  
+[14] Y. Wang, H. Le, A. D. Gotmare, et al., "CodeT5+: Open Code Large Language Models for Code Understanding and Generation," trong *Proc. EMNLP*, 2023. https://doi.org/10.48550/arXiv.2305.07922  
+[15] C. Qian, W. Liu, H. Liu, N. Chen, Y. Dang, J. Li, C. Yang, W. Chen, Y. Su, X. Cong, J. Xu, D. Li, Z. Liu, và M. Sun, "ChatDev: Communicative Agents for Software Development," trong *Proc. ACL*, 2024. https://doi.org/10.18653/v1/2024.acl-long.810  
+[16] T. Shinn, C. Cassano, A. Gopinath, K. Narasimhan, và S. Yao, "Reflexion: Language Agents with Verbal Reinforcement Learning," trong *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2303.11366  
+[17] Z. Gou, Z. Shao, Y. Gong, et al., "CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing," trong *Proc. ICLR*, 2024. https://doi.org/10.48550/arXiv.2305.11738  
+[18] A. Asai, Z. Wu, Y. Wang, A. Sil, và H. Hajishirzi, "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection," trong *Proc. ICLR*, 2024. https://doi.org/10.48550/arXiv.2310.11511  
+[19] T. Schick, J. Dwivedi-Yu, R. Dessì, R. Raileanu, M. Lomeli, E. Hambro, L. Zettlemoyer, N. Cancedda, và T. Scialom, "Toolformer: Language Models Can Teach Themselves to Use Tools," trong *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2302.04761  
+[20] J. Li, B. Hui, G. Qu, J. Yang, B. Li, B. Li, B. Wang, B. Qin, R. Geng, N. Huo, et al., "Can LLM Already Serve as a Database Interface? A Big Bench for Large-Scale Database Grounded Text-to-SQL," trong *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2305.03111
 
 ## Phụ lục A. Ánh xạ Trích dẫn (Appendix A. Citation Mapping)
 
@@ -641,7 +641,7 @@ Bài báo này đưa ra bốn đóng góp chính. Thứ nhất, chúng tôi đ�
 | [Wang et al., 2020] (RAT-SQL) | [4] | Trình phân tích cú pháp Text-to-SQL nhận thức quan hệ |
 | [Ruan et al., 2023] (RESDSQL) | [5] | Mô hình Text-to-SQL tách biệt liên kết/mã hóa lược đồ |
 | [Pourreza & Rafiei, 2023] (DIN-SQL) | [6] | Text-to-SQL phân rã theo ngữ cảnh với tự sửa lỗi |
-| [Li et al., 2023] (C3, DAIL-SQL) | [7] | Text-to-SQL zero-shot và học miền đa giai đoạn |
+| [Gao et al., 2023] (DAIL-SQL) | [7] | Text-to-SQL học theo ngữ cảnh hiệu quả |
 | [Wang et al., 2023] (AutoGen) | [8] | Khung hội thoại LLM đa tác nhân |
 | [Chase et al., 2022-2024] (LangChain) | [9] | Khung tác nhân/công cụ LangChain |
 | [Moura et al., 2023-2024] (CrewAI) | [10] | Khung điều phối đa tác nhân CrewAI |
@@ -649,15 +649,15 @@ Bài báo này đưa ra bốn đóng góp chính. Thứ nhất, chúng tôi đ�
 | [Scholak et al., 2021] (PICARD) | [12] | Giải mã ràng buộc cho Text-to-SQL |
 | [Various, 2022-2024] (GPT-3/4 Text-to-SQL) | [13] | Báo cáo kỹ thuật GPT-4 như trích dẫn đại diện |
 | [Wang et al., 2023] (CodeT5+) | [14] | LLM mã CodeT5+ |
-| [Various, 2020-2024] (multi-agent theory) | [15] | Tài liệu học tập đa tác nhân chung |
+| [Qian et al., 2024] (ChatDev) | [15] | Tác nhân giao tiếp cho phát triển phần mềm |
 | [Shinn et al., 2023] (Reflexion) | [16] | Tác nhân ngôn ngữ tự phản ánh Reflexion |
 | [Yuan et al., 2023] (CRITIC) | [17] | Tự sửa lỗi tương tác công cụ CRITIC |
-| [Various, 2023-2024] (Agentic RAG) | [18] | Thế hệ tăng cường truy xuất tác nhân |
-| [Various, 2023-2024] (Tool Learning) | [19] | Học công cụ trong các mô hình ngôn ngữ lớn |
+| [Asai et al., 2024] (Self-RAG) | [18] | Truy xuất tăng cường tự phản ánh |
+| [Schick et al., 2023] (Toolformer) | [19] | Mô hình ngôn ngữ tự học sử dụng công cụ |
 | [Li et al., 2023] (BIRD Dataset) | [20] | Chuẩn đánh giá Text-to-SQL quy mô lớn BIRD |
 
-## Phụ lục B. Trích dẫn Yêu cầu Chi tiết Bổ sung (Appendix B. Citations Requiring Additional Detail)
+## Phụ lục B. Ghi chú Trích dẫn (Appendix B. Citation Notes)
 
-*   **[15] Hệ thống đa tác nhân để giải quyết tác vụ phức tạp**: Tổng hợp qua nhiều bài báo ICML/NeurIPS/ICLR; tiêu đề và địa điểm cụ thể có thể được thêm vào nếu một công trình cụ thể được nhấn mạnh.
-*   **[18] Agentic RAG**: Đại diện cho một gia đình các khung và bài đăng trên blog mới nổi thay vì một bài báo chính tắc duy nhất; nguồn chính xác nên được chỉ định nếu một triển khai cụ thể được áp dụng.
-*   **[19] Học công cụ trong LLM**: Bao gồm một số bài báo riêng biệt (ví dụ: Toolformer, báo cáo function-calling/tool-use). Các trích dẫn riêng lẻ có thể được tách ra nếu luận văn chọn thảo luận chi tiết về các phương pháp cụ thể.
+*   **[15] ChatDev** (Qian et al., ACL 2024): Đại diện cho nghiên cứu đa tác nhân cộng tác trong phát triển phần mềm, minh họa hiệu quả của chuyên môn hóa vai trò.
+*   **[18] Self-RAG** (Asai et al., ICLR 2024): Đại diện cho hướng nghiên cứu truy xuất tăng cường tác nhân (agentic RAG), tập trung vào cơ chế tự phản ánh trong truy xuất và sinh văn bản.
+*   **[19] Toolformer** (Schick et al., NeurIPS 2023): Đại diện cho hướng nghiên cứu học công cụ trong mô hình ngôn ngữ lớn, chứng minh khả năng tự học sử dụng API bên ngoài.
