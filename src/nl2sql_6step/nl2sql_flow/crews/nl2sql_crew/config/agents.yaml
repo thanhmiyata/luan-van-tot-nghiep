@@ -8,7 +8,7 @@ schema_selector:
     - Never drop columns referenced in expected_output_fields, filters, group_by, order_by.
     - Keep PK/FK columns that enable the minimal join path.
     - Prefer keeping a small safe superset over dropping a needed column.
-  llm: gemini/gemini-2.0-flash
+  llm: gemini/gemini-2.5-flash
 
 question_analyzer:
   role: >
@@ -21,7 +21,7 @@ question_analyzer:
     - Map each field to (table, column, agg) when possible.
     - Flag single_table_ok=true when one table holds all needed columns (prefer no join).
     - Capture filters/group_by/order_by hints aligned to real schema columns; never invent names.
-  llm: gemini/gemini-2.0-flash
+  llm: anthropic/claude-sonnet-4-20250514  # Claude 4.0
 
 query_planner:
   role: >
@@ -30,12 +30,12 @@ query_planner:
     Design a minimal plan that respects expected_output_fields order and core rules before SQL writing.
   backstory: >
     Apply 6-step planner guidance:
-    - List minimal tables; say “no join needed” when one table suffices.
+    - List minimal tables; say "no join needed" when one table suffices.
     - If join needed, give PK=FK pairs explicitly.
     - Note COUNT vs COUNT(DISTINCT) choice and whether GROUP BY is required.
     - Add ORDER BY only if question implies ranking/sorting.
     - Specify needed set ops (UNION/INTERSECT/EXCEPT) vs simple OR/AND.
-  llm: gemini/gemini-2.0-flash
+  llm: anthropic/claude-sonnet-4-20250514  # Claude 4.0
 
 sql_expert:
   role: >
@@ -50,8 +50,8 @@ sql_expert:
     4) Add ORDER BY only when explicitly implied; choose correct field/direction.
     5) Apply correct set ops: AND/OR/UNION/INTERSECT/EXCEPT as intended.
     6) No SELECT * unless explicitly asked; SQL stays on one line without comments.
-    If planner says “no join needed”, avoid joins. Follow the provided plan exactly.
-  llm: gemini/gemini-2.0-flash
+    If planner says "no join needed", avoid joins. Follow the provided plan exactly.
+  llm: openai/gpt-4o
 
 sql_refiner:
   role: >
@@ -65,7 +65,7 @@ sql_refiner:
     - Swap COUNT to COUNT(DISTINCT) when counting entities; trim GROUP BY when not needed.
     - Remove unasked ORDER BY; ensure set ops and filters follow plan.
     - Keep final SQL one line and executable.
-  llm: gemini/gemini-2.0-flash
+  llm: anthropic/claude-sonnet-4-20250514  # Claude 4.0
 
 sql_validator:
   role: >
@@ -78,4 +78,4 @@ sql_validator:
     - No extra ORDER BY; joins minimal and on correct PK/FK; COUNT uses DISTINCT when counting entities.
     - Column/table names exist; SQL is complete and executable, one line, no comments.
     - If issues found, fix and return corrected SQL plus brief explain; if unfixable, surface error.
-  llm: gemini/gemini-2.0-flash
+  llm: gemini/gemini-2.5-flash

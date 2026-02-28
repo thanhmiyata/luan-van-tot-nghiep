@@ -1,29 +1,36 @@
-# Project Memory - Last Updated: 2026-02-17
+# Project Memory - Last Updated: 2026-02-28
 
 ## Trạng thái hiện tại
 
-- **Vừa hoàn thành**: NL2SQL-Bench Framework đã được implement hoàn chỉnh
-- **Đang thực hiện**: Tinh chỉnh bài báo hội nghị (`conference_paper_vn_22-25p.md`)
-- **Phiên làm việc gần nhất**: Implement NL2SQL-Bench evaluation framework
+- **Vừa hoàn thành**: Ablation study 4 variants hoàn tất
+- **Đang thực hiện**: Chuẩn bị bài báo SN Computer Science (PLAN_SN_CS_SUBMISSION.md)
+- **Kết quả tổng hợp**: ABLATION_SUMMARY_20260228.md
 
 ## Tóm tắt Kết quả Chính
 
+### Spider 1.0 full (1.034 câu)
 | Cấu hình | Exact Match | Execution Accuracy |
 |----------|-------------|-------------------|
 | 4 bước (baseline) | 71.2% | 79.5% |
 | 6 bước (đầy đủ) | 76.8% | 84.0% |
 
-Benchmark: Spider 1.0 dev set (1.034 câu hỏi)
+### Ablation Study (50 câu stratified, gemini-2.5-flash)
+| Variant | EX | EM | Δ EX | Δ EM |
+|---------|-----|-----|------|------|
+| full_6step | 90.0% | 68.0% | — | — |
+| no_planner | 86.0% | 58.0% | -4.0 | -10.0 |
+| no_refiner | 84.0% | 62.0% | -6.0 | -6.0 |
+| baseline_4step | 78.0% | 44.0% | -12.0 | -24.0 |
 
 ## Kiến trúc Đã Xác nhận
 
 ### Pipeline 6 bước
-1. **Question Analyzer** (Claude 3.7 Sonnet) → Intent, expected_output_fields
-2. **Schema Selector** (Gemini 2.0 Flash) → Lọc schema
-3. **Query Planner** (Claude 3.7 Sonnet) → Kế hoạch logic
+1. **Question Analyzer** (Claude 4.0 Sonnet) → Intent, expected_output_fields
+2. **Schema Selector** (Gemini 2.5 Flash) → Lọc schema
+3. **Query Planner** (Claude 4.0 Sonnet) → Kế hoạch logic
 4. **SQL Expert** (GPT-4o) → Sinh SQL sơ bộ
-5. **SQL Refiner** (Claude 3.7 Sonnet) → Tinh chỉnh
-6. **SQL Validator** (Gemini 2.0 Flash) → Kiểm tra
+5. **SQL Refiner** (Claude 4.0 Sonnet) → Tinh chỉnh
+6. **SQL Validator** (Gemini 2.5 Flash) → Kiểm tra
 
 ### Pipeline 4 bước (baseline)
 Bỏ bước 3 (Planner) và 5 (Refiner)
@@ -85,6 +92,10 @@ nl2sql-bench/
 
 ## Thay đổi Lịch sử
 
+- **2026-03-01**: Ablation baseline_4step xong (EX 78%, EM 44%); 4/4 variants hoàn tất
+- **2026-02-28**: Ablation no_refiner xong (EX 84%, EM 62%); tạo ABLATION_SUMMARY_20260228.md
+- **2026-02-28**: Ablation no_planner xong (EX 86%, EM 58%); tạo ABLATION_RESULTS_NO_PLANNER_20260228.md, data/ablation_no_planner_20260228/
+- **2026-02-28**: Ablation full_6step xong (EX 90%, EM 68%)
 - **2026-02-17**: Implement NL2SQL-Bench Framework hoàn chỉnh (24 files, 5 phases)
 - **2026-02-17**: Scan và tổ chức lại thông tin dự án, tạo PROJECT_CONTEXT.md
 - **2026-01-20**: Cập nhật kết quả Spider 1.0 (EX: 84.1%, EM: 76.8%)

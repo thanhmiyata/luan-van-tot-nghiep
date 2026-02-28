@@ -6,6 +6,10 @@ Pipeline hoàn chỉnh để chạy NL2SQL experiment với CrewAI và đánh gi
 
 import os
 import sys
+
+# Tắt CrewAI telemetry để tránh timeout (gửi dữ liệu đến telemetry.crewai.com)
+os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
+
 import json
 import csv
 import shutil
@@ -399,6 +403,42 @@ def run_nl2sql_system(test_questions):
     return csv_filename, results
 
 
+# SQL keywords to lowercase for Spider-style normalization (order: longer first to avoid partial match)
+_SQL_KEYWORDS = (
+    'INTERSECT', 'EXCEPT', 'DISTINCT', 'BETWEEN', 'INNER', 'OUTER', 'ASCENDING', 'DESCENDING',
+    'SELECT', 'FROM', 'WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'JOIN', 'LEFT', 'RIGHT',
+    'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'AND', 'OR', 'NOT', 'IN', 'AS', 'ON', 'BY', 'ASC', 'DESC',
+    'IS', 'NULL', 'LIKE', 'UNION', 'TRUE', 'FALSE',
+)
+
+
+def normalize_sql_for_spider(sql: str) -> str:
+    """
+    Normalize predicted SQL toward Spider gold format to improve exact match.
+    - Strip trailing semicolon and extra whitespace
+    - Lowercase SQL keywords
+    - Normalize string literals: single quotes -> double quotes (Spider style)
+    - Remove redundant AS alias after aggregate/column to match gold (e.g. "count(*) AS count" -> "count(*)")
+    """
+    if not sql or not sql.strip():
+        return sql
+    s = sql.strip().rstrip(';').strip()
+    # Lowercase keywords (word boundary aware)
+    for kw in _SQL_KEYWORDS:
+        s = re.sub(r'\b' + re.escape(kw) + r'\b', kw.lower(), s, flags=re.IGNORECASE)
+    # Single-quoted string -> double-quoted (Spider style)
+    def replace_quotes(m):
+        return '"' + m.group(1).replace('"', '""') + '"'
+    s = re.sub(r"'([^']*)'", replace_quotes, s)
+    # Remove " AS <alias>" when it follows ) or a single identifier (common with aggregates)
+    s = re.sub(r'\)\s+AS\s+[\w_]+\b', ')', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bAS\s+[\w_]+\s*(?=,)', ' ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bAS\s+[\w_]+\s*(?=FROM)', ' ', s, flags=re.IGNORECASE)
+    # Collapse multiple spaces
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
 def convert_csv_to_evaluation_format(csv_filename):
     """Convert CSV output sang format đánh giá"""
     global timing_metrics, PIPELINE_OUTPUT_DIR
@@ -427,7 +467,8 @@ def convert_csv_to_evaluation_format(csv_filename):
                 if row['gold_query'] and row['sql']:  # Kiểm tra có ground truth và predicted SQL
                     # Format: SQL\tdb_id
                     gold_f.write(f"{row['gold_query']}\t{row['db_id']}\n")
-                    pred_f.write(f"{row['sql']}\t{row['db_id']}\n")
+                    pred_sql = normalize_sql_for_spider(row['sql'])
+                    pred_f.write(f"{pred_sql}\t{row['db_id']}\n")
                     matched_count += 1
                 else:
                     print(
