@@ -46,7 +46,7 @@ Lược bỏ bước **Query Planner** và **SQL Refiner** để đánh giá t�
 | **6-Step Proposed** | **77.8%** | **85.6%** | **Δ +4.4% EX** |
 
 ### 2.2 Phân tích theo độ khó (Execution Accuracy - EX)
-| Độ khó | Số lượng | 4-Step EX | 6-Step (Sonet 4) | **6-Step (R1 - 50c)** |
+| Độ khó | Số lượng | 4-Step EX | 6-Step (Sonet 4) | **6-Step (R1)** |
 | :--- | :---: | :---: | :---: | :---: |
 | Easy | 248 | 76.6% | 81.9% | **100.0%** |
 | Medium | 446 | 83.4% | 86.3% | **83.3%** |
@@ -118,6 +118,3 @@ Dưới đây là danh sách các hội nghị và tạp chí mục tiêu, đư�
     *   Rút gọn bài viết từ 25 trang xuống **12-14 trang** cho các hội nghị.
     *   Chuyển toàn bộ Mermaid Diagrams sang định dạng PNG chất lượng cao.
     *   Cung cấp mã nguồn (GitHub) để tăng độ tin cậy.
-
----
-*Báo cáo và kế hoạch được tổng hợp và cập nhật bởi Antigravity Agent.*
