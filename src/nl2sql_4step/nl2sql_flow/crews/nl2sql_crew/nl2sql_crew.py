@@ -1,4 +1,5 @@
-from crewai import Agent, Crew, Process, Task
+import os
+from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List
@@ -15,12 +16,22 @@ class Nl2SqlCrew():
     agents: List[BaseAgent]
     tasks: List[Task]
 
+    def __init__(self) -> None:
+        self.llm = None
+        if os.getenv("USE_LOCAL_LLM") == "true":
+            self.llm = LLM(
+                model=os.getenv("LOCAL_LLM_MODEL", "openai/qwen-2.5-coder-14b"),
+                base_url=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:1234/v1"),
+                api_key="lm-studio" # LM Studio doesn't really check this but CrewAI might need it
+            )
+
     @agent
     def question_analyzer(self) -> Agent:
         return Agent(
             # type: ignore[index]
             config=self.agents_config['question_analyzer'],
-            verbose=True
+            verbose=True,
+            llm=self.llm
         )
 
     @agent
@@ -28,57 +39,44 @@ class Nl2SqlCrew():
         return Agent(
             # type: ignore[index]
             config=self.agents_config['schema_selector'],
-            verbose=True
+            verbose=True,
+            llm=self.llm
         )
 
     @agent
     def sql_expert(self) -> Agent:
         return Agent(
             config=self.agents_config['sql_expert'],  # type: ignore[index]
-            verbose=True
+            verbose=True,
+            llm=self.llm
         )
 
     @agent
     def sql_validator(self) -> Agent:
         return Agent(
             config=self.agents_config['sql_validator'],  # type: ignore[index]
-            verbose=True
+            verbose=True,
+            llm=self.llm
         )
 
-    @task
-    def question_analysis_task(self) -> Task:
-        from nl2sql_flow.main import QuestionAnalysisResult
         return Task(
             # type: ignore[index]
             config=self.tasks_config['question_analysis_task'],
-            output_json=QuestionAnalysisResult
         )
 
-    @task
-    def select_needed_schema_task(self) -> Task:
-        from nl2sql_flow.main import SQLDbSchema
         return Task(
             # type: ignore[index]
             config=self.tasks_config['select_needed_schema_task'],
-            output_json=SQLDbSchema
         )
 
-    @task
-    def generate_sql_task(self) -> Task:
-        from nl2sql_flow.main import NL2SQLOnlyResult
         return Task(
             # type: ignore[index]
             config=self.tasks_config['generate_sql_task'],
-            output_json=NL2SQLOnlyResult
         )
 
-    @task
-    def validate_sql_task(self) -> Task:
-        from nl2sql_flow.main import NL2SQLResult
         return Task(
             # type: ignore[index]
             config=self.tasks_config['validate_sql_task'],
-            output_json=NL2SQLResult
         )
 
 

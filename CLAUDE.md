@@ -11,8 +11,9 @@
 ## Overview
 
 Dự án nghiên cứu hệ thống **NL2SQL đa tác nhân (Multi-Agent)** sử dụng CrewAI. So sánh 2 cấu hình pipeline:
-- **6 bước** (đầy đủ): EX=84.0%, EM=76.8%
-- **4 bước** (baseline): EX=79.5%, EM=71.2%
+- **6 bước (R1/GPT-4o)**: EX=85.0%, EM=40.0% (Mẫu 50c, EX Hard 100%)
+- **6 bước (Flash/GPT-4o)**: EX=85.6%, EM=77.8% (Full dev set)
+- **4 bước (baseline)**: EX=79.5%, EM=71.2%
 
 Benchmark: Spider 1.0 dev set (1.034 câu hỏi)
 
@@ -30,7 +31,7 @@ src/
 │           └── tasks.yaml   # ⭐ Task prompts
 └── nl2sql_4step/          # Pipeline 4 bước (baseline)
 
-conference_paper_vn_22-25p.md  # ⭐ Bài báo (đang làm)
+ReadMe.md                      # ⭐ Báo cáo & Kế hoạch chính (MAIN)
 PROJECT_CONTEXT.md             # Chi tiết dự án
 MEMORY.md                      # Trạng thái làm việc
 ```
@@ -41,10 +42,10 @@ MEMORY.md                      # Trạng thái làm việc
 
 | File | Mục đích |
 |------|----------|
-| `conference_paper_vn_22-25p.md` | Bài báo hội nghị chính |
+| `ReadMe.md` | Báo cáo tổng hợp & Kế hoạch công bố |
+| `complete_paper_combined_vi.md` | Bản thảo bài báo chính (Việt) |
 | `src/nl2sql_6step/.../agents.yaml` | Định nghĩa 6 agents với LLM |
 | `src/nl2sql_6step/.../tasks.yaml` | Prompts và pattern rules |
-| `evaluation_logs/failure_analysis_spider1.csv` | Phân tích lỗi |
 
 ---
 
@@ -52,12 +53,12 @@ MEMORY.md                      # Trạng thái làm việc
 
 | Agent | Model | Role |
 |-------|-------|------|
-| Question Analyzer | Claude 3.7 Sonnet | Phân tích ý định |
-| Schema Selector | Gemini 2.0 Flash | Lọc schema |
-| Query Planner | Claude 3.7 Sonnet | Lập kế hoạch |
+| Question Analyzer | DeepSeek-R1 | Phân tích ý định |
+| Schema Selector | Gemini 2.5 Flash | Lọc schema |
+| Query Planner | DeepSeek-R1 | Lập kế hoạch |
 | SQL Expert | GPT-4o | Sinh SQL |
-| SQL Refiner | Claude 3.7 Sonnet | Tinh chỉnh |
-| SQL Validator | Gemini 2.0 Flash | Kiểm tra |
+| SQL Refiner | DeepSeek-R1 | Tinh chỉnh |
+| SQL Validator | Gemini 2.5 Flash | Kiểm tra |
 
 ---
 

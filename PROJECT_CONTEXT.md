@@ -10,10 +10,11 @@
 ### 1.1 Mục tiêu
 Nghiên cứu và phát triển hệ thống **NL2SQL đa tác nhân (Multi-Agent)** để chuyển đổi câu hỏi ngôn ngữ tự nhiên thành truy vấn SQL. Tập trung vào việc so sánh và đánh giá vai trò của từng thành phần trong pipeline thông qua thiết kế mô-đun hóa.
 
-### 1.2 Kết quả chính
-- **Cấu hình 6 bước**: EX=84.0%, EM=76.8% trên Spider 1.0 (1.034 câu hỏi)
+### 1.2 Kết quả chính (Cập nhật 02/03/2026)
+- **Cấu hình 6 bước (Flash/GPT-4o)**: EX=85.6%, EM=77.8% (Spider 1.0 full)
+- **Cấu hình 6 bước (DeepSeek-R1 Upgrade)**: EX=85.0%, EM=40.0% (Mẫu 50c, EX Hard đạt 100%)
 - **Cấu hình 4 bước (baseline)**: EX=79.5%, EM=71.2%
-- **Cải thiện**: +4.5% EX, +5.6% EM nhờ thêm bước Lập kế hoạch và Tinh chỉnh
+- **Cải thiện**: DeepSeek-R1 giúp giải quyết triệt để các câu JOIN phức tạp (mức Hard).
 
 ### 1.3 Đóng góp khoa học
 - **C1 (Khung)**: Khung NL2SQL đa tác nhân mô-đun hóa 3 pha
@@ -49,15 +50,15 @@ Pha 3: Tinh chỉnh & Kiểm tra
 ### 2.2 Pipeline 4 bước (Cấu hình cơ sở)
 Bỏ bước [3] Query Planner và [5] SQL Refiner
 
-### 2.3 Hybrid LLM Strategy
+### 2.3 Hybrid LLM Strategy (Upgrade 02/03/2026)
 | Agent | Model | Lý do |
 |-------|-------|-------|
-| Question Analyzer | Claude 3.7 Sonnet | Suy luận logic phức tạp |
-| Schema Selector | Gemini 2.0 Flash | Trích xuất thông tin nhanh |
-| Query Planner | Claude 3.7 Sonnet | Lập kế hoạch đa bước |
-| SQL Expert | GPT-4o | Sinh code chính xác |
-| SQL Refiner | Claude 3.7 Sonnet | Sửa lỗi logic |
-| SQL Validator | Gemini 2.0 Flash | Kiểm tra kỹ thuật nhanh |
+| Question Analyzer | DeepSeek-R1 | Suy luận semantic và chốt output fields |
+| Schema Selector | Gemini 2.5 Flash | Lọc schema tốc độ cao |
+| Query Planner | DeepSeek-R1 | Lập kế hoạch JOIN logic sâu (Chain-of-thought) |
+| SQL Expert | GPT-4o | Chuyển đổi logic sang cú pháp SQL chuẩn |
+| SQL Refiner | DeepSeek-R1 | Đối soát và sửa lỗi logic nâng cao |
+| SQL Validator | Gemini 2.5 Flash | Kiểm tra kỹ thuật nhanh |
 
 ---
 
@@ -95,11 +96,11 @@ Bỏ bước [3] Query Planner và [5] SQL Refiner
 │
 ├── Document/                            # Tài liệu nghiên cứu
 │
-├── conference_paper_vn_22-25p.md        # ⭐ Bài báo hội nghị (đang làm)
+├── ReadMe.md                            # ⭐ Entry point + Báo cáo tổng hợp chính
 ├── MEMORY.md                            # Trạng thái làm việc
 ├── CLAUDE.md                            # Quy tắc cho AI
 ├── PROJECT_CONTEXT.md                   # File này
-└── run_complete_nl2sql_pipeline.py      # Script chạy pipeline
+└── run_complete_nl2sql_pipeline.py      # Script chạy pipeline chính
 ```
 
 ---
@@ -112,8 +113,8 @@ Bỏ bước [3] Query Planner và [5] SQL Refiner
 - `src/nl2sql_6step/nl2sql_flow/main.py`: CrewAI Flow orchestration với Pydantic models
 
 ### 4.2 Tài liệu
-- `conference_paper_vn_22-25p.md`: Bài báo hội nghị tiếng Việt (22-25 trang)
-- `NL2SQL_Multi_Agent_Experiment_Plan.md`: Kế hoạch thực nghiệm chi tiết
+- `ReadMe.md`: Báo cáo kết quả thực nghiệm và Kế hoạch công bố (Cập nhật 2026-03-02)
+- `complete_paper_combined_vi.md`: Bản thảo bài báo chính (Tiếng Việt)
 
 ### 4.3 Dữ liệu & Kết quả
 - `output/nl2sql_6step/*.csv`: Kết quả chạy pipeline
@@ -166,9 +167,10 @@ pytest test/
 - **Spider Dataset**: Benchmark dataset (1.034 câu hỏi dev)
 
 ### 7.2 LLM APIs
-- Google Gemini 2.0 Flash
-- Anthropic Claude 3.7 Sonnet  
+- Google Gemini 2.5 Flash
+- DeepSeek-R1 (Reasoner)
 - OpenAI GPT-4o
+- Anthropic Claude 3.7 Sonnet (Dùng cho baseline)
 
 ### 7.3 Evaluation
 - Spider test-suite-sql-eval (semantic evaluation)

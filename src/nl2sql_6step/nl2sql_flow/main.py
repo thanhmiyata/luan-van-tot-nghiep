@@ -2,6 +2,7 @@
 import csv
 import json
 import os
+import re
 from datetime import datetime
 from pprint import pprint
 from typing import List, Dict, Tuple
@@ -23,10 +24,19 @@ class NLQuestions(BaseModel):
 class QuestionAnalysisResult(BaseModel):
     intent: str = ""
     complexity: str = ""
-    entities: str = "{}"
-    requirements: str = "{}"
-    patterns: str = "[]"
-    linguistic_notes: str = ""
+    expected_output_fields: List[str] = []
+    field_order_critical: bool = True
+    single_table_ok: bool = False
+    output_fields_detailed: List[Dict] = []
+    filters: List[Dict] = []
+    group_by: List[Dict] = []
+    order_by: List[Dict] = []
+    join_hints: List[Dict] = []
+    entities: Dict = {}
+    self_join_hint: bool = False
+    set_operation_type: str = "NONE"
+    null_handling: str = "UNKNOWN"
+    where_condition_type: str = "EQUALS"
     confidence: float = 0.0
 
 
@@ -37,7 +47,7 @@ class NL2SQLResult(BaseModel):
 
 
 class QueryPlanResult(BaseModel):
-    plan: str = ""
+    steps: List[Dict] = []
 
 
 class RefinedSQLResult(BaseModel):
@@ -90,6 +100,26 @@ class NL2SQLFlow(Flow[NL2SQLState]):
         self.state.question = self.question.question
         return self.state
 
+    def parse_json_safely(self, text: str) -> Dict:
+        """Extract and parse JSON from LLM output that might contain markdown backticks."""
+        try:
+            # Try to find JSON block
+            match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL)
+            if match:
+                return json.loads(match.group(1))
+            # Try direct parse
+            return json.loads(text.strip())
+        except Exception as e:
+            print(f"Warning: Failed to parse JSON from text. Error: {e}")
+            # Try to find something that looks like a JSON object { ... }
+            try:
+                match = re.search(r'(\{.*\})', text, re.DOTALL)
+                if match:
+                    return json.loads(match.group(1))
+            except:
+                pass
+            return {}
+
     @listen(get_user_input)
     def question_analysis(self):
         print(f"\nAnalyzing question for intent and complexity\n")
@@ -99,7 +129,7 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
             }
         )
-        self.state.question_analysis = result.to_dict()
+        self.state.question_analysis = self.parse_json_safely(result.raw)
         print(
             f"\nQuestion Analysis Results:\n{json.dumps(self.state.question_analysis, indent=2)}\n")
         return self.state
@@ -114,7 +144,8 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "question_analysis": json.dumps(self.state.question_analysis),
             }
         )
-        self.state.db_schema = SQLDbSchema(**result.to_dict())
+        schema_dict = self.parse_json_safely(result.raw)
+        self.state.db_schema = SQLDbSchema(**schema_dict)
         return self.state
 
     @listen(schema_selector)
@@ -127,7 +158,7 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "question_analysis": json.dumps(self.state.question_analysis),
             }
         )
-        self.state.query_plan = result.to_dict()
+        self.state.query_plan = self.parse_json_safely(result.raw)
         print(f"\nQuery Plan:\n{json.dumps(self.state.query_plan, indent=2)}\n")
         return self.state
 
@@ -142,7 +173,8 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "query_plan": json.dumps(self.state.query_plan),
             }
         )
-        self.state.intermediate_sql = result.to_dict()["sql"]
+        sql_dict = self.parse_json_safely(result.raw)
+        self.state.intermediate_sql = sql_dict.get("sql", result.raw)
         print(f"\nGenerated initial SQL:\n{self.state.intermediate_sql}\n")
         return self.state
 
@@ -157,8 +189,9 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "question_analysis": json.dumps(self.state.question_analysis),
                 "query_plan": json.dumps(self.state.query_plan),
             }
-        ).to_dict()
-        self.state.result.sql = result.get("sql", self.state.intermediate_sql)
+        )
+        result_dict = self.parse_json_safely(result.raw)
+        self.state.result.sql = result_dict.get("sql", self.state.intermediate_sql)
         print(f"\nRefined SQL:\n{self.state.result.sql}\n")
         return self.state
 
@@ -172,8 +205,9 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "sql": self.state.result.sql,
                 "question_analysis": json.dumps(self.state.question_analysis),
             }
-        ).to_dict()
-        self.state.result = NL2SQLResult(**result)
+        )
+        result_dict = self.parse_json_safely(result.raw)
+        self.state.result = NL2SQLResult(**result_dict)
         print(f"\nFinal SQL:\n")
         print(json.dumps(self.state.result.model_dump(), indent=4))
 

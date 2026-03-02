@@ -23,10 +23,15 @@ class NLQuestions(BaseModel):
 class QuestionAnalysisResult(BaseModel):
     intent: str = ""
     complexity: str = ""
-    entities: str = "{}"
-    requirements: str = "{}"
-    patterns: str = "[]"
-    linguistic_notes: str = ""
+    expected_output_fields: List[str] = []
+    field_order_critical: bool = True
+    single_table_ok: bool = False
+    output_fields_detailed: List[Dict] = []
+    filters: List[Dict] = []
+    group_by: List[Dict] = []
+    order_by: List[Dict] = []
+    join_hints: List[Dict] = []
+    entities: Dict = {}
     confidence: float = 0.0
 
 
