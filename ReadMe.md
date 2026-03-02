@@ -1,4 +1,4 @@
-# Báo cáo Tổng hợp Dự án NL2SQL (Chuẩn bị họp với Giáo viên)
+# Báo cáo Tổng hợp Dự án NL2SQL
 **Ngày cập nhật:** 2026-03-01  
 **Trạng thái:** Hoàn tất thực nghiệm  & Ablation Study
 
