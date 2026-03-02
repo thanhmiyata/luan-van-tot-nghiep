@@ -43,10 +43,10 @@ Lược bỏ bước **Query Planner** và **SQL Refiner** để đánh giá t�
 | Cấu hình | Exact Match (EM) | Execution Accuracy (EX) | Ghi chú |
 | :--- | :---: | :---: | :--- |
 | **4-Step ** | 73.7% | 81.2% |   |
-| **6-Step Proposed** | **77.8%** | **85.6%** | **Cải thiện +4.4% EX** |
+| **6-Step Proposed** | **77.8%** | **85.6%** | **Δ +4.4% EX** |
 
 ### 2.2 Phân tích theo độ khó (Execution Accuracy - EX)
-| Độ khó | Số lượng | 4-Step EX | 6-Step (Flash) | **6-Step (R1 - 50c)** |
+| Độ khó | Số lượng | 4-Step EX | 6-Step (Sonet 4) | **6-Step (R1 - 50c)** |
 | :--- | :---: | :---: | :---: | :---: |
 | Easy | 248 | 76.6% | 81.9% | **100.0%** |
 | Medium | 446 | 83.4% | 86.3% | **83.3%** |
@@ -58,6 +58,10 @@ Lược bỏ bước **Query Planner** và **SQL Refiner** để đánh giá t�
 > **Nhận xét quan trọng:** Cấu hình 6 bước cho thấy ưu thế vượt trội ở cấp độ **Hard (+9.2%)**. Điều này chứng minh rằng việc có thêm bước **Query Planner** giúp hệ thống xử lý các cấu trúc SQL phức tạp (nhiều JOIN, lồng nhau) tốt hơn hẳn so với cách tiếp cận trực tiếp.
 
 ---
+
+### 2.3 Thí nghiệm cắt giảm (Ablation Study)
+> [!NOTE]
+> Các kết quả dưới đây dựa trên **Short Test (mẫu 100 câu hỏi)** để định lượng nhanh tác động của từng thành phần.
 
 | Variant (Biến thể) | EX (%) | EM (%) | Tác động / Ưu thế |
 | :--- | :---: | :---: | :--- |
@@ -73,7 +77,7 @@ Lược bỏ bước **Query Planner** và **SQL Refiner** để đánh giá t�
 
 ---
 
-## 4. Phân tích Lỗi (Error Taxonomy)
+## 3. Phân tích Lỗi (Error Taxonomy)
 
 Dựa trên việc kiểm tra thủ công các trường hợp thất bại, chúng tôi phân loại các nhóm lỗi chính:
 
@@ -86,11 +90,11 @@ Dựa trên việc kiểm tra thủ công các trường hợp thất bại, ch�
 
 ---
 
-## 5. Kế hoạch Công bố & Nộp bài (Submission Pipeline)
+## 4. Kế hoạch Công bố & Nộp bài (Submission Pipeline)
 
 Dưới đây là danh sách các hội nghị và tạp chí mục tiêu, được xếp hạng dựa trên tính khả thi và đặc thù của dự án:
 
-### 5.1 Các tạp chí mục tiêu (Journals) - Ưu tiên hàng đầu
+### 4.1 Các tạp chí mục tiêu (Journals) - Ưu tiên hàng đầu
 
 | Tên Tạp chí | Phân hạng | Link chính thức | Đặc thù & Tính khả thi |
 | :--- | :---: | :--- | :--- |
@@ -98,7 +102,7 @@ Dưới đây là danh sách các hội nghị và tạp chí mục tiêu, đư�
 | **Applied Intelligence** | **Q2** | [Springer Link](https://link.springer.com/journal/10489) | Uy tín cao, phù hợp thực nghiệm chi tiết. |
 | **Software Quality Journal** | **Q2** | [Springer Link](https://link.springer.com/journal/11219) | Nhấn mạnh vào chất lượng và độ tin cậy của Agent. |
 
-### 5.2 Các hội nghị mục tiêu (Conferences) - Cập nhật Q2/2026
+### 4.2 Các hội nghị mục tiêu (Conferences) - Cập nhật Q2/2026
 
 | Tên Hội nghị | Phân hạng | Deadline | Link & Đặc thù |
 | :--- | :---: | :---: | :--- |
@@ -107,7 +111,7 @@ Dưới đây là danh sách các hội nghị và tạp chí mục tiêu, đư�
 | **CIKM 2026** | **Q1/High** | ~05/2026 | [CIKM 2026 Website](https://cikm2026.org/) - Hội nghị lớn về Knowledge Management. |
 | **EMNLP 2026** | **Top Tier** | 25/05/2026 | [EMNLP 2026 Website](https://2026.emnlp.org/) - Đỉnh cao trong lĩnh vực NLP. |
 
-### 5.3 Phân tích tính khả thi & Chiến lược
+### 4.3 Phân tích tính khả thi & Chiến lược
 1.  **Tính khả thi cao nhất:** **SN Computer Science**. Đây là đích đến an toàn nhất vì dự án đã có bộ Ablation Study đầy đủ và phân tích lỗi chi tiết, khớp hoàn hảo với format Original Research của Springer.
 2.  **Đặc thù kỹ thuật:** Các diễn đàn Q2 (ADMA, Applied Intelligence) đòi hỏi phải nhấn mạnh vào **"Tại sao 6 bước lại tốt hơn 4 bước"** bằng toán học hoặc logic suy luận sâu (DeepSeek-R1 đã cung cấp dữ liệu này).
 3.  **Hành động tiếp theo:**

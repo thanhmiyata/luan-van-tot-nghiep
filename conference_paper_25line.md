@@ -265,6 +265,8 @@ Cấu hình đầy đủ (6 bước) cải thiện độ chính xác nhờ sự 
 | Cấu hình –Refiner (no_refiner) | 82.5%* | 76.2%* | -3.1% |
 | Cấu hình 4-bước  | 81.2% | 73.7% | -4.4% |
 
+*\* Các kết quả đánh dấu sao dựa trên Short Test (mẫu 100 câu hỏi) để định lượng tác động của từng thành phần.*
+
 
 Kết quả thực nghiệm trên quy mô lớn xác nhận rằng việc bổ sung các tác nhân Lập kế hoạch (Planner) và Tinh chỉnh (Refiner) mang lại sự cải thiện ổn định trên toàn bộ tập dữ liệu. Độ lệch giữa EX và EM (~7-8%) cho thấy hệ thống có khả năng sinh các truy vấn SQL hoạt động đúng về mặt ngữ nghĩa ngay cả khi cấu pháp không hoàn toàn trùng khớp với đáp án mẫu.
 

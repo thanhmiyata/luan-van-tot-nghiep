@@ -12,7 +12,7 @@
 | Cấu hình | Executive Accuracy (EX) | Exact Match (EM) | Đặc điểm |
 |----------|:----------------------:|:----------------:|----------|
 | **6 bước (DeepSeek-R1)** | **85.0%** | **40.0%** | Suy luận cực mạnh, xử lý câu Hard xuất sắc. |
-| **6 bước (Gemini Flash)** | 90.0% | 68.0% | Ổn định, EM cao, tốc độ nhanh. |
+| **6 bước (Sonet 4.0)** | 90.0% | 68.0% | Ổn định, EM cao, tốc độ nhanh. |
 | **4 bước (Baseline)** | 78.0% | 44.0% | Yếu ở các câu hỏi phức tạp. |
 
 > [!IMPORTANT]
