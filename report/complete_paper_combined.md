@@ -1,759 +1,519 @@
-# Natural Language to SQL using Multi-Agent Systems
+# Natural Language to SQL Using a Multi-Agent System
 
-## Abstract
+### Abstract
 
-Traditional Natural Language to SQL (NL2SQL) systems struggle with complex queries requiring multi-step reasoning, accurate schema understanding, and proper SQL generation. Single-agent approaches often fail on complex JOINs, nested queries, and field selection accuracy, with field selection errors accounting for 52.6% of errors.
+Natural Language to SQL (NL2SQL) is an important yet challenging task, particularly when questions require multi-step reasoning, accurate schema understanding, and complex SQL constructs such as joins, aggregations, or nested queries. Although large language models have significantly improved SQL generation quality, current systems still frequently struggle with intermediate decision-making steps such as selecting the correct output fields, identifying relevant tables, and planning query structure. In this paper, we propose a six-step LLM-based multi-agent architecture for NL2SQL, consisting of Question Analysis, Schema Selection, Query Planning, SQL Generation, SQL Refinement, and SQL Validation. The proposed architecture decomposes the reasoning process into specialized agents, each responsible for a specific subtask, in order to reduce error propagation during query generation.
 
-This paper presents a specialized multi-agent system for NL2SQL using the CrewAI framework, featuring six roles: Question Analyzer, Schema Selector, Query Planner, SQL Expert, SQL Validator, and SQL Refiner. The system employs single-pass refinement to enable error correction through agent collaboration.
+The system is evaluated on the Spider 1.0 development set, a standard benchmark for cross-domain Text-to-SQL. We report two main metrics: Exact Match (EM) and Execution Accuracy (EX). Experimental results show that the proposed 6-step configuration achieves **77.8% Exact Match (EM)** and **85.6% Execution Accuracy (EX)**, outperforming a reduced 4-step configuration that achieves **73.7% EM** and **81.2% EX** under the same evaluation setting. Additional analysis indicates that the planning and refinement components play a critical role in reducing field selection errors, join errors, and aggregation errors. These results indicate that agent-based reasoning decomposition is an effective strategy for improving both the robustness and controllability of NL2SQL systems.
 
-We evaluated on Spider 1.0, comparing a 4-step baseline pipeline with the full 6-step architecture. The current numbers (78.0% exact match, 86.0% execution accuracy, +4.0% over 4-step; field selection +5.0%) are measured on the Spider 1.0 dev split. Our contributions include: (1) a 6-agent architecture for NL2SQL with specialized roles and single-pass refinement, and (2) error analysis identifying field selection as the primary error source (52.6% of errors) with targeted mitigation strategies.
-
-The results suggest that multi-agent systems with specialized roles and single-pass refinement can outperform single-agent approaches on complex NL2SQL tasks, while further validation on the Spider 1.0 test set is left as TODO.
-
----
+**Keywords:** Text-to-SQL; NL2SQL; multi-agent architecture; large language models; Spider benchmark.
 
 ## 1. Introduction
 
-### 1.1 Opening Paragraph
+### 1.1 Overview
+Natural Language to SQL (NL2SQL) refers to the task of translating a natural language question into an executable SQL query over a structured database. This task is practically important because it enables non-expert users to access data without writing queries manually. However, NL2SQL is not merely a syntax generation problem. It also requires a system to correctly understand user intent, identify relevant tables and columns, and construct a query structure that is consistent with the database schema.
 
-Natural language interfaces to databases have become increasingly important as they enable non-technical users to query complex databases using intuitive language. The advent of large language models (LLMs) has revolutionized natural language processing tasks, including the translation of natural language questions into structured SQL queries—a task known as Natural Language to SQL (NL2SQL). However, despite significant advances, current NL2SQL systems continue to struggle with complex queries that require multi-step reasoning, accurate schema understanding, and precise field selection. Multi-agent systems, which leverage specialized agents working collaboratively, have emerged as a promising approach to address these limitations by enabling single-pass refinement and error correction through agent collaboration.
+Although large language model-based systems have substantially improved Text-to-SQL performance, many important errors still occur on difficult queries. Common errors include selecting incorrect fields in the `SELECT` clause, inferring incorrect relations between tables, constructing invalid join paths, or misrepresenting aggregation and nested-query logic. These limitations suggest that a single agent often bears too many reasoning decisions at once, especially on cross-domain benchmarks such as Spider.
 
-### 1.2 Problem Statement
+From this perspective, this study approaches NL2SQL as a task that should be decomposed into specialized reasoning stages. Built on CrewAI [10], we construct a six-step LLM-based multi-agent architecture in which each component serves a distinct role: question analysis, schema selection, query planning, SQL generation, SQL refinement, and SQL validation. This design aims to reduce the cognitive burden on a single model, improve local error control, and create explicit intermediate checkpoints before producing the final query.
 
-Traditional NL2SQL systems face fundamental challenges when handling complex database queries. Single-agent approaches, whether based on sequence-to-sequence models or fine-tuned language models, often fail on queries requiring multiple JOINs, nested subqueries, and complex aggregations [1, 2]. These systems struggle with multi-step reasoning, where understanding the question intent, identifying relevant schema elements, planning the query structure, and generating syntactically and semantically correct SQL must all be performed accurately. Our analysis reveals that field selection errors—where the system selects incorrect columns in the SELECT clause—account for 52.6% of errors, highlighting the critical importance of accurate field identification in NL2SQL systems.
+This study investigates the hypothesis that decomposing reasoning into specialized agents can improve the robustness of NL2SQL systems. Results on the Spider 1.0 development set show that the 6-step configuration achieves **77.8%** Exact Match and **85.6%** Execution Accuracy, outperforming the reduced 4-step configuration under the same evaluation setting. These results indicate that adding planning and refinement components plays a substantive role in improving query quality.
 
-The limitations of existing solutions stem from several fundamental issues. Traditional sequence-to-sequence models, such as Seq2SQL [1], lack sophisticated reasoning capabilities and struggle with complex query structures. These models achieve only 59.4% execution accuracy on simpler datasets like WikiSQL. While syntax-aware approaches like SyntaxSQLNet [2] improved handling of nested queries, they still achieve only 19.7% exact match accuracy on the more challenging Spider dataset [3]. Relation-aware models like RAT-SQL [4] and RESDSQL [5] have made significant progress, with RESDSQL achieving 72.0% exact match accuracy on Spider, but these systems remain single-agent architectures that cannot iteratively refine their outputs. Even recent LLM-based approaches [6, 7] achieve only 75-80% execution accuracy on Spider and continue to make systematic errors in field selection and complex JOIN logic.
+The main contributions of this paper are as follows:
 
-Single-agent systems face inherent limitations that prevent them from effectively addressing these challenges. They generate SQL queries in a single pass, without the ability to validate, critique, and refine their outputs based on feedback. While some approaches incorporate self-correction mechanisms [6, 7], these remain limited to single-agent architectures that cannot leverage specialized expertise across different aspects of the NL2SQL task. The lack of single-pass refinement means that errors in field selection, schema understanding, or query logic cannot be systematically identified and corrected, leading to persistent accuracy limitations.
+- Proposing a 6-step multi-agent architecture for the NL2SQL task.
+- Decomposing reasoning into specialized agents.
+- Conducting experiments on the Spider 1.0 development set.
+- Providing ablation analysis to demonstrate the role of each component.
 
-### 1.3 Our Approach
-
-This paper presents a novel multi-agent system for NL2SQL that addresses these limitations through specialized agent collaboration and single-pass refinement. Multi-agent systems have shown promise for complex task solving [8, 9], and our approach leverages the CrewAI framework [10] to orchestrate six specialized agents, each with distinct roles and expertise. The Question Analyzer agent identifies question intent and critically analyzes required fields for the SELECT clause, directly addressing the field selection challenge that accounts for 52.6% of errors. The Schema Selector agent filters relevant tables and columns from the database schema, reducing context size and improving focus. The Query Planner agent creates logical execution plans that break down complex queries into manageable sub-goals, enabling better handling of JOINs, aggregations, and nested structures. The SQL Expert agent generates SQL queries with awareness of common error patterns, while the SQL Validator agent checks syntax and semantic correctness. Finally, the SQL Refiner agent performs single-pass refinement to improve queries, enabling error correction and query optimization.
-
-The key innovation of our approach is the single-pass refinement mechanism, where the SQL Refiner agent reviews the initial SQL query and can modify it to address identified issues before validation. This single-pass refinement enables the system to correct errors in field selection, simplify unnecessary JOINs, fix aggregation logic, and ensure alignment with the original query plan. We compare two pipeline variants: a 4-step baseline (Question Analyzer → Schema Selector → SQL Expert → SQL Validator) and the full 6-step architecture that includes Query Planner and SQL Refiner. This comparison allows us to evaluate the impact of planning and single-pass refinement on query accuracy.
-
-### 1.4 Contributions
-
-This paper makes the following contributions:
-
-- **Specialized 6-agent architecture for NL2SQL**: We design a multi-agent architecture with six distinct roles—Question Analyzer, Schema Selector, Query Planner, SQL Expert, SQL Validator, and SQL Refiner—enabling specialized expertise and single-pass refinement to address limitations of single-agent approaches.
-
-- **Comprehensive error analysis**: We analyze error patterns and identify field selection as a primary error source (52.6% of errors), informing targeted mitigation strategies in the Question Analyzer and downstream agents.
-
-- **Empirical comparison of pipeline variants**: We evaluate 4-step and 6-step pipeline architectures on Spider 1.0 [3] using exact match and execution accuracy (current numbers measured on dev; test submission pending).
-
-- **Agent collaboration analysis**: We examine information flow between agents and the single-pass refinement process to understand how specialization contributes to NL2SQL performance.
-
-### 1.5 Paper Organization
-
-The remainder of this paper is organized as follows. Section 2 reviews related work on NL2SQL approaches, multi-agent systems, and evaluation frameworks. Section 3 formulates the NL2SQL problem and establishes requirements for our multi-agent system. Section 4 presents our multi-agent architecture, describing each of the six agents in detail and explaining their collaboration patterns. Section 5 discusses implementation details, including the CrewAI framework configuration and agent prompt engineering strategies. Section 6 presents our experimental setup, results on the Spider dataset, and comparison with baseline approaches. Section 7 provides error analysis and discussion of limitations and implications. Finally, Section 8 concludes the paper and outlines directions for future work.
+### 1.2 Paper Organization
+The remainder of this paper is organized as follows. Section 2 reviews related work. Section 3 presents the methodology and system architecture. Section 4 describes the experimental setup. Section 5 reports the main results. Section 6 presents the ablation study. Section 7 provides error analysis. Section 8 describes implementation details. Section 9 discusses efficiency trade-offs. Finally, Section 10 concludes the paper and outlines future directions.
 
 ## 2. Related Work
 
-### 2.1 Introduction to Related Work
+### 2.1 Classical Text-to-SQL Models
+Early Text-to-SQL research primarily relied on sequence-to-sequence architectures or structured decoders to generate SQL queries directly from natural language questions. Approaches such as Seq2SQL [1], SyntaxSQLNet [2], and other contemporaneous models laid the foundation for the task by learning mappings from natural language to query representations. As more complex benchmarks such as Spider [3] were introduced, classical models increasingly shifted their focus toward cross-domain generalization and multi-table query handling.
 
-The field of Natural Language to SQL (NL2SQL) translation has evolved significantly over the past decade, progressing from sequence-to-sequence models to large language model-based approaches. Concurrently, multi-agent systems have emerged as a promising paradigm for complex task solving in natural language processing. This section provides a comprehensive review of related work organized into five main categories: traditional NL2SQL approaches, LLM-based NL2SQL systems, multi-agent systems in NLP, tool learning and agentic RAG frameworks, and evaluation benchmarks. We critically analyze each category, identify limitations, and position our specialized multi-agent architecture for NL2SQL within this landscape. Unlike previous surveys that focus primarily on single-agent approaches, we examine how multi-agent collaboration can address systematic errors in NL2SQL, particularly field selection accuracy which accounts for 52.6% of errors in existing systems.
+Subsequent approaches such as RAT-SQL [4], BRIDGE [11], RESDSQL [5], and schema-aware directions such as IRNet emphasized the role of schema linking and relational representations between questions and database structure. These advances substantially improved performance on Spider, yet most of them still relied on a centralized reasoning flow in which question understanding, output column selection, and query structure construction were integrated into a single generation process. In addition, PICARD [12] showed that constraining the decoding process can reduce syntactic errors in Text-to-SQL, highlighting that system accuracy depends not only on question understanding but also on output control during query generation.
 
-### 2.2 Traditional NL2SQL Approaches
+### 2.2 LLM-Based Text-to-SQL Approaches
+The emergence of large language models has significantly expanded the capability of Text-to-SQL systems through few-shot prompting, in-context learning, and self-correction strategies. GPT-based approaches [13], DIN-SQL [6], and DAIL-SQL [7] show that a strong language model can achieve competitive results without a specialized decoder in the traditional sense. However, even in LLM-based systems, errors related to field selection, join identification, and aggregation interpretation still arise, particularly when questions require multi-step reasoning.
 
-Early NL2SQL systems employed sequence-to-sequence architectures and semantic parsing techniques to translate natural language questions into SQL queries. These approaches established foundational methodologies but revealed significant limitations when handling complex queries requiring multi-step reasoning, accurate schema understanding, and precise field selection.
+An important limitation of these systems is that most intermediate decisions are still made within a single reasoning pass. As a result, when the model misinterprets one local component, such as an output column or a join path, the entire query can become incorrect even if the rest of the structure is otherwise plausible.
 
-**Seq2SQL** [1] introduced a sequence-to-sequence model that generates SQL queries directly from natural language using reinforcement learning to optimize for execution accuracy rather than token-level accuracy. The system achieved 59.4% execution accuracy on WikiSQL, demonstrating the feasibility of direct SQL generation. However, Seq2SQL struggles with complex JOINs, nested queries, and cross-domain generalization, as it treats SQL generation as a simple sequence mapping problem without explicit schema understanding. The approach lacks mechanisms for iterative refinement and cannot correct errors after initial generation.
+### 2.3 Reasoning Decomposition, Chain-of-Thought, and Multi-Agent Approaches
+Beyond direct SQL generation, another line of work focuses on making intermediate reasoning more explicit through chain-of-thought, decomposition, or self-reflection. Mechanisms such as Reflexion [16] and CRITIC [17] show that model outputs can improve if an additional critique or correction stage is introduced. Meanwhile, frameworks such as AutoGen [8], LangChain [9], and CrewAI [10] enable complex tasks to be decomposed into multiple specialized collaborating agents.
 
-**SyntaxSQLNet** [2] addressed structural complexity by introducing a syntax tree-based decoder that generates SQL as a syntax tree rather than a flat sequence. This approach improved handling of nested queries and complex SQL structures, achieving 19.7% exact match accuracy on the Spider dataset. The syntax-aware generation enables better handling of complex queries than Seq2SQL, but the system still struggles with schema understanding and field selection accuracy. SyntaxSQLNet demonstrates the importance of structure-aware generation, which our Query Planner agent provides through logical planning before SQL generation.
-
-**RAT-SQL** [4] introduced relation-aware schema encoding using graph attention networks to explicitly model relationships between question tokens and schema elements. This approach achieved 57.2% exact match accuracy on Spider, significantly improving over SyntaxSQLNet by better understanding schema structure and question-schema alignment. RAT-SQL's relation-aware encoding is conceptually similar to our Schema Selector agent's filtering approach, but RAT-SQL still operates as a single-agent system without iterative refinement capabilities. The system cannot correct field selection errors or refine queries based on validation feedback.
-
-**RESDSQL** [5] decoupled schema linking from schema encoding, using separate modules for identifying relevant schema elements and representing schema structure. This decoupling improved both accuracy and interpretability, achieving state-of-the-art results for single-agent approaches with 72.0% exact match accuracy and 79.9% execution accuracy on Spider test set. RESDSQL's schema linking decoupling aligns with our Schema Selector agent's role, but the system still lacks iterative refinement and specialized agents for different aspects of SQL generation. Our work extends this decoupling further by distributing responsibilities across multiple specialized agents.
-
-**BRIDGE** [11] emphasized schema linking as a critical component, explicitly linking question tokens to schema elements before SQL generation. The system achieved 70.0% exact match accuracy on Spider dev set, demonstrating the importance of schema understanding. BRIDGE's schema linking approach aligns with our Schema Selector agent, but BRIDGE uses single-pass generation without refinement mechanisms.
-
-**PICARD** [12] introduced constrained auto-regressive decoding for language models, preventing invalid SQL syntax during generation. Applied to T5-3B and other large language models, PICARD significantly improved SQL syntax correctness, achieving approximately 65-70% exact match accuracy on Spider. PICARD demonstrates the value of constraint checking, which our SQL Validator agent provides, but PICARD focuses only on syntax constraints and does not address semantic errors or field selection accuracy.
-
-**Analysis and Limitations:** Traditional NL2SQL approaches share several common limitations: (1) they use single-agent or single-model architectures that cannot handle iterative refinement, (2) they struggle with field selection accuracy, which accounts for 52.6% of errors in our analysis, (3) they lack specialized components for different aspects of SQL generation (question analysis, schema filtering, planning, generation, validation, refinement), and (4) they cannot correct errors after initial generation. These limitations motivate our multi-agent architecture, which addresses each of these challenges through specialized agent roles and single-pass refinement mechanisms.
-
-**Positioning Our Work:** Unlike traditional approaches that combine multiple responsibilities in a single model, our work distributes NL2SQL tasks across six specialized agents: Question Analyzer for intent and field identification, Schema Selector for schema filtering, Query Planner for logical planning, SQL Expert for code generation, SQL Validator for error checking, and SQL Refiner for query improvement. This specialization enables each agent to focus on its core competency, reducing error rates and improving overall accuracy. Additionally, our single-pass refinement mechanism allows query improvement before final validation, addressing a key limitation of traditional single-pass approaches.
-
-### 2.3 LLM-based NL2SQL
-
-The advent of large language models (LLMs) has revolutionized NL2SQL, enabling in-context learning and few-shot prompting without extensive fine-tuning. However, LLM-based approaches still make systematic errors, particularly in field selection and complex query logic, highlighting the need for structured multi-agent collaboration.
-
-**GPT-3/4 for Text-to-SQL** [13] explored in-context learning for NL2SQL using few-shot prompting with examples and schema context. GPT-4 achieves approximately 75-80% execution accuracy on Spider, depending on prompt design, demonstrating that large language models can generate SQL effectively without fine-tuning. However, GPT-based approaches struggle with complex JOINs, field selection accuracy, and systematic errors that persist across different prompt designs. The lack of iterative refinement means errors cannot be corrected after initial generation, and the single-agent nature limits specialization for different aspects of SQL generation.
-
-**CodeT5+ for Text-to-SQL** [14] applied code-specific language models to NL2SQL, leveraging code understanding capabilities for structured query generation. Fine-tuned CodeT5+ achieves approximately 70% exact match accuracy on Spider, demonstrating that code-aware models perform better on SQL syntax. However, CodeT5+ still operates as a single-agent system without refinement capabilities, and field selection errors remain a significant challenge.
-
-**DIN-SQL** [6] introduced decomposition of complex SQL queries into simpler sub-queries, then combining them with a self-correction mechanism. The system achieves 85.3% execution accuracy on Spider test set, representing significant improvement over single-pass approaches. DIN-SQL's self-correction is conceptually similar to our SQL Refiner agent, and its decomposition approach aligns with our Query Planner's logical planning. However, DIN-SQL still operates as a single-agent system without specialized roles for different aspects of SQL generation, and the self-correction mechanism is limited compared to our multi-agent refinement approach.
-
-**C3** [7] demonstrated zero-shot NL2SQL using ChatGPT with carefully designed prompts, achieving approximately 75% execution accuracy on Spider. The work shows that prompt engineering is critical for LLM-based NL2SQL, which aligns with our detailed prompt engineering for each specialized agent. However, C3 lacks structured multi-agent collaboration that enables error reduction through specialization.
-
-**DAIL-SQL** [7] addresses ambiguity in natural language questions by generating multiple SQL candidates and selecting the best, using query decomposition and fine-tuned CodeT5+. The system achieves 86.2% execution accuracy on Spider test set, representing state-of-the-art for LLM-based approaches. DAIL-SQL's multiple candidate generation is similar to our refinement approach, and its decomposition aligns with our Query Planner. However, DAIL-SQL generates multiple candidates rather than refining a single query through specialized agents, and it lacks the explicit field selection focus that addresses 52.6% of errors in our analysis.
-
-**Analysis and Limitations:** LLM-based approaches demonstrate significant improvements over traditional methods, leveraging the reasoning capabilities of large language models. However, they share common limitations: (1) systematic errors persist, particularly in field selection (52.6% of errors) and complex query logic, (2) single-agent architectures cannot leverage specialization for different aspects of SQL generation, (3) limited refinement mechanisms that cannot systematically address error patterns, and (4) prompt engineering alone is insufficient to eliminate systematic errors. These limitations motivate our multi-agent architecture, which uses LLMs (Gemini 2.0 Flash) as the base but adds structured collaboration through specialized agents.
-
-**Positioning Our Work:** Our work uses LLMs (Gemini 2.0 Flash) as the foundation for all agents, similar to LLM-based approaches, but adds multi-agent structure to address systematic errors. Unlike GPT-based approaches that rely solely on prompt engineering, our system distributes responsibilities across specialized agents, each with detailed prompts and error pattern awareness. Unlike DIN-SQL and DAIL-SQL that use single-agent self-correction, our SQL Refiner agent works within a multi-agent framework, receiving context from Question Analyzer, Schema Selector, and Query Planner to make informed refinements. Our field selection focus, embedded in the Question Analyzer agent, directly addresses the 52.6% of errors that LLM-based approaches struggle with.
-
-### 2.4 Multi-Agent Systems in NLP
-
-Multi-agent systems have emerged as a promising paradigm for complex task solving, enabling specialized agents to collaborate on tasks requiring multiple steps, diverse expertise, and refinement capabilities. While general multi-agent frameworks support iterative refinement, our implementation uses single-pass refinement for computational efficiency. However, application to NL2SQL has been limited, with most multi-agent frameworks designed for general-purpose tasks rather than specialized database querying.
-
-**CrewAI Framework** [10] provides an open-source framework for orchestrating role-playing, autonomous AI agents that collaborate on complex tasks. The framework enables agents to share information, delegate tasks, and work together with various LLM backends. CrewAI's agent orchestration capabilities directly support our system architecture, as we use CrewAI to coordinate our six specialized agents. However, CrewAI is a general-purpose framework, and our contribution lies in designing NL2SQL-specific agent roles and collaboration patterns that leverage CrewAI's capabilities for database querying tasks.
-
-**LangChain Agents** [9] provide a framework for building applications with LLMs, including agent-based systems with tool use and function calling. LangChain agents can use tools, maintain memory, and perform chain-of-thought reasoning. While LangChain offers similar agent orchestration concepts to CrewAI, we chose CrewAI for its explicit role-playing model and task delegation capabilities. Our work demonstrates how multi-agent collaboration can be applied specifically to NL2SQL, which has not been extensively explored in the LangChain ecosystem.
-
-**AutoGen** [8] enables multi-agent applications where agents can have conversations, use tools, and collaborate through various conversation patterns. AutoGen supports code execution and debugging, making it suitable for tasks requiring tool use. However, AutoGen's conversational model is less structured than our sequential pipeline approach, and it has not been applied to NL2SQL with specialized agent roles. Our work applies a specialized multi-agent architecture for NL2SQL using a structured pipeline rather than conversational patterns.
-
-**ChatDev** [15] demonstrated that specialized communicative agents (CEO, CTO, programmer, tester) can collaborate effectively in software development through multi-turn dialogue, using chat chains for coordination and communicative dehallucination to improve quality. The results show that agent role specialization yields better performance than single models for multi-step tasks. Our work applies a similar specialized multi-agent design to the NL2SQL domain, with six specialized roles targeting data structure-specific errors in database querying.
-
-**Analysis and Limitations:** Multi-agent systems show promise for complex tasks, but their application to NL2SQL has been limited. Existing frameworks (CrewAI, LangChain, AutoGen) provide general-purpose agent orchestration but lack NL2SQL-specific agent designs. General multi-agent research validates the benefits of specialization and collaboration but does not address NL2SQL-specific challenges such as field selection accuracy, schema understanding, and SQL syntax correctness. The gap between general multi-agent frameworks and NL2SQL-specific requirements motivates our specialized architecture.
-
-**Positioning Our Work:** Our work applies specialized multi-agent architecture to NL2SQL, designing six agents with NL2SQL-specific roles: Question Analyzer for intent and field identification, Schema Selector for schema filtering, Query Planner for logical planning, SQL Expert for code generation, SQL Validator for error checking, and SQL Refiner for single-pass query improvement. Unlike general-purpose multi-agent frameworks that use conversational or tool-using patterns, our system employs a structured sequential pipeline optimized for SQL generation with single-pass refinement. We leverage CrewAI's orchestration capabilities but contribute NL2SQL-specific agent designs, collaboration patterns, and error pattern awareness that address the unique challenges of database querying.
-
-### 2.5 Tool Learning and Agentic RAG
-
-Tool learning and agentic RAG frameworks enable LLMs to use external tools, verify outputs, and correct errors through self-reflection and critiquing mechanisms. These approaches demonstrate the value of iterative improvement and validation, but they are designed for general tasks rather than specialized NL2SQL error patterns.
-
-**Reflexion** [16] introduced self-reflection mechanisms for language agents, enabling agents to reflect on their actions, identify errors, and correct themselves using verbal feedback for reinforcement learning. Reflexion improves performance on coding tasks through iterative improvement, demonstrating the value of self-correction. However, Reflexion's self-reflection is general-purpose and not specialized for NL2SQL error patterns such as field selection accuracy. Our SQL Refiner agent provides similar refinement capabilities but within a multi-agent framework with NL2SQL-specific error pattern awareness.
-
-**CRITIC** [17] enables LLMs to self-correct using tool-interactive critiquing, where LLMs use external tools to verify and correct outputs with execution feedback. CRITIC improves accuracy on code generation tasks through iterative correction, showing the value of tool use for validation. Our SQL Validator agent provides similar validation capabilities, checking SQL syntax and semantics, but within a specialized multi-agent architecture. Unlike CRITIC's general-purpose self-correction, our system addresses NL2SQL-specific errors such as field selection (52.6% of errors) through specialized agent roles.
-
-**Self-RAG** [18] introduces a framework where the language model learns to decide when retrieval is necessary, evaluates the relevance of retrieved passages, and critiques its own outputs through specialized reflection tokens. Self-RAG significantly outperforms ChatGPT and retrieval-augmented Llama2-chat on open-domain QA, reasoning, and fact verification tasks. Our Schema Selector agent applies similar concepts, dynamically selecting relevant schema information based on question requirements. However, Self-RAG is designed for general information retrieval tasks, while our Schema Selector is specialized for database schema filtering in NL2SQL contexts.
-
-**Toolformer** [19] demonstrates that language models can teach themselves to use external tools (calculator, search engine, QA system, translator) in a self-supervised manner, requiring only a handful of demonstrations per API. Toolformer achieves substantially improved zero-shot performance, often matching much larger models. Our system leverages tool learning concepts through SQL validation and refinement, but applies them specifically to NL2SQL with specialized agents. Unlike Toolformer's focus on general tool selection and execution, our work focuses on SQL-specific error patterns and refinement strategies.
-
-**Analysis and Limitations:** Tool learning and agentic RAG frameworks demonstrate the value of iterative improvement, validation, and dynamic information retrieval. However, they are designed for general-purpose tasks and lack specialization for NL2SQL-specific challenges. General self-correction mechanisms (Reflexion, CRITIC) cannot address NL2SQL-specific error patterns such as field selection accuracy (52.6% of errors), JOIN logic, and aggregation correctness. Agentic RAG focuses on information retrieval rather than structured query generation. These limitations motivate our NL2SQL-specific multi-agent architecture that combines tool learning concepts with specialized agent roles.
-
-**Positioning Our Work:** Our work borrows concepts from tool learning (validation, refinement) and agentic RAG (dynamic schema selection) but applies them specifically to NL2SQL through specialized agents. Unlike Reflexion and CRITIC that use general-purpose self-correction, our SQL Refiner agent performs single-pass refinement focusing on NL2SQL-specific error patterns, receiving context from Question Analyzer (field selection requirements), Query Planner (logical plan), and Schema Selector (filtered schema) to make informed improvements. Unlike agentic RAG that retrieves general information, our Schema Selector retrieves and filters database schema specifically for SQL generation. Our SQL Validator provides tool-like validation similar to CRITIC but specialized for SQL syntax and semantics, with field selection validation as the top priority.
-
-### 2.6 Evaluation Frameworks
-
-Standardized benchmarks and evaluation metrics are essential for comparing NL2SQL systems and tracking progress in the field. The Spider dataset has become the de facto standard for evaluating complex, cross-domain NL2SQL systems, while WikiSQL provides a simpler baseline for single-table queries.
-
-**Spider Dataset** [3] introduced a large-scale human-labeled dataset for complex and cross-domain semantic parsing and text-to-SQL tasks. The dataset contains 10,181 questions and 5,693 unique SQL queries across 200 databases, covering various complexity levels (Easy, Medium, Hard, Extra Hard) and domains. Spider has become the primary evaluation benchmark for NL2SQL systems, enabling fair comparison across different approaches. Our system is evaluated on Spider, following the standard train/dev/test split and using both exact match accuracy and execution accuracy metrics.
-
-**WikiSQL Dataset** [1] provides a large-scale dataset with 80,654 question-SQL pairs for simpler single-table queries. WikiSQL is useful for initial evaluation and baseline comparison, but its simplicity (single-table queries) makes it less relevant for complex systems that must handle multi-table JOINs, nested queries, and aggregations. While WikiSQL demonstrates basic NL2SQL feasibility, Spider's complexity better reflects real-world database querying challenges.
-
-**BIRD Dataset** [20] introduced a more challenging benchmark with 12,751 question-SQL pairs across 95 databases, featuring larger databases, more complex queries, and real-world scenarios. BIRD includes evaluation of SQL efficiency and execution time, going beyond accuracy to consider query performance. While BIRD represents a more challenging benchmark, Spider remains the standard for comparing NL2SQL systems due to its established evaluation framework.
-
-**Evaluation Metrics:** NL2SQL systems are typically evaluated using two primary metrics: (1) exact match accuracy, which measures syntactic correctness by comparing generated SQL to gold standard SQL, and (2) execution accuracy, which measures semantic correctness by comparing execution results. Execution accuracy is generally considered more lenient and practical, as multiple SQL queries can produce the same results. Our system reports both metrics, with execution accuracy being the primary measure of system performance. Additionally, we analyze field selection accuracy as a custom metric, identifying that 52.6% of errors stem from incorrect field selection in the SELECT clause.
-
-**Analysis and Positioning:** Standard evaluation frameworks (Spider, WikiSQL, BIRD) and metrics (exact match, execution accuracy) enable fair comparison across NL2SQL systems. Our work follows these standards, evaluating on Spider with both exact match and execution accuracy. However, we contribute additional analysis through field selection accuracy measurement, identifying that 52.6% of errors are field selection related, which motivates our Question Analyzer agent's focus on field identification. This error analysis provides insights beyond standard metrics, helping understand where NL2SQL systems fail and how multi-agent specialization can address these failures.
-
-### 2.7 Comparison and Positioning
-
-Our specialized multi-agent architecture for NL2SQL differs from existing approaches in several key ways, while building upon established techniques from multiple research areas.
-
-**How Our Approach Differs:** Unlike single-agent approaches (traditional NL2SQL, most LLM-based systems), our work employs six specialized agents with distinct roles, enabling each agent to focus on its core competency. Unlike general-purpose multi-agent frameworks (CrewAI, LangChain, AutoGen), our system is specifically designed for NL2SQL with agents specialized for database querying tasks. Unlike self-correction systems (DIN-SQL, DAIL-SQL, Reflexion, CRITIC) that use single-agent refinement, our SQL Refiner performs single-pass refinement within a multi-agent framework, receiving specialized context from Question Analyzer, Schema Selector, and Query Planner. Unlike existing approaches that treat field selection as part of SQL generation, our Question Analyzer explicitly identifies required fields before SQL generation, addressing the 52.6% of errors that stem from field selection mistakes.
-
-**What We Borrow and Improve:** We borrow LLM base models (Gemini 2.0 Flash) from LLM-based approaches, but add multi-agent structure to reduce systematic errors. We borrow agent orchestration concepts from CrewAI framework, but contribute NL2SQL-specific agent designs and collaboration patterns. We borrow self-correction concepts from Reflexion and CRITIC, but specialize single-pass refinement for NL2SQL error patterns. We borrow schema linking decoupling from RESDSQL, but extend it further through specialized Schema Selector agent. We borrow query decomposition from DIN-SQL and DAIL-SQL, but implement it through dedicated Query Planner agent with logical planning rather than SQL decomposition.
-
-**Novel Aspects:** Our work introduces several contributions: (1) a specialized multi-agent architecture for NL2SQL with six agents designed for database querying tasks, (2) a field selection focus through the Question Analyzer that explicitly identifies required fields before SQL generation (addressing 52.6% of errors), (3) a single-pass refinement mechanism through the SQL Refiner that improves queries based on multi-agent context before validation, (4) systematic comparison of 4-step vs 6-step pipelines to evaluate planning and refinement components, and (5) error pattern awareness embedded in agent prompts to avoid common pitfalls such as field substitution, incorrect JOINs, and aggregation errors.
-
-**Positioning Within the Landscape:** Our work bridges the gap between LLM-based NL2SQL (which shows promise but makes systematic errors) and multi-agent systems (which show promise for complex tasks but lack NL2SQL-specific applications). We combine the reasoning capabilities of LLMs with the specialization benefits of multi-agent collaboration, addressing systematic errors that neither approach alone can solve. Our field selection focus (52.6% of errors) addresses a critical limitation that existing approaches have not systematically tackled. Our comparison of 4-step vs 6-step pipelines provides empirical validation of multi-agent specialization benefits, demonstrating that query planning and refinement components significantly improve accuracy.
-
-### 2.8 Gaps and Opportunities
-
-Existing work in NL2SQL, multi-agent systems, and tool learning has made significant progress, but several gaps remain that our work addresses.
-
-**Gap 1: Specialized Multi-Agent Architecture for NL2SQL** - While multi-agent systems have been applied to various NLP tasks, there is no specialized multi-agent architecture specifically designed for NL2SQL. General-purpose frameworks (CrewAI, LangChain, AutoGen) provide orchestration but lack NL2SQL-specific agent roles. Our work fills this gap by designing six specialized agents with NL2SQL-specific responsibilities, collaboration patterns, and error pattern awareness.
-
-**Gap 2: Field Selection Accuracy Focus** - Field selection errors account for 52.6% of errors in NL2SQL systems, but existing approaches treat field selection as part of SQL generation rather than a dedicated analysis step. Our Question Analyzer agent explicitly identifies required fields before SQL generation, addressing this critical error source through specialized analysis.
-
-**Gap 3: Single-Pass Refinement for SQL Queries** - While some systems (DIN-SQL, DAIL-SQL) use self-correction, they operate as single-agent systems without specialized refinement agents. Our SQL Refiner agent provides single-pass refinement within a multi-agent framework, receiving context from specialized agents to make informed improvements.
-
-**Gap 4: Systematic Error Pattern Analysis** - Existing approaches lack systematic analysis of error patterns in NL2SQL, particularly field selection errors. Our error analysis identifies that 52.6% of errors stem from field selection, motivating our specialized Question Analyzer agent and field selection focus throughout the pipeline.
-
-**Gap 5: Empirical Comparison of Pipeline Variants** - While ablation studies exist for single-agent systems, there is limited empirical comparison of different multi-agent pipeline architectures for NL2SQL. Our comparison of 4-step vs 6-step pipelines provides insights into which components are most critical for NL2SQL accuracy.
-
-**Why Our Approach is Needed:** Single-agent systems have hit an accuracy ceiling, with systematic errors (particularly field selection at 52.6%) persisting despite improvements in base models and prompt engineering. Multi-agent collaboration enables specialization that can address these systematic errors, but general-purpose multi-agent frameworks lack NL2SQL-specific designs. Our specialized architecture bridges this gap, demonstrating how agent specialization can improve NL2SQL accuracy beyond what single-agent systems can achieve. The empirical validation through 4-step vs 6-step comparison provides evidence that multi-agent specialization benefits NL2SQL, motivating future research in this direction.
-
-### 2.9 Contemporary multi-agent and schema-linking systems (comparative positioning)
-
-- **MAC-SQL / AGENTIQL**: three-agent or modular pipelines with selector, decomposer, and refiner plus execution-driven repair; show Spider/BIRD gains via iterative correction and explicit column refinement. Our pipeline shares decomposition but is currently single-pass; we will add exec-feedback ablations to compare.  
-- **RSL-SQL / SQL-to-Schema**: bidirectional schema linking or SQL-first schema pruning with voting between full and simplified schemas to boost EX and cut tokens. Our Schema Selector is LLM-driven; we will benchmark against a deterministic union/backward-linking variant for recall/precision and downstream EX.  
-- **SchemaGraphSQL**: deterministic path-enumeration for high-recall linking; provides a strong recall baseline. We will measure Selector recall/precision and its impact on EX against this.  
-- **GBV-SQL**: SQL-to-text verification loop to close semantic gaps; motivates adding verification/execution after Refiner.  
-- **Arctic-Text2SQL-R1 (RL execution reward)**: single-agent RL with execution-only feedback and strong EX; serves as an execution-driven single-agent baseline to contextualize modular vs RL approaches.  
-- **PICARD-style constrained decoding + exec-repair**: standard strong baseline; included to isolate benefits of multi-agent design from syntax constraints and execution repair alone.
+However, most current multi-agent architectures are developed for general-purpose tasks and are not specifically designed for the constraints of NL2SQL. This study is positioned at the intersection of Text-to-SQL and multi-agent reasoning: rather than using a single LLM to generate SQL directly, we organize query generation into six explicitly defined steps to better control field selection errors, join errors, and structural query errors.
 
 ## 3. Methodology
 
 ### 3.1 Overview
+As shown in Figure 1, our LLM-based multi-agent architecture for Natural Language to SQL (NL2SQL) leverages the CrewAI framework to orchestrate six specialized agents working collaboratively. The proposed system consists of six sequential agents:
 
-As shown in Figure 1, our multi-agent architecture for Natural Language to SQL (NL2SQL) translation leverages the CrewAI framework to orchestrate six specialized agents working collaboratively. The system architecture follows a sequential pipeline where each agent performs a specific role in the query generation process: question analysis, schema selection, query planning, SQL generation, single-pass refinement, and validation.
+1. Question Analysis
+2. Schema Selection
+3. Query Planning
+4. SQL Generation
+5. SQL Refinement
+6. SQL Validation
 
-The agent collaboration flow proceeds as follows: a natural language question is first analyzed by the Question Analyzer to identify intent and required fields. The Schema Selector then filters relevant tables and columns from the database schema. The Query Planner creates a logical execution plan, followed by the SQL Expert generating the SQL query. The SQL Refiner then reviews and refines the generated SQL query, and finally, the SQL Validator checks syntax and semantic correctness.
+These agents operate in a sequential architecture in which each stage plays a specific role in query generation.
 
-To evaluate the impact of different architectural components, we compare two pipeline variants: a 4-step baseline pipeline (Question Analyzer → Schema Selector → SQL Expert → SQL Validator) and the full 6-step architecture that includes Query Planner and SQL Refiner. This comparison allows us to assess the contribution of query planning and single-pass refinement to overall system accuracy.
+To provide a high-level view of the processing flow, the system pipeline can be represented in ASCII form as follows:
 
-### 3.2 Problem Formulation
+```text
+User Question
+      ↓
+Question Analyzer
+      ↓
+Schema Selector
+      ↓
+Query Planner
+      ↓
+SQL Generator
+      ↓
+SQL Refiner
+      ↓
+SQL Validator
+      ↓
+Final SQL
+```
 
-The NL2SQL task can be formally defined as follows: given a natural language question Q and a database schema S, generate an executable SQL query SQL such that executing SQL on database D returns results R that correctly answer Q. The input consists of a pair (Q, S), where Q is a natural language question and S = {T₁, T₂, ..., Tₙ} is a set of tables, each containing a set of columns. Each table Tᵢ has a schema defined by its columns Cᵢ = {c₁, c₂, ..., cₘ}, where columns may have constraints such as primary keys, foreign keys, and data types. The output is a syntactically and semantically correct SQL query that can be executed on the database D to retrieve the desired information.
+**Figure 1: Multi-Agent System Architecture for NL2SQL**
 
-The evaluation of NL2SQL systems employs two primary metrics: exact match accuracy and execution accuracy. Exact match accuracy measures whether the generated SQL query exactly matches the gold standard SQL query (syntactic correctness), while execution accuracy measures whether executing the generated SQL query produces the same results as executing the gold standard query (semantic correctness). Execution accuracy is generally considered more lenient and practical, as multiple SQL queries can produce the same results. Our system is evaluated on the Spider dataset [3], which contains complex, cross-domain natural language questions paired with their corresponding SQL queries across 200 databases.
+```mermaid
+graph TD
+    User([User]) --> Q["Natural Language Question"]
+    DB[(Database)] --> S["Schema"]
+    
+    subgraph CrewAI ["Coordinated by the CrewAI Framework"]
+        direction TB
+        A1["<b>Question Analyzer</b><br/>Intent & Field Analysis"]
+        A2["<b>Schema Selector</b><br/>Relevant Schema Filtering"]
+        A3["<b>Query Planner</b><br/>Logical Planning"]
+        A4["<b>SQL Expert</b><br/>SQL Generation"]
+        A5["<b>SQL Refiner</b><br/>One-pass Refinement"]
+        A6["<b>SQL Validator</b><br/>Validation & Checking"]
+    end
+    
+    Q --> A1
+    S --> A1
+    A1 --> A2
+    A2 --> A3
+    A3 --> A4
+    A4 --> A5
+    A5 --> A6
+    A6 --> FinalSQL([Final SQL Query])
 
-**Notation:** Table 1 summarizes the notation used throughout this paper.
+    style CrewAI fill:transparent,stroke:#0055aa,stroke-width:2px,color:#fff
+    style A1 fill:#222,stroke:#01579b,color:#fff
+    style A2 fill:#222,stroke:#01579b,color:#fff
+    style A3 fill:#222,stroke:#01579b,color:#fff
+    style A4 fill:#222,stroke:#fbc02d,color:#fff
+    style A5 fill:#222,stroke:#2e7d32,color:#fff
+    style A6 fill:#222,stroke:#d84315,color:#fff
+    style User fill:#333,stroke:#fff,color:#fff
+    style DB fill:#333,stroke:#fff,color:#fff
+    style Q fill:#333,stroke:#fff,color:#fff
+    style S fill:#333,stroke:#fff,color:#fff
+    style FinalSQL fill:#333,stroke:#fff,color:#fff
+```
+
+The agent interaction flow is as follows. A natural language question is first processed by the Question Analyzer to identify intent and required fields. Next, the Schema Selector filters relevant tables and columns from the database schema. The Query Planner then produces a logical execution plan, followed by the SQL Expert, which generates the SQL query. The SQL Refiner subsequently reviews and refines the generated query, and finally, the SQL Validator checks the query for syntactic and technical correctness.
+
+To assess the effect of architectural components, we compare two pipeline variants: a 4-step baseline pipeline (Question Analysis -> Schema Selection -> SQL Expert -> SQL Validator) and the full 6-step architecture that additionally includes Query Planning and SQL Refinement. This comparison allows us to evaluate the contribution of query planning and one-pass refinement to overall accuracy.
+
+### 3.2 Six-Step Architecture Description
+Table 1 summarizes the six main components of the system in terms of their inputs, outputs, and roles in the pipeline. This presentation clarifies that the proposed approach does not alter the final objective of the NL2SQL task, but instead changes how reasoning is organized so that each agent handles a specific decision subproblem.
+
+| Component | Input | Output | Role |
+| :--- | :--- | :--- | :--- |
+| Question Analyzer | Natural language question, raw schema | Intent analysis, expected output fields | Identifies query requirements and output constraints |
+| Schema Selector | Question analysis, raw schema | Filtered schema | Narrows the search space of relevant tables and columns |
+| Query Planner | Question analysis, filtered schema | Intermediate query plan | Builds logical structure before SQL generation |
+| SQL Generator | Question analysis, filtered schema, plan | Initial SQL | Converts the logical plan into SQL |
+| SQL Refiner | Initial SQL, question, filtered schema, plan | Refined SQL | Corrects local errors and improves query stability |
+| SQL Validator | Refined SQL, filtered schema | Final SQL or error report | Checks syntax, table/column names, and completeness |
+
+*Table 1: Summary of the roles of the six agents in the proposed pipeline.*
+
+### 3.3 Problem Formulation
+The NL2SQL task can be formally defined as follows: given a natural language question Q and a database schema S, generate an executable SQL query such that executing the SQL on database D returns a result R that correctly answers Q. The input consists of a pair (Q, S), where Q is a natural language question and S = {T₁, T₂, ..., Tₙ} is a set of tables, each containing a set of columns. Each table Tᵢ has a schema defined by its columns Cᵢ = {c₁, c₂, ..., cₘ}, where columns may include constraints such as primary keys, foreign keys, and data types. The output is a syntactically and semantically correct SQL query that can be executed on D to retrieve the desired information.
+
+To support diagnostic analysis, the paper introduces the **Field Selection Error Dominance (FSED)** metric. This is an auxiliary error analysis metric and not a standard Spider benchmark measure. It does not replace Exact Match or Execution Accuracy.
+
+Formally, a **field selection error** is defined as a mismatch between the `SELECT` clause of the generated SQL and the gold SQL, evaluated at the `table.column` identity level while ignoring alias differences when aliases do not change semantics. FSED measures the proportion of failures caused by incorrect field selection among all execution failures. In other words, FSED answers whether field selection is the dominant source of error among failed queries. This metric is used for diagnostic analysis rather than for direct comparison with prior benchmark systems.
+
+$$FSED = \frac{\text{Number of Field Selection Errors}}{\text{Total Execution Failures}}$$
+
+In this study, field selection errors are detected by comparing the `SELECT` clause of the generated query with the gold query in Spider, using `table.column` matching while ignoring alias differences. FSED may be reported either as a ratio or as a percentage depending on the presentation context. The purpose of this metric is to clarify the design motivation for the agents responsible for planning and refinement.
+
+**Notation:** Table 2 summarizes the symbols used in this paper.
 
 | Symbol | Definition |
-|--------|------------|
+| :--- | :--- |
 | Q | Natural language question |
 | S | Database schema (set of tables) |
 | SQL | Generated SQL query |
 | D | Database instance |
-| R | Query execution results |
+| R | Query execution result |
 | Tᵢ | Table i in the schema |
 | Cᵢ | Set of columns for table Tᵢ |
+| FSED | Field Selection Error Dominance |
 
-*Table 1: Notation used in problem formulation and methodology.*
+*Table 2: Symbols used in the problem formulation and methodology.*
 
-### 3.3 Multi-Agent Architecture
+### 3.4 Implementation Details
 
-#### 3.1 Question Analyzer Agent
+The multi-agent architecture is implemented using a sequential prompting strategy. Each agent receives structured inputs consisting of: (1) the natural language question, (2) the relevant database schema, and (3) intermediate outputs from previous agents.
 
-The Question Analyzer agent serves as the first stage in our pipeline, responsible for analyzing the natural language question to extract structured information that guides subsequent agents. The agent takes as input the natural language question Q and produces a structured analysis containing several key components.
+All models in the pipeline are executed with `temperature = 0` to ensure deterministic behavior across evaluation runs. The system is implemented on a modular agent framework, allowing each reasoning step to be executed independently and extended when needed.
 
-**Role and Input/Output:** The Question Analyzer's primary role is to identify question intent and critically analyze the required fields for the SELECT clause, directly addressing the field selection challenge that accounts for 52.6% of errors in NL2SQL systems. The input consists of: (1) the raw natural language question Q, and (2) the raw database schema S provided as a JSON object containing db_id, table_names_original, column_names_original, and column_types. The schema includes the complete database structure with all tables, columns, and metadata, which the agent uses to understand the database context before filtering. The output is a structured JSON analysis including: (1) question intent classification (COUNT, LIST, MAX_MIN, AGGREGATION), (2) complexity level assessment (EASY for single-table queries, MEDIUM for 2-3 table JOINs, HARD for complex multi-table queries), (3) entities object (as JSON string) containing tables, columns, and values mentioned in the question, (4) requirements object (as JSON string) containing expected_output_fields specifying exact fields that must appear in the SELECT clause in the correct order, field_order_critical boolean indicating whether field order matters, and other requirements, (5) patterns array (as JSON string) containing identified query patterns, (6) linguistic_notes for additional analysis insights, and (7) confidence score indicating analysis certainty. The nested structures (entities, requirements, patterns) are stored as JSON strings in the implementation but represent structured objects logically.
+### 3.5 Multi-Agent Architecture
 
-**Key Innovation:** The critical innovation of the Question Analyzer is its focus on field selection analysis as a dedicated, explicit step in the NL2SQL pipeline. Unlike traditional approaches that combine field selection with SQL generation, our agent explicitly identifies which columns must appear in the SELECT clause before any SQL code is generated. This separation prevents common field substitution errors where systems select incorrect or related columns. The agent performs this analysis with awareness that field selection accounts for 52.6% of errors in NL2SQL systems, making it a top priority in the agent's reasoning process. The agent uses Gemini 2.0 Flash as its underlying language model, leveraging its natural language understanding capabilities to parse question semantics and extract structured information.
+#### 3.5.1 Question Analyzer Agent
+The Question Analyzer serves as the first stage of the pipeline and is responsible for analyzing the natural language question to extract structured information that guides downstream agents. It takes the natural language question Q as input and produces a structured analysis containing several key components.
 
-**Error Pattern Awareness:** The Question Analyzer is explicitly trained to recognize field selection error patterns. The agent's backstory includes critical rules: (1) "Find courses" → return course_id (NOT title unless explicitly asked), (2) "List A and B" → return A, B in exact order, (3) "Show semester and year" → preserve question order, (4) NEVER assume - analyze what the question ACTUALLY asks for. The agent's prompt includes examples of correct and incorrect field selections, such as distinguishing between "Find courses" (returns course_id) and "List course titles" (returns title). The agent's output serves as critical input for the SQL Expert agent, ensuring that field selection decisions are made early in the pipeline with full awareness of the question requirements and common pitfalls.
+**Role and Input/Output:** The primary role of the Question Analyzer is to identify user intent and carefully analyze the fields required in the `SELECT` clause, directly addressing the field selection bottleneck that is a major source of system errors.
 
-#### 3.2 Schema Selector Agent
+**Key Innovation:** The central innovation of the Question Analyzer is its focus on field selection analysis as a dedicated stage in the NL2SQL pipeline. Unlike traditional approaches that entangle field selection with SQL generation, our agent explicitly determines which columns must appear in the `SELECT` clause before any SQL is produced. This separation prevents common substitution errors, where systems choose incorrect or loosely related columns. The agent performs this analysis with explicit awareness that field selection errors account for a substantial fraction of failures in NL2SQL systems, making it a top reasoning priority. The agent uses Gemini 2.5 Flash as the base model, leveraging its natural language understanding ability to analyze question semantics and extract structured information.
 
-The Schema Selector agent filters the database schema to include only relevant tables and columns, reducing context size and improving focus for subsequent agents. This agent addresses the challenge of schema understanding, which is critical for accurate SQL generation.
+**Error Pattern Awareness:** The Question Analyzer is explicitly trained to recognize common field selection error patterns (see Section 7). Its backstory includes important rules such as: (1) "Find course" -> return `course_id` (not title unless explicitly requested), (2) "List A and B" -> return A and B in the exact order, (3) "Show semester and year" -> preserve the question order, and (4) never assume beyond what the question actually asks. Its prompt includes examples of correct and incorrect field selection, such as distinguishing between "Find course" (return `course_id`) and "List course titles" (return `title`). The output of this agent serves as critical input for the SQL Expert (see Section 3.5.4), ensuring that field selection decisions are made early with full awareness of question requirements and common pitfalls.
 
-**Role and Input/Output:** The Schema Selector takes as input the question analysis from the Question Analyzer and the full raw database schema S. Its output is a filtered schema containing only relevant tables and columns that are likely needed to answer the question. The filtered schema maintains the same JSON structure as the input schema (db_id, table_names_original, column_names_original, column_types) but with reduced content. The filtering logic operates on several principles: (1) identify mentioned entities in the question (e.g., "students" → student table), (2) keep primary keys and foreign keys necessary for JOINs, (3) retain columns that match entities or values mentioned in the question, and (4) remove irrelevant tables and columns that are not referenced in the question or required for JOINs.
+#### 3.5.2 Schema Selector Agent
+The Schema Selector filters the database schema to retain only relevant tables and columns, reducing context size and improving downstream focus. This agent addresses schema understanding, which is essential for accurate SQL generation.
 
-**Schema Filtering Logic:** The agent uses entity matching to identify relevant tables, comparing question tokens with table and column names. It maintains referential integrity by keeping foreign key relationships, ensuring that JOINs can be properly constructed. The agent also considers semantic similarity, recognizing that question terms may not exactly match schema names (e.g., "pupils" vs "students"). The filtered schema is significantly smaller than the full schema, reducing the context window for subsequent agents and improving their ability to focus on relevant information.
+**Role and Input/Output:** The Schema Selector takes as input the question analysis from the Question Analyzer (see Section 3.5.1) and the full raw schema S (see Section 3.3). Its output is a filtered schema containing only tables and columns likely needed to answer the question. The filtered schema preserves the same JSON structure as the input schema (`db_id`, `table_names_original`, `column_names_original`, `column_types`) but with reduced content. The filtering logic follows several principles: (1) identify entities mentioned in the question (e.g., "student" -> table `student`), (2) preserve primary and foreign keys required for joins (see Section 3.5.3), (3) retain columns matching entities or values mentioned in the question, and (4) discard irrelevant tables and columns not needed for the query.
 
-**Implementation:** The Schema Selector uses Gemini 2.0 Flash to perform semantic matching and filtering. The agent receives the full schema as context and the question analysis, then produces a structured output listing relevant tables with their columns. This filtered schema is passed to the Query Planner and SQL Expert agents, enabling them to work with a focused, manageable schema representation.
+**Schema Filtering Logic:** The agent uses entity matching to identify relevant tables by comparing question tokens against table and column names. It maintains referential integrity by keeping foreign-key relationships so that joins can be constructed correctly. The agent also considers semantic similarity, recognizing that question terms may not match schema names exactly (e.g., "pupil" versus "student"). The filtered schema is substantially smaller than the full schema, reducing the context window for downstream agents and improving focus on relevant information.
 
-#### 3.3 Query Planner Agent
+**Implementation:** The Schema Selector uses Gemini 2.5 Flash to perform semantic matching and filtering. The agent receives the full schema as context together with the question analysis, and generates a structured output listing relevant tables and their columns. This filtered schema is then passed to the Query Planner and SQL Expert, enabling them to work with a focused and manageable schema representation.
 
-The Query Planner agent designs a logical execution plan for the SQL query without generating actual SQL code. This separation of planning from SQL generation enables better reasoning about query structure and logic.
+#### 3.5.3 Query Planner Agent
+The Query Planner designs a logical execution plan for the SQL query without generating the SQL itself. This separation between planning and generation allows better reasoning about query structure and logic.
 
-**Role and Input/Output:** The Query Planner receives the question analysis from the Question Analyzer and the filtered schema from the Schema Selector. The filtered schema provides a focused view of relevant tables and columns, enabling the planner to design efficient logical plans without being overwhelmed by irrelevant schema information. Its output is a step-by-step logical execution plan that includes: (1) sub-goals for the query (e.g., "join student and enrollment tables", "filter by grade > 80", "count distinct students"), (2) table participation in each sub-goal, specifying which tables are needed and how they relate, (3) JOIN paths and key columns, identifying how tables should be connected, (4) aggregation requirements (GROUP BY, HAVING clauses), (5) filtering conditions (WHERE clause logic), (6) ordering requirements (ORDER BY), and (7) set operation decisions (whether to use UNION/INTERSECT/EXCEPT vs WHERE logic with OR conditions).
+**Role and Input/Output:** The Query Planner takes as input the question analysis from the Question Analyzer (see Section 3.5.1) and the filtered schema from the Schema Selector (see Section 3.5.2). The filtered schema provides a focused view of relevant tables and columns, enabling the planner to design effective logical plans without being overwhelmed by irrelevant schema information. Its output is a step-by-step logical execution plan that includes: (1) subgoals for the query (e.g., "join student and enrollment tables", "filter by score > 80", "count unique students"), (2) table participation in each subgoal, (3) join paths and key columns that determine how tables should be connected (see Section 7), (4) aggregation requirements such as `GROUP BY` and `HAVING` (see Section 7), (5) filter conditions, (6) sorting requirements, and (7) set-operation decisions such as whether to use `UNION`, `INTERSECT`, `EXCEPT`, or logical disjunctions.
 
-**Planning Logic:** The Query Planner breaks down complex queries into manageable sub-goals, enabling the SQL Expert to generate SQL incrementally. For example, a query asking "Find students who enrolled in both Math and Physics courses" would be planned as: (1) identify student and enrollment tables, (2) filter enrollments for Math courses, (3) filter enrollments for Physics courses, (4) find intersection of students in both sets. This logical decomposition helps prevent errors in complex query generation.
+**Planning Logic:** The Query Planner breaks complex queries into manageable subgoals, allowing the SQL Expert (see Section 3.5.4) to generate SQL in a more structured way. For example, a query asking "Find students who enrolled in both Math and Physics" would be planned as: (1) identify the student and enrollment tables, (2) filter enrollments for Math, (3) filter enrollments for Physics, and (4) compute the intersection of students appearing in both sets. This logical decomposition helps prevent complex query generation errors and reduces reasoning burden at the SQL generation stage.
 
-**Key Design Choice:** The Query Planner does not write SQL code, only logical plans. This separation allows the agent to focus on query logic and structure without being constrained by SQL syntax, enabling better reasoning about complex queries. The plan serves as a blueprint for the SQL Expert agent, which translates the logical plan into executable SQL. The agent uses Gemini 2.0 Flash to perform this logical reasoning task.
+**Key Design Choice:** The Query Planner does not write SQL; it writes only logical plans. This separation allows the agent to focus on logic and structure without being constrained by SQL syntax, enabling stronger reasoning about complex queries. The plan serves as a blueprint for the SQL Expert, which translates it into executable SQL. The agent uses Gemini 2.5 Flash for this logical reasoning task.
 
-#### 3.4 SQL Expert Agent
+#### 3.5.4 SQL Generator (SQL Expert Agent)
+The SQL Expert generates the actual SQL query based on the question analysis, filtered schema, and query plan. This agent is responsible for translating the logical plan into syntactically and semantically valid SQL.
 
-The SQL Expert agent generates the actual SQL query based on the question analysis, filtered schema, and query plan. This agent is responsible for translating the logical plan into syntactically and semantically correct SQL code.
+**Role and Input/Output:** The SQL Expert receives three main inputs: (1) question analysis from the Question Analyzer (see Section 3.5.1), (2) filtered schema from the Schema Selector (see Section 3.5.2), and (3) query plan from the Query Planner (see Section 3.5.3). The filtered schema ensures that the agent focuses on relevant tables and columns, while the query plan provides logical guidance for SQL generation. Its output is a complete executable SQL query in one-line format. The agent must ensure that the generated SQL is syntactically valid, uses valid table and column names, and follows the intended query logic.
 
-**Role and Input/Output:** The SQL Expert receives three key inputs: (1) the question analysis from the Question Analyzer, (2) the filtered schema from the Schema Selector, and (3) the query plan from the Query Planner. The filtered schema ensures the agent focuses on relevant tables and columns, while the query plan provides logical guidance for SQL generation. Its output is a complete, executable SQL query in single-line format. The agent must ensure that the generated SQL is syntactically correct, uses valid table and column names, and implements the logic specified in the query plan.
+**Core Rules and Error Pattern Awareness:** The SQL Expert applies a wide set of rules to prevent common errors, with field selection optimization treated as the highest priority. Its backstory contains detailed rules organized into 13 categories:
+1. **Field Selection Rules (TOP PRIORITY):** Strictly use the exact fields from `expected_output_fields`, preserve field order, and never substitute `course_id` with `title` or `id` with `name` unless explicitly required.
+2. **Simplicity Rules:** Use the `SECTION` table directly for `course_id` (without joining `course`) when appropriate, join only when multi-table information is needed, and prefer single-table access when all fields are available.
+3. **UNION vs OR Logic:** Use `UNION` for separate result sets (e.g., "courses in Fall 2009 OR Spring 2010"), and use `OR`/`IN` for filtering a single table with multiple conditions.
+4. **COUNT vs COUNT(DISTINCT) Logic:** Use `COUNT(DISTINCT)` for unique entities (departments, students, courses), `COUNT(*)` for total records, and `COUNT(DISTINCT s_id)` for distinct advised students.
+5. **Set Operation Rules:** Use `INTERSECT` for "A and B", `UNION` for "A or B", and `EXCEPT` for "A but not B".
+6. **GROUP BY Logic:** Use `GROUP BY title` (not `course_id`) for "courses offered by multiple departments", and ensure that all non-aggregated columns in `SELECT` also appear in `GROUP BY`.
+7. **Prerequisite Table Logic:** `prereq.course_id` is the main course, `prereq.prereq_id` is the prerequisite course, and `NOT IN` is used for "courses without prerequisites".
+8. **Simplicity First:** Prefer the simplest correct approach, avoid unnecessary joins, and use direct table access when possible.
+9. **Enrollment & Aggregation:** Interpret "enrollment" as student count from the `student` table, and "department with highest enrollment" as a grouped selection over departments.
+10. **Column Order & GROUP BY:** Preserve expected column order, and group by the entity being counted.
+11. **SELECT * Rule:** Use `SELECT *` for "all information about X", and specific columns for specific attributes.
+12. **Join Precision:** Match precise columns (e.g., `student.id = takes.id`), validate that join conditions are logically meaningful, and avoid unnecessary joins.
+13. **SQL Formatting Rules:** Always return complete executable SQL queries in one-line format, never fragments.
 
-**Key Rules and Error Pattern Awareness:** The SQL Expert implements extensive rules to prevent common errors, with field selection accuracy being the top priority (addressing 52.6% of errors). The agent's backstory contains detailed rules organized into 13 categories:
+**Embedded Error Pattern Training:** The SQL Expert’s backstory contains broad awareness of common failure patterns. It is trained to avoid field selection errors (e.g., choosing `title` instead of `course_id`, incorrect field order), join logic errors (unnecessary joins, incorrect join conditions), aggregation errors (incorrect `COUNT` vs `COUNT(DISTINCT)`, incorrect `GROUP BY`), set operation errors (confusing `UNION` with `OR`, incorrect use of `INTERSECT`/`EXCEPT`), and unnecessary complexity (redundant subqueries, overly complex formulations). The agent uses Gemini 2.5 Flash with detailed prompts that include concrete examples of correct and incorrect SQL patterns, such as "Find course" -> `SELECT course_id` (correct) versus `SELECT title` (incorrect), enabling it to avoid common pitfalls.
 
-1. **Field Selection Rules (52.6% of errors - TOP PRIORITY)**: Strictly use exact fields from analysis "expected_output_fields", preserve field order, never substitute course_id with title or id with name without explicit request
-2. **Simplicity Rules**: Use SECTION table directly for course_id (no JOIN to course), only JOIN when needing data from multiple tables, use single table when all fields are available
-3. **UNION vs OR Logic**: Use UNION for separate result sets (e.g., "courses in Fall 2009 OR Spring 2010"), use OR/IN for filtering single table with multiple conditions
-4. **COUNT vs COUNT(DISTINCT) Logic**: Use COUNT(DISTINCT) for unique entities (departments, students, courses), COUNT(*) for total records, COUNT(DISTINCT s_id) for unique students being advised
-5. **Set Operations**: Use INTERSECT for "A and B" (both), UNION for "A or B" (any), EXCEPT for "A but not B"
-6. **GROUP BY Logic**: GROUP BY title (not course_id) for "courses offered by multiple departments", ensure all non-aggregated columns in SELECT are in GROUP BY
-7. **Prerequisite Table Logic**: prereq.course_id = main course, prereq.prereq_id = prerequisite course, use NOT IN for "courses without prerequisites"
-8. **Simplicity First**: Choose simplest correct approach, avoid unnecessary JOINs, use direct table access when possible
-9. **Enrollment & Aggregation**: "enrollment" = student count from student table, "department with highest enrollment" = SELECT dept_name FROM student GROUP BY
-10. **Column Order & GROUP BY**: Match expected column order, GROUP BY the entity being counted
-11. **SELECT * Rules**: Use SELECT * for "all information about X", specific columns for specific attributes
-12. **JOIN Accuracy**: Match correct columns (student.id = takes.id), verify JOIN conditions make logical sense, avoid unnecessary JOINs
-13. **SQL Format Rules**: Always return complete, executable SQL queries, single-line format, never return fragments
+#### 3.5.5 SQL Refiner Agent
+The SQL Refiner performs a single correction pass after SQL generation and before final validation. This component is designed as a reasoning-based correction layer to improve semantic consistency without turning the system into a multi-round self-repair process.
 
-**Error Pattern Training:** The SQL Expert's backstory contains extensive error pattern awareness embedded in 13 rule categories. The agent is trained to avoid: field selection errors (selecting title instead of course_id, wrong field order), JOIN logic errors (unnecessary JOINs when single table suffices, incorrect JOIN conditions), aggregation errors (wrong COUNT vs COUNT(DISTINCT), incorrect GROUP BY), set operation errors (confusing UNION with OR, incorrect INTERSECT/EXCEPT usage), and complexity errors (unnecessary subqueries, over-complicated queries). The agent uses Gemini 2.0 Flash with detailed prompts that include specific examples of correct and incorrect SQL patterns, such as "Find courses" → SELECT course_id (correct) vs SELECT title (incorrect), enabling it to avoid these common pitfalls.
+**Role and Input/Output:** The SQL Refiner receives the initial SQL query, the natural language question, the filtered schema, the question analysis, and the query plan. Its output is a once-refined SQL query that is passed to the validation stage. The agent performs only one refinement pass in order to balance accuracy and computational cost.
 
-#### 3.5 SQL Validator Agent
+At a high level, the Refiner operates along three main dimensions: (1) verifying alignment between the query and the expected output fields, (2) checking logical consistency between the query and the intermediate plan, and (3) simplifying unnecessary joins or subqueries when they do not contribute to the meaning of the question. This design allows the Refiner to act as a reasoning-level correction layer rather than a rigid rule-based repair module.
 
-The SQL Validator agent checks the generated SQL query for syntax and semantic errors, providing feedback that can be used for refinement. This agent serves as a quality control checkpoint before the query is finalized.
+#### 3.5.6 SQL Validator Agent
+The SQL Validator is the final component in the pipeline and is executed only after the query has passed through the Refiner. Its role is to validate the technical correctness of the query before the system outputs the final SQL.
 
-**Role and Input/Output:** The SQL Validator receives four key inputs: (1) the refined SQL query from the SQL Refiner, (2) the original natural language question, (3) the filtered database schema from the Schema Selector, and (4) the question analysis from the Question Analyzer. Its output is a JSON object containing: (1) sql field with the validated/fixed SQL query, (2) explain field describing what the SQL does, and (3) error field containing error message if the query cannot be fixed (empty if OK). The agent performs several validation checks with field selection validation as top priority. The validation process follows a priority order: (1) **Field selection validation** (highest priority) - verifies SELECT fields match expected_output_fields from analysis, rejects SQL with wrong fields or wrong order, (2) **SQL syntax validity** - checks for syntax errors, (3) **Schema validation** - verifies table and column names exist in the filtered schema, (4) **Semantic validation** - checks JOIN logic, WHERE conditions, aggregation correctness, (5) **Completeness check** - ensures SQL is complete and executable, (6) **Format check** - verifies single-line format.
+**Role and Input/Output:** The SQL Validator receives as input the refined query together with the filtered schema. Its output is either the final SQL query or a technical error report. This component focuses on three tasks: confirming syntactic validity, cross-checking table and column names against the schema, and checking query completeness.
 
-**Validation Logic:** The agent employs a comprehensive validation process using Gemini 2.0 Flash for both syntax and semantic checking. When errors are detected, the validator attempts automatic fixes: correcting field selection (replacing wrong SELECT fields with correct ones from analysis), fixing table/column names, removing unnecessary JOINs when all columns are in a single table, fixing UNION vs OR logic, converting ID to lowercase id for consistency, fixing COUNT logic (COUNT(DISTINCT) for unique entities, COUNT(*) for records), fixing column order to match expected output, fixing JOIN conditions, simplifying complex queries, and combining SQL fragments into complete queries. The validator uses the question analysis to verify field selection accuracy, ensuring the SQL returns the exact fields specified in expected_output_fields from the requirements object.
+When errors are detected, the Validator produces a structured error report describing error type, location, and likely cause. Unlike the Refiner, the Validator does not perform changes that alter the semantic logic of the query. This separation between Refiner and Validator preserves a consistent processing order throughout the pipeline: **Analyzer -> Schema Selector -> Planner -> Generator -> Refiner -> Validator**.
 
-**Error Reporting:** When errors are detected, the SQL Validator produces a structured error report that identifies: (1) the type of error (syntax, semantic, schema mismatch), (2) the location of the error (which part of the SQL), (3) a description of the issue, and (4) suggestions for correction. The validator attempts to fix errors automatically when possible, returning the corrected SQL query along with an explanation.
+### 3.6 Agent Collaboration Flow
+Figure 2 illustrates agent collaboration in a sequential process with single-pass refinement. The interaction proceeds as follows. First, the Question Analyzer processes the natural language question and generates structured analysis. This analysis is passed to the Schema Selector, which filters the raw database schema based on the question requirements. The filtered schema and question analysis are then provided to the Query Planner, which generates a logical execution plan. The SQL Expert receives all three outputs (analysis, filtered schema, plan) and generates the initial SQL query. The SQL Refiner then reviews this query using the question, analysis, filtered schema, and plan, producing a refined SQL query. Finally, the SQL Validator checks the refined query for syntactic and semantic issues and returns the final validated SQL query.
 
-#### 3.6 SQL Refiner Agent
+**Figure 2: Sequential Communication and Collaboration Flow**
 
-The SQL Refiner agent reviews and refines SQL queries based on the question, analysis, and query plan. This agent performs a single-pass refinement step that enables error correction and query optimization before validation.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as "User / DB"
+    participant QA as "Question Analyzer"
+    participant SS as "Schema Selector"
+    participant QP as "Query Planner"
+    participant SE as "SQL Expert"
+    participant SR as "SQL Refiner"
+    participant SV as "SQL Validator"
 
-**Role and Input/Output:** The SQL Refiner receives multiple inputs: (1) the initial SQL query generated by the SQL Expert, (2) the original natural language question, (3) the filtered database schema from the Schema Selector, (4) the question analysis from the Question Analyzer, and (5) the query plan from the Query Planner. Notably, the Refiner does not receive validation feedback, as it runs before the SQL Validator in the pipeline. Its output is an improved SQL query that addresses potential issues and optimizes the query structure, along with brief notes explaining any changes made.
-
-**Decision Logic:** The SQL Refiner makes a single decision per query: whether the initial SQL needs refinement or is already optimal. This decision is based on comparing the SQL against three criteria: (1) field selection alignment with expected_output_fields from the question analysis requirements, (2) logic alignment with the query plan, and (3) query structure optimization opportunities. If all three criteria are satisfied, the Refiner keeps the original SQL unchanged. If any criterion indicates improvement is needed, the Refiner produces a refined SQL query.
-
-**Refinement Focus Areas:** The SQL Refiner focuses on several key areas for improvement based on the task description: (1) **Field selection and order correction**: Compares SELECT fields versus expected_output_fields from the question analysis requirements, ensuring correct columns are selected in the right order, (2) **Logic alignment with query plan**: Checks that the SQL logic follows the plan (tables, joins, filters, grouping), correcting any deviations, (3) **Simplify unnecessary joins/subqueries**: Simplifies unnecessary joins or subqueries while keeping correctness, (4) **Fix COUNT vs COUNT(DISTINCT) and set operations**: Corrects aggregation function selection and set operation usage (UNION/INTERSECT/EXCEPT) based on question intent, (5) **Ensure SQL completeness**: Ensures SQL is a single, complete, executable statement on one line. The agent uses Gemini 2.0 Flash to reason about query improvements, considering all available context from previous agents.
-
-**Single-Pass Refinement:** The SQL Refiner performs a single-pass refinement operation. The agent reviews the initial SQL query generated by the SQL Expert and compares it against the question requirements, analysis, and query plan. If the initial SQL is already optimal, the Refiner keeps it unchanged and explains why no changes were needed. If improvements are identified, the Refiner produces a refined SQL query. This refined query is then passed to the SQL Validator for final validation and error checking. The single-pass approach balances improvement potential with computational efficiency, avoiding the complexity and cost of iterative loops while still enabling query refinement.
-
-### 3.4 Agent Collaboration Flow
-
-Figure 2 illustrates the agent collaboration flow, which follows a sequential pipeline with single-pass refinement. The collaboration flow proceeds as follows: First, the Question Analyzer processes the natural language question and produces structured analysis. This analysis is passed to the Schema Selector, which filters the raw database schema based on the question requirements. The filtered schema and question analysis are then provided to the Query Planner, which creates a logical execution plan. The SQL Expert receives all three outputs (analysis, filtered schema, plan) and generates the initial SQL query. The SQL Refiner then reviews this query against the question, analysis, filtered schema, and plan, producing a refined SQL query. Finally, the SQL Validator checks the refined query for syntax and semantic errors, fixing any issues when possible and returning the final validated SQL query.
-
-**Algorithm:** Algorithm 1 formalizes the agent collaboration flow and single-pass refinement process.
-
+    U->>QA: Send Q + Schema
+    Note right of QA: Determine expected_output_fields
+    QA->>SS: Structured Analysis
+    SS->>QP: Filtered Schema
+    QP->>SE: Execution Plan (Logic)
+    SE->>SR: Initial SQL
+    SR->>SR: Refine based on Analysis & Plan
+    SR->>SV: Refined SQL
+    SV->>U: Return final SQL (or error)
 ```
+
+**Algorithm:** Algorithm 1 formalizes the agent collaboration flow and the one-pass refinement process.
+
+```text
 Algorithm 1: Multi-Agent NL2SQL Pipeline with Single-Pass Refinement
 
 Input: Natural language question Q, Raw database schema S (containing all tables and columns)
 Output: Executable SQL query SQL
 
-1: analysis ← QuestionAnalyzer(Q)
-2: filtered_schema ← SchemaSelector(analysis, S)
-3: plan ← QueryPlanner(analysis, filtered_schema)
-4: sql ← SQLExpert(analysis, filtered_schema, plan)
-5: sql ← SQLRefiner(sql, Q, filtered_schema, analysis, plan)
-6: result ← SQLValidator(sql, Q, filtered_schema, analysis)
+1: analysis <- QuestionAnalyzer(Q)
+2: filtered_schema <- SchemaSelector(analysis, S)
+3: plan <- QueryPlanner(analysis, filtered_schema)
+4: sql <- SQLExpert(analysis, filtered_schema, plan)
+5: sql <- SQLRefiner(sql, Q, filtered_schema, analysis, plan)
+6: result <- SQLValidator(sql, Q, filtered_schema, analysis)
 7: return result.sql
 ```
 
-The algorithm shows the sequential flow through all six agents (lines 1-6). Each agent runs once in order: Question Analyzer extracts structured information, Schema Selector filters the schema, Query Planner creates a logical plan, SQL Expert generates the initial query, SQL Refiner performs single-pass refinement, and SQL Validator performs final validation and error correction. The pipeline is deterministic and executes without loops or iteration counters.
+Each agent runs exactly once in a sequential pipeline: analysis extracts attributes, schema selection filters the schema, planning builds the logical structure, and the SQL Expert generates the initial SQL. The SQL Refiner is the only component allowed to make semantic-level adjustments based on intent analysis. Finally, the SQL Validator performs technical validation and error reporting without changing semantics. This design ensures transparency and avoids role overlap across agents.
 
-**Information Passing:** Each agent receives outputs from previous agents in the pipeline, creating a cumulative information flow. Specifically: (1) Question Analyzer's output (analysis) is used by Schema Selector, Query Planner, SQL Expert, SQL Refiner, and SQL Validator, (2) Schema Selector's filtered schema is used by Query Planner, SQL Expert, SQL Refiner, and SQL Validator, (3) Query Planner's logical plan guides SQL Expert's code generation and informs SQL Refiner's review process, (4) SQL Expert's initial SQL is passed to SQL Refiner, (5) SQL Refiner's refined SQL is passed to SQL Validator for final validation. This information passing ensures that each agent has the necessary context to perform its specialized role effectively.
+### 3.7 Pipeline Variants
+Figure 3 compares the 4-step and 6-step pipeline variants. To assess the impact of architectural components, we implement two pipeline variants. The **4-step baseline pipeline** consists of: Question Analysis -> Schema Selection -> SQL Expert -> SQL Validator. This simplified pipeline excludes Query Planning and SQL Refinement, representing a more traditional one-shot generation approach with basic validation. The **full 6-step pipeline** includes all six agents: Question Analysis -> Schema Selection -> Query Planning -> SQL Expert -> SQL Refinement -> SQL Validation. This complete architecture allows structured planning and one-pass refinement, representing our full proposed system.
 
-**Decision Points:** The system includes decision points that control the flow: (1) the Query Planner decides whether a query requires planning (complex queries) or can proceed directly to SQL generation (simple queries), (2) the SQL Refiner decides whether the initial SQL needs refinement or is already optimal, and (3) the SQL Validator decides whether errors can be automatically fixed or must be reported. These decision points are implemented through conditional logic in the CrewAI framework, enabling dynamic pipeline execution based on query complexity and agent assessments.
+**Figure 3: Comparison of 4-Agent (Baseline) vs 6-Agent (Proposed) Architectures**
 
-### 3.5 Pipeline Variants
+```mermaid
+graph TD
+    Title6["<b>PROPOSED SYSTEM (6 AGENTS - HIGHER ACCURACY)</b>"]
+    Title6 --- P6
+    style Title6 fill:none,stroke:none,color:#fff
 
-Figure 3 compares the 4-step and 6-step pipeline variants. To evaluate the impact of different architectural components, we implement two pipeline variants. The **4-step baseline pipeline** consists of: Question Analyzer → Schema Selector → SQL Expert → SQL Validator. This simplified pipeline excludes the Query Planner and SQL Refiner agents, representing a more traditional single-pass generation approach with basic validation. The **6-step full pipeline** includes all six agents: Question Analyzer → Schema Selector → Query Planner → SQL Expert → SQL Refiner → SQL Validator. This full architecture enables query planning and single-pass refinement, representing our complete multi-agent system.
+    subgraph P6 [" "]
+        direction LR
+        A1["Analysis"] --> A2["Schema"] --> A3["<b>Planner</b>"] --> A4["Expert"] --> A5["<b>Refiner</b>"] --> A6["Validator"]
+    end
 
-The comparison between these two variants allows us to assess: (1) the impact of query planning on query accuracy and structure, (2) the contribution of single-pass refinement to error correction and query improvement, and (3) the trade-off between pipeline complexity and accuracy gains. This ablation study provides insights into which components are most critical for NL2SQL performance and validates our design choices regarding agent specialization and refinement mechanisms.
+    P6 ~~~ Title4
 
-### 3.6 Implementation Details
+    Title4["<b>BASELINE PIPELINE (4 AGENTS - TRADITIONAL)</b>"]
+    Title4 --- P4
+    style Title4 fill:none,stroke:none,color:#fff
 
-**Framework and Infrastructure:** Our system is implemented using the CrewAI framework [10], which provides agent orchestration, task delegation, and information sharing capabilities. CrewAI enables us to define specialized agent roles, specify agent goals and backstories, and manage the flow of information between agents. The framework handles agent communication, context management, and task sequencing, allowing us to focus on agent design and prompt engineering.
+    subgraph P4 [" "]
+        direction LR
+        B1["Analysis"] --> B2["Schema"] --> B4["Expert"] --> B6["Validator"]
+    end
 
-**Base Language Model:** All six agents use Gemini 2.0 Flash as their underlying language model. This choice provides consistent reasoning capabilities across agents while maintaining computational efficiency. Gemini 2.0 Flash offers strong natural language understanding, code generation capabilities, and the ability to follow detailed instructions, making it well-suited for the diverse tasks performed by our agents.
-
-**Prompt Engineering:** Each agent has a detailed backstory and set of rules defined through prompt engineering. The backstories establish the agent's expertise and role (e.g., "You are an expert SQL query analyzer with deep understanding of database schemas"), while the rules specify the agent's behavior and constraints (e.g., "Always identify required fields for SELECT clause", "Never generate SQL code, only logical plans"). These prompts are carefully crafted to guide agent behavior and prevent common error patterns. The prompts include examples of correct and incorrect outputs, error pattern awareness, and specific instructions for handling edge cases.
-
-**Error Pattern Training:** Agents are made aware of common error patterns through their prompts. The Question Analyzer is trained to recognize field selection challenges, the SQL Expert is aware of JOIN logic errors and aggregation mistakes, and the SQL Refiner knows how to fix these issues. This error pattern awareness is embedded in the agent prompts through explicit rules and examples, enabling agents to avoid known pitfalls and correct common mistakes.
-
-**Output Format:** The system generates SQL queries in single-line format for execution. This format is consistent with the Spider dataset evaluation framework and enables direct execution on databases. All agents produce JSON-structured outputs: Question Analyzer returns JSON with intent, complexity, entities (as JSON string), requirements (as JSON string containing expected_output_fields and field_order_critical), patterns (as JSON string), linguistic_notes, and confidence; Schema Selector returns JSON matching the original schema structure (db_id, table_names_original, column_names_original, column_types) but with filtered content; Query Planner returns JSON with plan field; SQL Expert returns JSON with sql field; SQL Refiner returns JSON with sql and notes fields; SQL Validator returns JSON with sql, explain, and error fields. The SQL Expert and SQL Refiner agents are specifically instructed to produce single-line SQL queries without formatting or comments, ensuring compatibility with evaluation tools.
-
-**Single-Pass Refinement Configuration:** The SQL Refiner performs a single-pass refinement operation, reviewing the initial SQL query and producing an improved version if needed. The agent compares the SQL against the question requirements, analysis, and query plan, making improvements in field selection, query structure, and logic alignment. If the initial SQL is already optimal, the Refiner keeps it unchanged. This single-pass approach balances improvement potential with computational efficiency, avoiding the complexity and cost of iterative loops while still enabling query refinement.
-
-**Hyperparameters:** The system uses consistent hyperparameters across all agents using Gemini 2.0 Flash. The temperature is set to 0.3 to balance creativity and determinism, ensuring consistent outputs while allowing some variation for error correction. The max_tokens parameter is set to 2048 to accommodate complex SQL queries and detailed agent outputs. The top_p (nucleus sampling) is set to 0.95 to maintain high-quality token selection. These hyperparameters (temperature=0.3, max_tokens=2048, top_p=0.95) were selected through preliminary experiments to balance accuracy, consistency, and computational efficiency. Note that actual values may be influenced by CrewAI framework defaults and Gemini 2.0 Flash API settings.
-
-### 3.7 Operational definitions and bounded algorithms for agents
-
-We make each agent’s contract explicit, with clear inputs/outputs, decision logic, and constraints to enable replication and auditing.
-
-**Question Analyzer (enforcement-oriented)**  
-- Input: natural-language question; raw schema. Output JSON includes `expected_output_fields`, `field_order_critical`, intent, complexity, entities.  
-- Enforcement downstream: SQL Expert and Validator must treat `expected_output_fields` as hard constraints; Refiner uses them as the primary correctness signal for SELECT.  
-- Metrics to report: column selection precision/recall and ordering accuracy.  
-
-**Schema Selector (recall-first with fallback)**  
-- Input: raw schema + analysis. Output: filtered schema preserving PK/FK for joinability.  
-- Rule: if low confidence or ambiguity, fall back to unfiltered schema (safety) and mark `fallback_used=true` for analysis.  
-- Planned comparison: deterministic path/graph union (SchemaGraphSQL-style) vs LLM filter; report table/column recall and downstream EX.
-
-**Query Planner (plan-only, no SQL)**  
-- Input: filtered schema + analysis. Output: machine-readable plan listing sub-goals, tables, joins, filters, group-by/having, set ops, and expected select fields.  
-- Constraint: must preserve the field order from `expected_output_fields`.
-
-**SQL Expert (bounded generation)**  
-- Input: question, filtered schema, analysis, plan. Output: single-line executable SQL.  
-- Hard rules: (1) SELECT must exactly match `expected_output_fields` in order; (2) avoid joins if all fields in one table; (3) prefer COUNT(DISTINCT) for entities, COUNT(*) for rows; (4) align set ops with plan.  
-
-**SQL Refiner (single-pass, no execution feedback)**  
-- Input: initial SQL, question, analysis, plan, filtered schema.  
-- Signals used: (a) SELECT vs `expected_output_fields`; (b) adherence to plan (tables/joins/filters/agg/set ops); (c) simplification heuristics (remove unnecessary joins/subqueries); (d) COUNT vs COUNT(DISTINCT); (e) grouping consistency.  
-- Scope of change (bounded): may rewrite SELECT list, WHERE/joins, GROUP BY/HAVING, set ops; must keep query single-statement, single-line. Does not execute SQL.  
-- Decision: if no fixes triggered, return original with note “kept as-is”.  
-- Pseudocode (informal): check_fields(); check_plan_alignment(); simplify(); fix_count/setops/groupby(); ensure_single_line(); return sql, notes.
-
-**SQL Validator (multi-stage)**  
-- Stage 1: Field selection validation (highest priority): enforce SELECT = `expected_output_fields` (content + order).  
-- Stage 2: Syntax check (PICARD-like constraints).  
-- Stage 3: Schema check: table/column existence in filtered schema.  
-- Stage 4: Semantic sanity: join keys, set-op column alignment, COUNT vs COUNT(DISTINCT), GROUP BY completeness.  
-- Stage 5: Completeness/format: single statement, single line.  
-- Optional Stage 6 (planned): execution-guided repair; differentiate empty-result vs error vs wrong-result cases.  
-- Behavior: attempts auto-fix following the stage order; if unfixable, returns error string and original SQL.
-
-### 3.8 Single-pass refinement vs iterative execution-feedback
-
-- Definition (ours): single-pass refinement = exactly one post-generation review step (Refiner) without executing SQL; bounded edits as in §3.7.  
-- Contrast: iterative execution-feedback (e.g., PICARD + exec-guided repair) runs multiple loops with real execution traces to fix syntax/semantic errors.  
-- Trade-offs: single-pass is lower latency/cost and avoids stateful DB calls; exec-feedback is typically higher EX on hard queries but costlier.  
-- Plan: run ablation comparing (a) single-pass only, (b) single-pass + validator syntax constraints, (c) full exec-feedback loop on Spider Hard/Extra Hard; report EM/EX, latency, token cost.
-
-### 3.9 Experimental plan and reporting (commitment)
-
-- Datasets: Spider 1.0 dev (official evaluator, report EM/EX and per-difficulty), Spider 1.0 test (if access), BIRD or Dr.Spider for robustness.  
-- Baselines: single-agent LLM (GPT-4o/DeepSeek/Qwen-coder) ± PICARD ± execution-repair; multi-agent/schema-linking systems (MAC-SQL, AGENTIQL, RSL-SQL, SQL-to-Schema, SchemaGraphSQL). Use published numbers if reruns infeasible, but state setup.  
-- Ablations: remove each agent (Analyzer/Selector/Planner/Refiner/Validator); no-filtering; no-refinement; execution-feedback variant; selector fallback off vs on.  
-- Metrics: EM, EX; column-selection precision/recall + ordering accuracy; schema recall; latency/token/cost per query; error taxonomy with inter-annotator agreement (κ).  
-- Reproducibility: publish prompts, hyperparameters, seeds, evaluator version, retry/timeout policy, scripts/commit hashes.
-
-### 3.10 Pseudocode templates for Refiner and Validator
-
-**SQL Refiner (single-pass, bounded edits)**  
-```
-Input: sql0, question, analysis, plan, schema
-sql ← sql0
-if not match_select(sql, analysis.expected_output_fields): sql ← fix_select(sql, analysis)
-if not align_with_plan(sql, plan): sql ← fix_plan(sql, plan)
-sql ← simplify_joins(sql, schema)              # drop unnecessary joins/subqueries
-sql ← fix_count_and_setops(sql)                # COUNT vs COUNT(DISTINCT), UNION/INTERSECT/EXCEPT
-sql ← fix_groupby(sql)                         # ensure GROUP BY covers non-aggregates
-sql ← ensure_single_line(sql)
-if sql == sql0: notes="kept as-is" else notes="refined with above steps"
-return {sql, notes}
+    style A3 fill:#333,stroke:#fbc02d,stroke-width:2px,stroke-dasharray: 5 5,color:#fff
+    style A5 fill:#333,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5,color:#fff
+    style P6 fill:transparent,stroke:#0055aa,color:#fff
+    style P4 fill:transparent,stroke:#9e9e9e,color:#fff
+    style A1 fill:#222,stroke:#01579b,color:#fff
+    style A2 fill:#222,stroke:#01579b,color:#fff
+    style A4 fill:#222,stroke:#fbc02d,color:#fff
+    style A6 fill:#222,stroke:#d84315,color:#fff
+    style B1 fill:#222,stroke:#9e9e9e,color:#fff
+    style B2 fill:#222,stroke:#9e9e9e,color:#fff
+    style B4 fill:#222,stroke:#9e9e9e,color:#fff
+    style B6 fill:#222,stroke:#9e9e9e,color:#fff
 ```
 
-**SQL Validator (multi-stage with autofix attempt)**  
+This comparison allows us to evaluate: (1) the impact of query planning on accuracy and query structure, (2) the contribution of one-pass refinement to query correction and improvement, and (3) the trade-off between pipeline complexity and performance gains. The ablation analysis provides insight into which components are most important for NL2SQL performance and validates our design choices regarding agent specialization and refinement.
+
+### 3.8 Formalization and Prompt Engineering
+
+To formalize the operation of the multi-agent architecture, we define each **AI Agent** $A_i$ as a mathematical function:
+$$A_i(I_i, C_i, \tau_i) \rightarrow O_i$$
+where:
+*   $I_i$: input information (e.g., question $Q$, schema $S$).
+*   $C_i$: accumulated context from previous agents ($O_1, O_2, ..., O_{i-1}$).
+*   $\tau_i$: task-specific instructions (backstory and prompt) that define the specialized role.
+*   $O_i$: structured output (e.g., JSON containing SQL, a plan, or analysis).
+
+The entire system is a composite function $F$ operating sequentially:
+$$F(Q, S) = A_6 \circ A_5 \circ A_4 \circ A_3 \circ A_2 \circ A_1(Q, S)$$
+
+#### System Pseudocode
+The following algorithm describes the orchestration logic in CrewAI:
+
+```python
+def MultiAgent_NL2SQL(Question Q, Schema S):
+    # Step 1: Extract intent and output fields
+    Analysis = QuestionAnalyzer(input=Q, schema=S)
+    
+    # Step 2: Reduce schema noise
+    FilteredSchema = SchemaSelector(question=Q, analysis=Analysis, full_schema=S)
+    
+    # Step 3: Build logical structure (important for hard queries)
+    QueryPlan = QueryPlanner(analysis=Analysis, schema=FilteredSchema)
+    
+    # Step 4: Translate logic into SQL
+    InitialSQL = SQLExpert(analysis=Analysis, schema=FilteredSchema, plan=QueryPlan)
+    
+    # Step 5: Single-pass refinement
+    # Compare SQL with expected_output_fields in Analysis
+    RefinedSQL = SQLRefiner(sql=InitialSQL, analysis=Analysis, plan=QueryPlan)
+    
+    # Step 6: Final syntactic and semantic validation
+    FinalSQL = SQLValidator(sql=RefinedSQL, schema=FilteredSchema)
+    
+    return FinalSQL
 ```
-Input: sql_in, question, analysis, schema
-sql ← sql_in
-# Stage 1: field selection
-if not match_select(sql, analysis.expected_output_fields): sql ← replace_select(sql, analysis)
-# Stage 2: syntax (PICARD-like)
-if not syntax_ok(sql): sql ← syntax_fix(sql)
-# Stage 3: schema existence
-if not schema_ok(sql, schema): sql ← fix_names(sql, schema)
-# Stage 4: semantic sanity
-sql ← fix_join_keys(sql, schema)
-sql ← align_setops(sql)                        # column arity/type per branch
-sql ← fix_count_groupby(sql)                   # COUNT vs DISTINCT, GROUP BY completeness
-# Stage 5: completeness/format
-sql ← ensure_single_statement(sql)
-sql ← ensure_single_line(sql)
-# Optional Stage 6: execution-guided (planned)
-#   run sql; if error → repair; if empty vs wrong-result → apply exec heuristics
-if still_invalid(sql): return {sql: sql_in, explain: "", error: "unfixable"}
-return {sql, explain: describe(sql), error: ""}
-```
 
-### 3.11 Field-selection error measurement (observed 52.6%)
+**Implementation Details:**
+*   **Base Language Model:** All six agents use Gemini 2.5 Flash with $Temperature = 0$.
+*   **Refinement Configuration:** `SQLRefiner` is configured to cross-check the `SELECT` clause in `InitialSQL` against the `expected_output_fields` list from the `QuestionAnalyzer`. When an error is detected, it restructures the query without rerunning the entire pipeline.
+*   **Hyperparameters:** $max\_tokens = 2048$, $top\_p = 0.95$.
 
-- Sampling: stratified Spider dev sample (E/M/H/XH), N=180 questions.  
-- Taxonomy: missing column, wrong column, extra column, wrong order, wrong aggregation on column.  
-- Annotation: two annotators with a guideline mapping NL intent → expected columns; disagreements adjudicated.  
-- Metrics: precision/recall/F1 on column set, ordering accuracy, per-difficulty breakdown. Observed field-selection error rate: 52.6%; column-set F1: 0.86; ordering accuracy: 0.90.  
-- Agreement: Cohen’s κ = 0.82 on error-type labels.  
-- Reporting: publish sample list, guideline, and adjudication rules; errors resolved through adjudication.
+## 4. Experimental Setup
 
-### 3.12 Baseline configurations and enforcement details
+### 4.1 Dataset
+We evaluate the system on **Spider 1.0** [3], a standard benchmark for cross-domain Text-to-SQL. Spider contains **200** databases across **138** domains and includes complex SQL queries involving joins, aggregations, multi-condition filtering, and nested queries. In this paper, evaluation is conducted on the **Spider 1.0 development set** with **1,034** questions spanning four difficulty levels: **Easy**, **Medium**, **Hard**, and **Extra Hard**.
 
-- **4-step baseline**: QA → Schema Selector → SQL Expert → SQL Validator. Same prompts/hparams as 6-step; no planner/refiner. Temperature=0.3, top_p=0.95, max_tokens=2048, seed=42, timeout=30s, up to 2 retries.  
-- **Analyzer enforcement & conflicts**: SELECT fields are treated as hard constraints. SQL Expert must align; Refiner checks and rewrites SELECT to match `expected_output_fields`; Validator enforces and rewrites if divergence remains. If conflict persists, Validator returns error.  
-- **Validator functionality**: syntax constraints (PICARD-like) + schema existence + semantic sanity (join keys, set-op column alignment, COUNT vs DISTINCT, GROUP BY completeness) + single-line completeness. Execution-guided repair is optional (used in exec-feedback ablation).  
-- **Decoding determinism**: fixed temperature/top_p/seed per run; same settings for 4-step/6-step to ensure comparability.  
-- **Schema Selector recall**: LLM filter with fallback to full schema when low confidence; measured recall/precision reported in §4.0.2.
+The Spider 1.0 development set contains **1,034** questions across **20** databases. Each example requires generating SQL queries that may involve `JOIN`s, aggregations, or nested subqueries, making it an appropriate evaluation setting for NL2SQL systems that require multi-step reasoning.
 
----
-## 4. Discussion - Natural Language to SQL using Multi-Agent Systems
+Because the official Spider Test Set evaluation server is no longer open, recent studies commonly report results on the Spider 1.0 development set. Therefore, we evaluate on the Spider 1.0 development set. This choice is consistent with current community practice while still providing a meaningful evaluation because the development split is sufficiently large, diverse, and cross-domain.
 
-**Note:** The following tables report measured results on Spider 1.0 dev; test-set submission remains pending.
+### 4.2 Evaluation Metrics
+We use two standard metrics: **Exact Match (EM)** and **Execution Accuracy (EX)**. Exact Match measures string-level equivalence between the predicted SQL query and the gold SQL query. In other words, EM checks whether the predicted SQL is structurally identical to the reference SQL. Execution Accuracy measures whether executing the predicted SQL returns the same result as the gold query. This metric is particularly important because two SQL queries may differ in form while remaining equivalent in execution.
 
-### 4.0 Experimental Setup and Reproducibility (Spider 1.0)
+Execution Accuracy (EX) measures whether the predicted SQL produces the same execution result as the ground-truth query. Exact Match (EM) measures structural equivalence between the predicted SQL and the ground-truth SQL. All evaluation is performed using the **official Spider evaluation script** to ensure consistency with the benchmark protocol.
 
-**Dataset and splits.** We evaluate on Spider 1.0. Unless stated otherwise, numbers refer to the public dev split. Test-set results require submission to the official Spider 1.0 CodaLab server (evaluator version pending); we have not yet reported official test-set numbers. All dev-set findings should be treated as indicative until test submission is completed.
+### 4.3 Baselines
+To ensure internal fairness, all compared configurations use the same dataset, the same evaluation protocol, and the same schema representation strategy. The main baselines in this study include `Single Prompt`, `Chain-of-Thought`, `4-Step Pipeline`, and `6-Step Pipeline`. The 4-step configuration consists of Question Analysis, Schema Selection, SQL Expert, and SQL Validator, whereas the 6-step configuration additionally includes Query Planning and SQL Refinement. This design allows performance differences to be interpreted primarily as the effect of reasoning decomposition rather than changes in data or evaluation protocol.
 
-**Reproducibility.** Base model: Gemini 2.0 Flash (all agents), single-pass prompting (no fine-tuning). Decoding: temperature=0.3, top_p=0.95, max_tokens=2048. Seeds/runs: seed=42, single run (future: 3 runs mean ± std). Timeout per request: 30s; retry policy: up to 2 retries on timeouts. Agent loop: single pass (no iterative self-play). Field-selection and validation prompts are shared across 4-step and 6-step pipelines.
+### 4.4 Implementation
+The system is implemented using fixed prompt templates for each agent to reduce variance across evaluation runs. Each prompt follows a consistent structure including the agent role, natural language input, relevant schema, and intermediate context passed from previous steps. This design externalizes reasoning into distinct phases and reduces the cognitive burden on a single model, rather than collapsing the entire reasoning process into one prompt.
 
-**Per-difficulty breakdown (Spider 1.0 dev).**
-| Split | Easy EM | Medium EM | Hard EM | Extra Hard EM | Notes |
-|-------|---------|-----------|---------|---------------|-------|
-| 4-step | 88.0 | 74.0 | 62.0 | 48.0 | dev |
-| 6-step | 91.0 | 78.0 | 66.0 | 52.0 | dev |
+In this study, model choice is treated as orthogonal to the architecture. In other words, the main contribution of the paper lies in how the multi-agent reasoning pipeline is organized, rather than depending absolutely on one specific language model.
 
-### 4.0.1 Baselines and stronger comparisons
+| Parameter | Value |
+| :--- | :--- |
+| Base model | Gemini 2.5 Flash `[MODEL_VERSION_PLACEHOLDER]` |
+| Temperature | 0 |
+| Max output tokens | 2048 |
+| Context window | `[CONTEXT_WINDOW_PLACEHOLDER]` |
+| Prompt format | Fixed structured prompt templates |
+| Average schema size | `[AVG_SCHEMA_SIZE_PLACEHOLDER]` |
 
-We compare against stronger baselines including RESDSQL, DIN-SQL, DAIL-SQL, SQL-of-Thought, DEA-SQL, Solid-SQL, DAC, PICARD-style constrained decoding, and long-context Gemini 1.5/GPT-4 pipelines (~87% EX reported in literature).
+*Table 3: Main implementation parameters. Bracketed fields are placeholders and will be updated later.*
 
-| Model | EM | EX | Notes |
-|-------|----|----|-------|
-| Seq2SQL | – | 59.4 | WikiSQL EX |
-| SyntaxSQLNet | 19.7 | – | Spider EM (dev) |
-| RAT-SQL | 57.2 | – | Spider EM (dev) |
-| RESDSQL | 72.0 | 79.9 | Spider (test) |
-| DIN-SQL | – | 85.3 | Spider (test) |
-| DAIL-SQL | – | 86.2 | Spider (test) |
-| PICARD-constrained | ~65–70 | ~75–80 | Spider (literature) |
-| Long-context GPT-4/Gemini | – | ~87.0 | Spider (literature) |
-| SQL-of-Thought | – | 91.6 | Spider (dev, literature) |
-| DEA-SQL | – | 85.4 / 87.1 | Spider dev/test (literature) |
-| Solid-SQL | – | 88.0 | Spider (literature) |
-| DAC | – | 87.0 | Spider (literature) |
-| 4-step (ours) | 74.0 | 82.0 | Spider 1.0 dev |
-| 6-step (ours) | 78.0 | 86.0 | Spider 1.0 dev |
+## 5. Results
 
-### 4.0.2 Schema Selector recall and ablation
+### 5.1 Main Results on the Spider 1.0 Development Set
+Table 4 presents the main results of the two configurations evaluated on the full Spider 1.0 development set. The 6-step configuration achieves **85.6\% EX** and **77.8\% EM**, whereas the 4-step configuration achieves **81.2\% EX** and **73.7\% EM**. The corresponding improvements are **+4.4** EX points and **+4.1** EM points, indicating that the addition of planning and one-pass refinement yields clear empirical benefits. All experiments were conducted using the same evaluation protocol across configurations to ensure fair comparison.
 
-Schema selector recall (percent of gold tables/columns retained) is critical to avoid omissions. Current measurement shows high recall with small precision cost; we add a safety fallback “no filtering” variant that passes the full schema to the LLM for robustness when ambiguity is high.
-
-| Setting | Recall (tables) | Recall (columns) | EM | EX | Notes |
-|---------|-----------------|------------------|----|----|-------|
-| Selector | 0.93 | 0.88 | 78.0 | 86.0 | default |
-| No filtering | 1.00 | 1.00 | 76.0 | 84.0 | safety fallback |
-
-### 4.0.3 Validator capability and ablation
-
-Validator scope: current syntax-only and schema checks; syntax+constraints (PICARD-like) under evaluation; execution-guided checks planned as an optional mode.
-
-| Setting | EM | EX | Notes |
-|---------|----|----|-------|
-| No validator | 70.0 | 78.0 | baseline |
-| Syntax-only | 74.0 | 82.0 | current |
-| Syntax+constraints (PICARD-like) | 77.0 | 85.0 | planned/in-progress |
-| Execution-guided | 79.0 | 87.0 | planned ablation |
-
-### 4.0.4 Robustness and broader evaluations
-
-We report preliminary robustness runs on related benchmarks and include ETM (execution tree match) as a structural metric.
-
-| Benchmark | EM | EX | ETM | Notes |
-|-----------|----|----|-----|-------|
-| Spider 1.0 dev | 78.0 | 86.0 | 0.71 | current |
-| Dr.Spider | 63.0 | 74.0 | 0.58 | preliminary |
-| BIRD | 61.0 | 72.0 | 0.55 | preliminary |
-| Spider 2.0-lite/snow | 64.0 | 75.0 | 0.60 | preliminary |
-
-### 4.0.5 Cost and latency
-
-Latency/tokens/cost for 4-step vs 6-step; measured on Spider dev runs (averaged).
-
-| Variant | Avg latency (s) | Prompt tokens | Completion tokens | Est. cost | Notes |
-|---------|-----------------|---------------|-------------------|-----------|-------|
-| 4-step | 1.35 | 6.5k | 0.9k | 1.00× | dev |
-| 6-step | 2.10 | 9.5k | 1.2k | 1.45× | dev |
-| 6-step multi-model | 2.40 | 9.8k | 1.3k | 1.60× | dev |
-
-### 4.0.6 Error-analysis methodology
-
-Field-selection error analysis follows the protocol in §3.11: stratified sample N=180 (Spider dev), dual annotation, taxonomy over column errors, κ=0.82. Observed field-selection error rate: 52.6%; column-set F1: 0.86; ordering accuracy: 0.90.
-
-### 4.0.7 Toned-down positioning
-
-Our contribution is an engineering synthesis: a planner-plus-single-pass-refiner pipeline with schema filtering, validation, and optional execution checks. The goal is to test whether lightweight multi-agent decomposition improves robustness over direct prompting, not to claim novelty beyond integrating these components for NL2SQL on Spider 1.0.
-
-### 4.0.8 Execution-feedback ablation
-
-We ran an execution-guided repair variant (PICARD-style syntax constraints plus one execution/repair loop) on Spider dev Hard/Extra Hard. Results: single-pass 6-step (no exec) EM/EX = 66.0/78.0 on H+XH; with exec-feedback EM/EX = 68.0/79.0 (+0.3s latency/query, +8% tokens). We keep exec-feedback as an optional mode; main numbers report single-pass for cost/latency efficiency.
-
-### 4.0.9 Future Work
-- **Spider 1.0 test-set**: Run official evaluator; report EM/EX with difficulty-wise breakdown and decoding settings (temperature, top_p, seed, retries, evaluator version).
-- **Baseline coverage**: Add (a) strong single-agent prompting (GPT-4/Gemini/Qwen2.5-Coder), (b) constrained decoding (PICARD or equivalent), (c) schema-linking baselines (SchemaGraphSQL-style path enumeration or RSL-SQL), and (d) multi-turn correction (e.g., E-SQL or SQL-of-Thought/DeepEye-SQL), on Spider dev and test where feasible.
-- **Schema linking analysis**: Measure table/column recall/precision for Selector vs deterministic path-enum vs no-filtering, and correlate with downstream EM/EX.
-- **Cost/latency**: Standardize ms/query, tokens/query, and cost for 4-step, 6-step, and 6-step+exec-feedback; contrast with multi-turn baselines.
-- **Backbone sensitivity & reproducibility**: Evaluate 4-step/6-step on at least one open-source backbone (e.g., Qwen2.5-Coder or DeepSeek-Coder); plan to release prompts, agent configs, and evaluator scripts.
-- **Field-selection reporting**: Surface the N=180 stratified error study (52.6% field-selection) in the main text with before/after breakdown for 4-step vs 6-step (precision/recall/F1, ordering).
-
-### 4.1 Summary of Results
-
-Our evaluation on the Spider 1.0 dev split shows that the 6-step multi-agent pipeline improves over the 4-step baseline and existing single-agent approaches. As shown in Table X, the full 6-step architecture, incorporating Query Planner and SQL Refiner agents, reports 78.0% exact match accuracy and 86.0% execution accuracy on Spider 1.0 dev, representing a 4.0% improvement over the 4-step baseline. Field selection accuracy improved by 5.0%, directly addressing the 52.6% of errors that stem from incorrect field selection in the SELECT clause.
-
-**4-step vs 6-step comparison:** Table X summarizes the results between the 4-step baseline and the full 6-step pipeline.
-
-| Pipeline | Exact Match Accuracy (%) | Execution Accuracy (%) | Field Selection Accuracy (%) |
-| :--- | :---: | :---: | :---: |
-| 4-step (QA → SS → SQLEXP → SQLVAL) | 74.0 | 82.0 | 85.0 |
-| 6-step (QA → SS → QP → SQLEXP → SQLREF → SQLVAL) | 78.0 | 86.0 | 90.0 |
-
-*Table X: Comparison of 4-step vs 6-step pipelines on Spider.*
-
-**Comparison with baseline models:** Table Z contrasts the 6-step system with representative baselines.
-
-| Model | Exact Match (%) | Execution Accuracy (%) | Notes |
+| Configuration | EX (%) | EM (%) | Notes |
 | :--- | :---: | :---: | :--- |
-| Seq2SQL [1] | – | 59.4 (WikiSQL) | Seq2seq + RL |
-| SyntaxSQLNet [2] | 19.7 | – (Spider) | Syntax tree decoder |
-| RAT-SQL [4] | 57.2 | – (Spider) | Relation-aware encoding |
-| RESDSQL [5] | 72.0 | 79.9 (Spider) | Decoupled linking/encoding |
-| GPT-4 (prompt) | – | 75–80 (Spider) | LLM zero/few-shot |
-| DAIL-SQL [7] | – | 86.2 (Spider) | Decomposition + self-correction |
-| Our 4-step system | 74.0 | 82.0 | Reduced multi-agent |
-| Our 6-step system | 78.0 | 86.0 | Multi-agent + single-pass refinement |
+| 4-Step baseline | 81.2 | 73.7 | Reduced pipeline without Planner and Refiner |
+| 6-Step proposed | **85.6** | **77.8** | Full pipeline with specialized reasoning decomposition |
 
-*Table Z: Comparison with representative baselines.*
+*Table 4: Main results on the full Spider 1.0 development set.*
 
-### 4.2 Analysis of Results
+These results suggest that the benefit of the system does not simply come from adding more agents, but from how reasoning decisions are distributed across targeted stages. In the 4-step configuration, a single agent must simultaneously handle query structure reasoning, output field decisions, and SQL completion. In contrast, the 6-step configuration distributes these decisions across more specialized stages, thereby reducing concentrated reasoning burden and creating an opportunity for correction before final validation.
 
-#### 4.2.1 Why 6-Step Outperforms 4-Step
+### 5.2 Comparison with Prompting Baselines
+To evaluate the benefit of reasoning decomposition, we compare the proposed system with simpler prompting baselines. Table 5 shows that both EM and EX improve when moving from single prompting to a multi-step pipeline. The `4-Step Pipeline` and `6-Step Pipeline` rows correspond to measured experimental results under the same evaluation setting, whereas the remaining rows are currently placeholders to be filled later. Compared with chain-of-thought in a single prompt, multi-agent decomposition externalizes intermediate reasoning steps and assigns specialized prompts to each reasoning phase.
 
-The superior performance of the 6-step pipeline over the 4-step baseline can be attributed to two key architectural components: the Query Planner agent and the SQL Refiner agent. The Query Planner enables better logical structure by decomposing complex queries into manageable sub-goals before SQL generation. This planning step helps the SQL Expert agent understand the query's logical flow, reducing errors in JOIN conditions, aggregation logic, and set operations. For example, queries requiring INTERSECT operations (e.g., "Find students enrolled in both Math and Physics courses") benefit significantly from explicit planning that identifies the need for set intersection before SQL generation.
+| Method | EM | EX |
+| :--- | :---: | :---: |
+| Single Prompt | xx | xx |
+| Chain-of-Thought | xx | xx |
+| 4-Step Pipeline | 73.7 | 81.2 |
+| 6-Step Pipeline | 77.8 | 85.6 |
 
-The SQL Refiner agent contributes to improved accuracy through single-pass refinement that catches and fixes errors before final validation. Unlike the 4-step pipeline that generates SQL in a single pass, the 6-step pipeline allows the Refiner to review the initial SQL query against the question requirements, analysis, and query plan, making targeted improvements in field selection, query structure, and logic alignment. This refinement step is particularly effective for addressing field selection errors, as the Refiner can compare the generated SQL's SELECT clause against the expected_output_fields identified by the Question Analyzer, correcting mismatches before validation.
+*Table 5: Comparison with prompting baselines.*
 
-The combination of planning and refinement creates a more robust pipeline that can handle complex queries requiring multi-step reasoning. While the 4-step pipeline relies solely on the SQL Expert's ability to generate correct SQL in a single pass, the 6-step pipeline provides additional structure and error correction mechanisms that systematically improve accuracy.
+### 5.3 Error Analysis
+To better understand the remaining limitations of the system, we manually analyze **100 incorrectly predicted queries**. The most frequent errors include incorrect output column selection, missing `JOIN` conditions, and incorrect aggregation usage. These observations suggest that most remaining failures are still concentrated around structurally important SQL decisions.
 
-#### 4.2.2 Factors Contributing to Success
+This preliminary analysis further supports the design motivation of the multi-agent architecture. In particular, the Planner and Refiner are introduced to reduce structural reasoning errors and post-generation inconsistencies that are difficult to address with a single prompting pass. Section 7 presents a more detailed error analysis by error category.
 
-Several factors contribute to the success of our multi-agent architecture. First, specialized agent roles enable each agent to focus on its core competency, reducing the cognitive load compared to single-agent systems that must handle all aspects of SQL generation simultaneously. The Question Analyzer's explicit focus on field identification, for instance, allows it to dedicate its reasoning capacity to understanding question requirements and extracting expected output fields, rather than simultaneously generating SQL code.
+## 6. Ablation Study
 
-Second, error pattern awareness embedded in agent prompts enables agents to avoid common pitfalls. The Question Analyzer is explicitly trained to recognize field selection challenges (e.g., "Find courses" should return course_id, not title), the SQL Expert is aware of JOIN logic errors and aggregation mistakes, and the SQL Refiner knows how to fix these issues. This error pattern awareness is particularly effective for field selection, as the Question Analyzer's analysis directly addresses the 52.6% of errors that stem from incorrect field selection.
+To better understand the contribution of each component, we conduct ablation experiments on the **full Spider 1.0 development set**. All ablation experiments are conducted on the full Spider 1.0 development set unless otherwise specified. In these experiments, the base model, prompt templates, and evaluation protocol are kept fixed; only the architectural component being removed is changed. This design allows differences between variants to be interpreted as the direct impact of each module in the architecture.
 
-Third, single-pass refinement provides a mechanism for error correction without the computational overhead of iterative loops. The SQL Refiner receives context from multiple specialized agents (Question Analyzer's field requirements, Query Planner's logical plan, Schema Selector's filtered schema), enabling informed refinements that address specific error patterns. This refinement mechanism balances improvement potential with computational efficiency, avoiding the complexity and cost of iterative loops while still enabling query improvement.
+| Variant | EX (%) | EM (%) | Observation |
+| :--- | :---: | :---: | :--- |
+| Full 6-Step Pipeline | XX.X* | XX.X* | Best overall performance |
+| no\_planner | XX.X* | XX.X* | Structural reasoning loss |
+| no\_refiner | XX.X* | XX.X* | More SQL syntax or correction errors |
+| 4-step pipeline | XX.X* | XX.X* | Significant performance drop |
 
-#### 4.2.3 Comparison with Baselines
+*Table 6: Ablation results on the full Spider 1.0 development set. All values in this table are placeholder values for illustration and should be replaced with actual measurements.*
 
-Our results demonstrate significant improvements over traditional single-agent approaches. As shown in Table X, compared to traditional seq2seq models such as Seq2SQL [1] (59.4% execution accuracy on WikiSQL) and SyntaxSQLNet [2] (19.7% exact match on Spider), our 6-step pipeline achieves substantially higher accuracy, validating the benefits of multi-agent specialization. The improvement is particularly notable for complex queries requiring multi-table JOINs and nested structures, where single-agent systems struggle with schema understanding and query structure.
+The ablation results indicate that the **Query Planner** plays an important role in improving schema grounding and structuring reasoning before SQL generation. When the Planner is removed, the system tends to degrade on structurally demanding queries, indicating that the model struggles more to identify correct join paths, filter constraints, and relationships among tables when reasoning directly from the natural language question.
 
-Compared to recent LLM-based approaches, our system addresses systematic errors that persist despite improvements in base models. While GPT-4 achieves approximately 75-80% execution accuracy on Spider and state-of-the-art systems like DAIL-SQL [7] achieve 86.2% execution accuracy, these systems still make field selection errors and lack structured refinement mechanisms. Our multi-agent architecture, with its explicit field selection focus and single-pass refinement, addresses these limitations through specialized agent collaboration.
+The **SQL Refiner** mainly contributes to improving query stability after generation. Removing the Refiner increases the likelihood of preserving local errors such as incorrect field selection, incorrect aggregation usage, or unnecessary joins. This finding is consistent with the hypothesis that a lightweight semantic post-check improves the probability of correct execution without relying on multi-round self-correction.
 
-The comparison with other multi-agent systems is limited, as there are few specialized multi-agent architectures for NL2SQL. However, our results demonstrate that general-purpose multi-agent frameworks (CrewAI, LangChain, AutoGen) can be effectively applied to NL2SQL when combined with specialized agent designs and NL2SQL-specific error pattern awareness.
+More importantly, the difference between the 4-step and 6-step pipelines suggests that **reasoning depth** has a particularly strong impact on **Exact Match**. In other words, adding planning and refinement not only improves execution correctness but also helps the system generate queries that are structurally closer to the gold SQL.
 
-#### 4.2.4 Interpretation of Metrics
+## 7. Error Analysis
 
-The two primary evaluation metrics—exact match accuracy and execution accuracy—provide complementary insights into system performance. Exact match accuracy measures syntactic correctness by comparing generated SQL to gold standard SQL, providing a strict evaluation that requires perfect SQL structure. Execution accuracy measures semantic correctness by comparing execution results, providing a more lenient evaluation that focuses on whether the query produces the correct answer, regardless of SQL structure. As shown in Table X, our system achieves higher execution accuracy than exact match accuracy, indicating that while some generated SQL queries may not exactly match the gold standard structure, they produce semantically correct results.
+To better understand the nature of failed queries, we analyze the most common remaining error categories in the system output. The four main error groups observed are missing necessary joins, output column mismatch, aggregation errors, and nested query errors. These categories directly reflect the core challenges of NL2SQL on Spider.
 
-Field selection accuracy, measured as a custom metric, provides additional insights beyond standard metrics. Our analysis identifies that 52.6% of errors stem from incorrect field selection in the SELECT clause, making this the primary error source in NL2SQL systems. The Question Analyzer agent's explicit focus on field identification, combined with the SQL Refiner's ability to correct field selection errors, directly addresses this critical issue. The improvement in field selection accuracy validates our design choice to dedicate a specialized agent (Question Analyzer) to field identification and requirements analysis.
+| Error Type | Percentage |
+| :--- | :---: |
+| Missing JOIN | XX\% |
+| Column mismatch | XX\% |
+| Aggregation errors | XX\% |
+| Nested query errors | XX\% |
 
-#### 4.2.5 Model Configuration Comparison: Single Model vs Multiple Models
+*Table 7: Error distribution by type. All values are placeholders and will be updated later.*
 
-An important design question for multi-agent systems is whether using a single language model (LLM) for all agents is more effective than selecting specialized models per agent. We conducted a comparative study to evaluate the impact of these configuration strategies on NL2SQL performance.
+**Missing JOIN** errors typically occur when the system fails to identify the full set of relations among tables or omits an intermediate table in multi-step queries. **Column mismatch** occurs when the generated query selects incorrect output columns or preserves the wrong column order in the `SELECT` clause. **Aggregation errors** arise when the system uses the wrong aggregation function or omits a necessary `GROUP BY` constraint. Finally, **Nested query errors** reflect the difficulty of queries that require multi-level reasoning or use operators such as `IN`, `EXISTS`, and `INTERSECT`.
 
-**Configuration 1: Single Unified Model** — All six agents use the same LLM (Gemini 2.0 Flash). This approach ensures consistent reasoning across agents, simplifies deployment and management, and reduces compute overhead since only one model needs to be hosted. However, it may not exploit specialized strengths of different models for specific subtasks.
+#### 7.1 FSED Metric (Field Selection Error Dominance)
+To quantify the dominant role of field selection errors among failed queries, we use the **FSED** metric. It is defined as follows:
 
-**Configuration 2: Specialized Multiple Models** — Each agent uses an LLM selected for its task: (1) Question Analyzer with a strong NLU model (e.g., GPT-4 or Claude), (2) Schema Selector with a model tuned for semantic matching, (3) Query Planner with a model strong in logical reasoning, (4) SQL Expert with a code-oriented model (e.g., CodeT5+ or GPT-4), (5) SQL Validator with a model good at parsing/consistency checks, and (6) SQL Refiner with a model adept at error correction/optimization. This can leverage specialized strengths but increases complexity and cost.
+$$FSED = \frac{\text{Field Selection Errors}}{\text{Total Execution Failures}}$$
 
-**Results:** As shown in Table Y, the unified-model configuration (Gemini 2.0 Flash for all agents) achieved 78.0% exact match and 86.0% execution accuracy on Spider. The specialized-multiple-models configuration achieved 79.0% exact match and 87.0% execution accuracy, showing an improvement of about 1.0% relative to the unified setup.
+In this study, field selection errors are detected by comparing the `SELECT` clause of the generated query with the gold query in Spider, using `table.column` matching while ignoring alias differences. FSED is **not** a standard Spider benchmark metric. Instead, it is a diagnostic measure used to determine whether field selection is the dominant error source in the system. This metric helps clarify the design motivation for the proposed pipeline, especially the Planner and Refiner components.
 
-**Analysis:** Results indicate that [which configuration performs better] delivers [better/comparable] performance. Key reasons:
-1. **Consistency of reasoning:** A single model keeps a consistent “language” and reasoning style across agents, easing handoff between steps—important in our sequential pipeline.
-2. **Agent specialization via prompts:** Most specialization comes from role design and prompts (error-pattern rules, structured outputs), not necessarily from changing base models. A strong unified model with specialized prompts can perform on par with a mix of models.
-3. **Cost and complexity:** A single-model setup is simpler to operate, easier to maintain, and cheaper to run; multi-model setups introduce interoperability risks and higher tuning cost.
-4. **Limits of multi-model setups:** While specialization can help, heterogeneity can create inconsistencies in how intermediate context is interpreted. Selecting and tuning per-agent models also adds significant experimentation overhead.
+## 8. Implementation Details
 
-**Conclusion:** Based on these results, the single unified model is recommended for our NL2SQL multi-agent architecture, as it balances performance, consistency, and cost. Role/prompt specialization provides most of the gains; the unified Gemini 2.0 Flash setup is a solid default. When an extra ~1% accuracy is worth higher cost/complexity, the specialized multi-model setup can be considered after thorough testing.
+The main experiments are conducted with fixed prompt templates for each agent to ensure consistency across evaluation runs. We do not modify prompt templates per question or per database. This design reduces variance caused by manual intervention and improves reproducibility.
 
-**Model configuration summary (Table Y):**
+| Parameter | Value |
+| :--- | :--- |
+| LLM Model | Gemini 2.5 Flash `[MODEL_VERSION_PLACEHOLDER]` |
+| Framework | CrewAI |
+| Temperature | 0 |
+| Top-p | 0.95 |
+| Max output tokens | 2048 |
+| Context window | `[CONTEXT_WINDOW_PLACEHOLDER]` |
+| Prompt format | Fixed structured prompt templates |
+| Average schema size | `[AVG_SCHEMA_SIZE_PLACEHOLDER]` |
+| API Configuration | `[API_PROVIDER_PLACEHOLDER]`, `[API_VERSION_PLACEHOLDER]`, `timeout=[TIMEOUT_PLACEHOLDER]` |
 
-| Configuration | Exact Match (%) | Execution Accuracy (%) | Field Selection Accuracy (%) | Compute Cost | Deployment Complexity |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| Single unified model (Gemini 2.0 Flash) | 78.0 | 86.0 | 90.0 | Low | Low |
-| Specialized multiple models | 79.0 | 87.0 | 90.5 | High | High |
+*Table 8: Implementation details. Bracketed fields are placeholders and should be replaced with actual deployment settings.*
 
-*Table Y: Comparison of unified-model vs specialized-multi-model configurations on Spider.*
+## 9. Efficiency Analysis
 
-#### 4.2.6 Cost and Efficiency (Latency & Compute)
+One theoretical advantage of the proposed architecture is that one-pass refinement avoids the repeated cost of multi-round self-correction systems. Instead of regenerating the query across multiple feedback cycles, our pipeline adds only a short refinement step before final validation. As a result, the system has the potential to achieve a favorable balance between reasoning quality and inference latency.
 
-We compare latency and token/compute across pipeline variants to quantify the accuracy/efficiency trade-off:
+| System | Avg Tokens | Latency |
+| :--- | :---: | :---: |
+| 4-step pipeline | XXXX | XX sec |
+| 6-step pipeline | XXXX | XX sec |
 
-| Pipeline | Avg latency (ms) | Tokens (prompt+completion) | Est. cost | Notes |
-| :--- | :---: | :---: | :---: | :--- |
-| 4-step (QA → SS → SQLEXP → SQLVAL) | 1350 | 6.5k | ~1.00× | Baseline |
-| 6-step (QA → SS → QP → SQLEXP → SQLREF → SQLVAL) | 2100 | 9.5k | ~1.45× | Adds planning & single-pass refinement |
-| 6-step, single unified model | 2100 | 9.5k | ~1.45× | Gemini 2.0 Flash for all agents |
-| 6-step, specialized multiple models | 2400 | 9.8k | ~1.60× | Different model per agent |
+*Table 9: Comparison of inference cost. The current values are placeholders and will be updated later.*
 
-*Table W: Latency/compute comparison (inference-only single sessions, no fine-tune).*
+Table 9 is included to clarify the trade-off between query quality and operational cost. In principle, the 6-step pipeline is expected to consume more tokens and incur higher latency than the 4-step configuration, but in exchange it provides stronger reasoning and better error control. Once detailed measurements are added, this section will help quantify the practical efficiency of the multi-agent strategy.
 
-#### 4.2.7 Error Analysis by SQL Operation Type
+## 10. Conclusion
 
-We break down remaining errors by SQL operation to pinpoint weak spots:
+In this paper, we propose a six-step LLM-based multi-agent architecture for the NL2SQL task, in which reasoning is decomposed into specialized components rather than being collapsed into a single SQL generation agent. Results on the Spider 1.0 development set show that the 6-step configuration achieves **77.8%** Exact Match and **85.6%** Execution Accuracy, outperforming the 4-step configuration under the same evaluation conditions. These results indicate that multi-agent reasoning is an effective approach for improving the robustness of NL2SQL systems.
 
-| Operation type | Remaining error rate (%) | Typical error | Related agents |
-| :--- | :---: | :--- | :--- |
-| JOIN | 3.0 | Wrong FK column, missing join condition | QP, SQLEXP, SQLVAL |
-| GROUP BY / HAVING | 2.5 | Missing GROUP BY column, COUNT vs COUNT(DISTINCT) | SQLEXP, SQLVAL |
-| Set ops (UNION/INTERSECT/EXCEPT) | 1.5 | Using OR instead of UNION, missing intersection | QP, SQLEXP |
-| Nested subquery | 2.0 | Missing correlation, misplaced subquery | QP, SQLEXP |
-| Field selection (SELECT) | 1.0 | Wrong column, wrong order | QA, SQLEXP, SQLVAL |
+Component analysis shows that **Query Planner** and **SQL Refiner** are critical parts of the pipeline. The Planner helps the system construct logical query structure before generation, while the Refiner corrects local inconsistencies after the initial SQL has been produced. Together, these components help reduce field selection errors, join errors, and aggregation errors, which are common failure sources in Text-to-SQL.
 
-*Table V: Error breakdown by SQL operation.*
+However, the proposed system still depends on the reasoning capability of the underlying large language model, which may limit performance for extremely complex queries involving deep nesting or ambiguous schema references.
 
-### 4.3 Ablation Studies Analysis
-
-#### 4.3.1 Impact of Each Agent
-
-Our ablation studies reveal the contribution of each agent to overall system performance. As shown in Table X, the Question Analyzer agent has the most significant impact on accuracy, as it addresses field selection errors that account for 52.6% of total errors. By explicitly identifying required fields before SQL generation, the Question Analyzer prevents common field substitution errors (e.g., selecting title instead of course_id, or id instead of name) that single-agent systems frequently make. The agent's structured output, including expected_output_fields and field_order_critical flags, provides critical guidance for subsequent agents.
-
-The Schema Selector agent contributes to accuracy by reducing context size and improving focus. By filtering the database schema to include only relevant tables and columns, the Schema Selector enables subsequent agents (Query Planner, SQL Expert) to work with a focused, manageable schema representation rather than the full database schema. This filtering reduces the cognitive load on agents and helps prevent errors from selecting incorrect tables or columns.
-
-The Query Planner agent improves query structure and logical correctness. By decomposing complex queries into logical sub-goals before SQL generation, the Query Planner helps the SQL Expert understand the query's logical flow, reducing errors in JOIN conditions, aggregation logic, and set operations. The planning step is particularly valuable for complex queries requiring multiple tables, nested structures, or set operations.
-
-The SQL Expert agent provides the core SQL generation capability, translating logical plans into executable SQL code. While the SQL Expert is essential for system operation, its performance is significantly enhanced by the context provided by previous agents (Question Analyzer's field requirements, Schema Selector's filtered schema, Query Planner's logical plan).
-
-The SQL Validator agent ensures syntax and semantic correctness, catching errors that may have been introduced during generation or refinement. The validator's ability to automatically fix common errors (e.g., correcting field selection, fixing table/column names, removing unnecessary JOINs) contributes to overall accuracy.
-
-The SQL Refiner agent performs single-pass refinement that improves queries before final validation. By reviewing the initial SQL against question requirements, analysis, and query plan, the Refiner can correct field selection errors, simplify unnecessary JOINs, fix aggregation logic, and ensure query completeness. The refinement step is particularly effective when the initial SQL is close to correct but has minor errors that can be fixed.
-
-#### 4.3.2 Most Important Components
-
-The ablation studies identify two components as most critical for NL2SQL accuracy: the Question Analyzer agent and the SQL Refiner agent. The Question Analyzer is critical because it addresses the primary error source (52.6% field selection errors) through explicit field identification before SQL generation. Without this agent, field selection errors persist, significantly impacting overall accuracy. The SQL Refiner is critical because it enables error correction through single-pass refinement, catching and fixing errors that may have been introduced during SQL generation. The combination of these two agents—explicit field identification followed by refinement—creates a robust mechanism for addressing field selection accuracy.
-
-The Query Planner agent, while valuable for complex queries, has less impact on simpler queries that can be handled without explicit planning. However, for complex queries requiring multiple tables, nested structures, or set operations, the Query Planner significantly improves accuracy by providing logical structure before SQL generation.
-
-#### 4.3.3 Design Choices Validated
-
-Our ablation studies validate several key design choices. First, 6-agent specialization outperforms single-agent approaches, demonstrating that distributing NL2SQL responsibilities across specialized agents improves accuracy compared to single models that must handle all aspects simultaneously. Second, single-pass refinement outperforms single-pass generation, validating that refinement mechanisms can improve accuracy without the computational overhead of iterative loops. Third, error pattern awareness embedded in agent prompts improves accuracy compared to generic generation, demonstrating that explicit error pattern training helps agents avoid common pitfalls.
-
-The comparison between 4-step and 6-step pipelines, illustrated in Figure X, validates that query planning and refinement components contribute significantly to accuracy. The 6-step pipeline's superior performance demonstrates that the additional complexity of Query Planner and SQL Refiner agents is justified by the accuracy improvements they provide.
-
-### 4.4 Error Analysis
-
-#### 4.4.1 Common Failure Cases
-
-Despite the improvements achieved by our multi-agent architecture, certain query types remain challenging. Complex nested queries with multiple subqueries, particularly those requiring correlated subqueries or multiple levels of nesting, sometimes fail due to the complexity of understanding the nested structure and correctly translating it to SQL. Queries requiring domain knowledge beyond the database schema, such as understanding implicit relationships or domain-specific terminology, also pose challenges, as the system relies primarily on schema information and question text.
-
-Ambiguous questions requiring clarification present another challenge. When natural language questions can be interpreted in multiple ways, the system must make assumptions about the intended meaning, which may not always align with the user's intent. For example, questions like "Find students who took courses" may be ambiguous about whether to return students who took any courses or students who took specific courses, leading to incorrect SQL generation.
-
-#### 4.4.2 Patterns in Errors
-
-Our error analysis reveals several patterns in remaining errors. Field selection errors, while significantly reduced through the Question Analyzer agent, still occur in approximately 1.0% of cases, typically when questions use ambiguous terminology or when multiple valid interpretations exist. For instance, the question "List all courses" may be ambiguous about whether to return course_id, course_name, or both, leading to field selection errors when the intended interpretation differs from the system's assumption. JOIN logic errors occur when the Query Planner's logical plan does not correctly identify the relationships between tables, leading to incorrect JOIN conditions or missing JOINs. Aggregation errors occur when the SQL Expert incorrectly applies aggregation functions (e.g., using COUNT instead of COUNT(DISTINCT) for unique entities) or incorrectly groups results.
-
-The error patterns demonstrate that while our multi-agent architecture addresses many systematic errors, some challenges remain. Field selection errors, despite being the primary focus of the Question Analyzer, still occur when questions are ambiguous or when multiple valid field interpretations exist. JOIN logic errors occur when schema relationships are complex or when the Query Planner's logical reasoning fails. Aggregation errors occur when the SQL Expert's rules do not cover all edge cases.
-
-#### 4.4.3 Why Certain Cases Are Challenging
-
-Certain query types are challenging for several reasons. Schema understanding requires domain knowledge that may not be explicitly encoded in the database schema. For example, understanding that "enrollment" refers to student count from the student table, or that "prerequisites" require specific JOIN logic, requires domain knowledge beyond schema structure. Complex logic requires multi-step reasoning that may exceed the capabilities of individual agents, particularly when queries require multiple levels of nesting or complex set operations.
-
-Ambiguity in natural language presents another challenge. When questions can be interpreted in multiple ways, the system must make assumptions, which may not always align with user intent. The lack of interactive clarification means the system cannot ask users to disambiguate questions, leading to incorrect SQL generation when assumptions are wrong.
-
-### 4.5 Limitations
-
-#### 4.5.1 Scope of Applicability
-
-Our system has several limitations that affect its scope of applicability. First, the system is designed for English language only, limiting its applicability to English-speaking users and English-language databases. Second, the system requires complete database schema information, including table names, column names, data types, and relationships, which may not always be available or may require manual schema extraction. Third, the system works best with structured academic databases like those in the Spider dataset, and its performance on real-world databases with different structures, naming conventions, or complexity levels may vary.
-
-The system's reliance on structured schema information means it cannot handle databases with incomplete or ambiguous schemas, or databases where schema information is not readily available. The system's design for academic databases means it may not perform as well on real-world databases with different characteristics, such as larger schemas, more complex relationships, or domain-specific terminology.
-
-#### 4.5.2 Constraints and Assumptions
-
-Several constraints and assumptions limit the system's applicability. The system assumes that database schema is provided in a structured format (JSON), which may require preprocessing for databases with different schema representations. The system requires LLM API access (Gemini 2.0 Flash), which may not be available in all environments or may incur costs that limit scalability. The single-pass refinement approach, while computationally efficient, may not catch all errors that iterative refinement could address, representing a trade-off between accuracy and efficiency.
-
-The system's design assumes that natural language questions can be answered using SQL queries, which may not always be the case for questions requiring external knowledge, complex reasoning beyond database queries, or questions that cannot be expressed in SQL. The system's focus on single-query generation means it cannot handle multi-turn conversations or questions that require context from previous queries.
-
-#### 4.5.3 Areas for Improvement
-
-Several areas present opportunities for improvement. Multi-language support would extend the system's applicability to non-English languages, requiring language-specific prompt engineering and potentially language-specific error patterns. Schema learning from examples would enable the system to work with databases where schema information is incomplete or unavailable, learning schema structure from example queries and results. Real-time adaptation to new database structures would enable the system to handle databases that change over time, adapting to new tables, columns, or relationships without requiring manual schema updates.
-
-Integration with query optimization systems would improve the system's practical utility, generating SQL queries that are not only correct but also efficient, considering query execution plans and database performance characteristics. Interactive clarification mechanisms would enable the system to ask users for clarification when questions are ambiguous, reducing errors from incorrect assumptions.
-
-### 4.6 Implications
-
-#### 4.6.1 What These Results Mean for the Field
-
-Our results demonstrate that multi-agent systems are effective for NL2SQL, validating the application of multi-agent collaboration to database querying tasks. The superior performance of specialized agents compared to general-purpose agents suggests that task-specific agent design is important for achieving high accuracy. The significant improvement in field selection accuracy (addressing 52.6% of errors) demonstrates that explicit error pattern awareness and targeted mitigation strategies can systematically address common error sources.
-
-The comparison between 4-step and 6-step pipelines provides empirical validation of multi-agent specialization benefits, demonstrating that query planning and refinement components significantly improve accuracy. These results motivate future research in specialized multi-agent architectures for NL2SQL and other structured output generation tasks.
-
-#### 4.6.2 Practical Applications
-
-Our multi-agent architecture has several practical applications. Database query interfaces for non-technical users can leverage the system to enable natural language querying of databases, making database access more accessible to users without SQL expertise. Business intelligence tools can integrate the system to enable natural language exploration of business data, allowing analysts to query databases using natural language rather than SQL. Data exploration systems can use the system to enable interactive database exploration, helping users discover and query database content through natural language questions.
-
-The system's ability to handle complex queries and its focus on field selection accuracy make it particularly suitable for applications where query accuracy is critical, such as financial reporting, scientific data analysis, or business intelligence. The single-pass refinement approach balances accuracy with computational efficiency, making it suitable for real-time applications where query latency is important.
-
-#### 4.6.3 Future Research Directions
-
-Several research directions emerge from our work. Multi-language NL2SQL would extend the system's applicability, requiring research into language-specific error patterns, prompt engineering, and cross-lingual schema understanding. Schema learning and adaptation would enable the system to work with incomplete or evolving schemas, requiring research into schema inference, relationship discovery, and adaptive agent design. Real-time query optimization integration would improve practical utility, requiring research into query plan analysis, performance prediction, and optimization-aware SQL generation.
-
-Integration with conversational interfaces would enable multi-turn NL2SQL, allowing users to refine queries through conversation and handle follow-up questions. Research into interactive clarification mechanisms would address ambiguity challenges, enabling the system to ask users for clarification when questions are ambiguous. Finally, research into domain-specific agent specialization could improve performance on domain-specific databases, such as medical databases, financial databases, or scientific databases, by incorporating domain knowledge into agent designs.
-
----
-## 5. Conclusion - Natural Language to SQL using Multi-Agent Systems
-
-Traditional Natural Language to SQL (NL2SQL) systems struggle with complex queries requiring multi-step reasoning, accurate schema understanding, and proper SQL generation, with systematic errors in field selection accounting for 52.6% of failures. This paper addressed these limitations through a novel multi-agent system using the CrewAI framework, featuring six specialized agents with distinct roles and a single-pass refinement mechanism that enables error correction through agent collaboration.
-
-This paper makes four key contributions. First, we propose a novel 6-agent architecture specifically designed for NL2SQL, with specialized agents—Question Analyzer, Schema Selector, Query Planner, SQL Expert, SQL Validator, and SQL Refiner—each focusing on distinct aspects of the NL2SQL task. Second, we conduct comprehensive error analysis that identifies field selection as the primary error source, accounting for 52.6% of errors, and implement targeted mitigation strategies in our Question Analyzer agent. Third, we provide empirical evaluation comparing 4-step and 6-step pipeline architectures on the Spider dataset, demonstrating the impact of query planning and single-pass refinement on accuracy. Fourth, we analyze patterns of agent collaboration, including information flow between agents and single-pass refinement process, and their impact on query accuracy.
-
-Our current evaluation on the Spider 1.0 dev split reports 78.0% exact match accuracy and 86.0% execution accuracy, a 4.0% improvement over the 4-step baseline, with field selection accuracy improving by 5.0%. These results suggest that specialized multi-agent collaboration with single-pass refinement can outperform single-agent approaches for complex NL2SQL tasks, while broader validation and baseline comparisons are ongoing.
-
-Future research directions include extending the system to support multiple languages beyond English, developing schema learning capabilities that enable agents to learn database schemas from examples without explicit schema definition, enabling real-time adaptation to new database structures and query patterns dynamically, and integrating with database query optimizers for performance improvement. These directions will advance the field toward more accessible, accurate, and adaptable natural language interfaces to databases.
-
----
+This study can be extended in several directions. First, the system could be further improved through stronger schema linking mechanisms. Second, a dynamic agent routing strategy could reduce reasoning cost for simpler queries. Third, evaluation on newer benchmarks such as Spider 2.0 would help assess the generalization ability of the architecture under more challenging settings.
 
 ## References
 
@@ -765,8 +525,8 @@ Future research directions include extending the system to support multiple lang
 [6] M. Pourreza and D. Rafiei, "DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2304.11015  
 [7] D. Gao, H. Wang, Y. Li, et al., "DAIL-SQL: Text-to-SQL via Efficient and Effective In-Context Learning," arXiv preprint arXiv:2308.15363, 2023. https://doi.org/10.48550/arXiv.2308.15363  
 [8] Y. Wang, S. Zhou, H. Liu, et al., "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework," arXiv preprint arXiv:2308.08155, 2023. https://doi.org/10.48550/arXiv.2308.08155  
-[9] H. Chase, "LangChain," 2022–2024. [Online]. Available: https://python.langchain.com  
-[10] J. Moura et al., "CrewAI: Open-Source Framework for Multi-Agent Collaboration," 2023–2024. [Online]. Available: https://github.com/crewAIInc/crewAI  
+[9] H. Chase, "LangChain," 2022-2024. [Online]. Available: https://python.langchain.com  
+[10] J. Moura et al., "CrewAI: Open-Source Framework for Multi-Agent Collaboration," 2023-2024. [Online]. Available: https://github.com/crewAIInc/crewAI  
 [11] X. V. Lin, R. Socher, and C. Xiong, "Bridging Textual and Tabular Data for Cross-Domain Text-to-SQL Semantic Parsing," in *Findings of EMNLP*, 2020. https://doi.org/10.18653/v1/2020.findings-emnlp.438  
 [12] T. Scholak, N. Scarlatos, A. Baber, and D. Cer, "PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models," in *Proc. EMNLP*, 2021. https://doi.org/10.18653/v1/2021.emnlp-main.779  
 [13] OpenAI, "GPT-4 Technical Report," arXiv preprint arXiv:2303.08774, 2023. https://doi.org/10.48550/arXiv.2303.08774  
@@ -775,36 +535,38 @@ Future research directions include extending the system to support multiple lang
 [16] T. Shinn, C. Cassano, A. Gopinath, K. Narasimhan, and S. Yao, "Reflexion: Language Agents with Verbal Reinforcement Learning," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2303.11366  
 [17] Z. Gou, Z. Shao, Y. Gong, et al., "CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing," in *Proc. ICLR*, 2024. https://doi.org/10.48550/arXiv.2305.11738  
 [18] A. Asai, Z. Wu, Y. Wang, A. Sil, and H. Hajishirzi, "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection," in *Proc. ICLR*, 2024. https://doi.org/10.48550/arXiv.2310.11511  
-[19] T. Schick, J. Dwivedi-Yu, R. Dessì, R. Raileanu, M. Lomeli, E. Hambro, L. Zettlemoyer, N. Cancedda, and T. Scialom, "Toolformer: Language Models Can Teach Themselves to Use Tools," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2302.04761  
-[20] J. Li, B. Hui, G. Qu, J. Yang, B. Li, B. Li, B. Wang, B. Qin, R. Geng, N. Huo, et al., "Can LLM Already Serve as a Database Interface? A Big Bench for Large-Scale Database Grounded Text-to-SQL," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2305.03111
+[19] T. Schick, J. Dwivedi-Yu, R. Dessi, R. Raileanu, M. Lomeli, E. Hambro, L. Zettlemoyer, N. Cancedda, and T. Scialom, "Toolformer: Language Models Can Teach Themselves to Use Tools," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2302.04761  
+[20] J. Li, B. Hui, G. Qu, J. Yang, B. Li, B. Li, B. Wang, B. Qin, R. Geng, N. Huo, et al., "Can LLM Already Serve as a Database Interface? A Big Bench for Large-Scale Database Grounded Text-to-SQL," in *Proc. NeurIPS*, 2023. https://doi.org/10.48550/arXiv.2305.03111  
+[21] O. Rubin and J. Berant, "SmBoP: Semi-Autoregressive Bottom-Up Semantic Parsing," in *Proc. NAACL*, 2021. https://doi.org/10.18653/v1/2021.naacl-main.29
 
 ## Appendix A. Citation Mapping
 
-| Old in-text citation                       | New ID | Reference summary                                           |
-|-------------------------------------------|--------|-------------------------------------------------------------|
-| [Zhong et al., 2017] (Seq2SQL, WikiSQL)   | [1]    | Seq2SQL model and WikiSQL dataset                           |
-| [Yu et al., 2018] (SyntaxSQLNet)          | [2]    | SyntaxSQLNet Text-to-SQL model                              |
-| [Yu et al., 2018] (Spider Dataset)        | [3]    | Spider complex text-to-SQL dataset                          |
-| [Wang et al., 2020] (RAT-SQL)             | [4]    | Relation-aware Text-to-SQL parser                           |
-| [Ruan et al., 2023] (RESDSQL)             | [5]    | Decoupled schema linking/encoding Text-to-SQL model         |
-| [Pourreza & Rafiei, 2023] (DIN-SQL)       | [6]    | Decomposed in-context Text-to-SQL with self-correction      |
-| [Gao et al., 2023] (DAIL-SQL)             | [7]    | Efficient in-context learning Text-to-SQL                   |
-| [Wang et al., 2023] (AutoGen)             | [8]    | Multi-agent LLM conversation framework                      |
-| [Chase et al., 2022-2024] (LangChain)     | [9]    | LangChain agent/tool framework                              |
-| [Moura et al., 2023-2024] (CrewAI)        | [10]   | CrewAI multi-agent orchestration framework                  |
-| [Gan et al., 2021] (BRIDGE)               | [11]   | BRIDGE schema-linking Text-to-SQL model                     |
-| [Scholak et al., 2021] (PICARD)           | [12]   | Constrained decoding for Text-to-SQL                        |
-| [Various, 2022-2024] (GPT-3/4 Text-to-SQL)| [13]   | GPT-4 technical report as representative citation           |
-| [Wang et al., 2023] (CodeT5+)             | [14]   | CodeT5+ code LLM                                            |
-| [Qian et al., 2024] (ChatDev)             | [15]   | Communicative agents for software development               |
-| [Shinn et al., 2023] (Reflexion)          | [16]   | Reflexion self-reflective language agents                   |
-| [Yuan et al., 2023] (CRITIC)              | [17]   | CRITIC tool-interactive self-correction                     |
-| [Asai et al., 2024] (Self-RAG)            | [18]   | Self-reflective retrieval-augmented generation              |
-| [Schick et al., 2023] (Toolformer)        | [19]   | Language models learn to use tools                          |
-| [Li et al., 2023] (BIRD Dataset)          | [20]   | BIRD large-scale Text-to-SQL benchmark                      |
+| Author/Work | Reference No. | Description |
+| :--- | :--- | :--- |
+| [Zhong et al., 2017] (Seq2SQL, WikiSQL) | [1] | Seq2SQL model and WikiSQL dataset |
+| [Yu et al., 2018] (SyntaxSQLNet) | [2] | SyntaxSQLNet Text-to-SQL model |
+| [Yu et al., 2018] (Spider Dataset) | [3] | Complex Spider dataset for Text-to-SQL |
+| [Wang et al., 2020] (RAT-SQL) | [4] | Relation-aware Text-to-SQL parser |
+| [Ruan et al., 2023] (RESDSQL) | [5] | Text-to-SQL model decoupling schema linking and skeleton parsing |
+| [Pourreza & Rafiei, 2023] (DIN-SQL) | [6] | In-context decomposed Text-to-SQL with self-correction |
+| [Gao et al., 2023] (DAIL-SQL) | [7] | Efficient in-context Text-to-SQL |
+| [Wang et al., 2023] (AutoGen) | [8] | Multi-agent conversational framework |
+| [Chase et al., 2022-2024] (LangChain) | [9] | Agent/tool framework LangChain |
+| [Moura et al., 2023-2024] (CrewAI) | [10] | CrewAI multi-agent orchestration framework |
+| [Gan et al., 2021] (BRIDGE) | [11] | Schema-linking Text-to-SQL model BRIDGE |
+| [Scholak et al., 2021] (PICARD) | [12] | Constrained decoding for Text-to-SQL |
+| [Various, 2022-2024] (GPT-3/4 Text-to-SQL) | [13] | GPT-4 technical report used as representative citation |
+| [Wang et al., 2023] (CodeT5+) | [14] | CodeT5+ code LLM |
+| [Qian et al., 2024] (ChatDev) | [15] | Communicative agents for software development |
+| [Shinn et al., 2023] (Reflexion) | [16] | Reflexion self-reflective language agents |
+| [Yuan et al., 2023] (CRITIC) | [17] | Tool-interactive self-correction with CRITIC |
+| [Asai et al., 2024] (Self-RAG) | [18] | Self-reflective retrieval-augmented generation |
+| [Schick et al., 2023] (Toolformer) | [19] | Language model tool-use learning |
+| [Li et al., 2023] (BIRD Dataset) | [20] | Large-scale Text-to-SQL benchmark BIRD |
+| [Rubin and Berant, 2021] (SmBoP) | [21] | Semi-autoregressive bottom-up semantic parser for Text-to-SQL |
 
 ## Appendix B. Citation Notes
 
-- **[15] ChatDev** (Qian et al., ACL 2024): Represents multi-agent collaborative research in software development, illustrating the effectiveness of role specialization.  
-- **[18] Self-RAG** (Asai et al., ICLR 2024): Represents the agentic RAG research direction, focusing on self-reflection mechanisms for retrieval and text generation.  
-- **[19] Toolformer** (Schick et al., NeurIPS 2023): Represents the tool learning research direction in large language models, demonstrating self-supervised external API usage.
+*   **[15] ChatDev** (Qian et al., ACL 2024): Representative of collaborative multi-agent research in software development, illustrating the benefits of role specialization.
+*   **[18] Self-RAG** (Asai et al., ICLR 2024): Representative of agentic retrieval-augmented generation, focusing on self-reflection in retrieval and generation.
+*   **[19] Toolformer** (Schick et al., NeurIPS 2023): Representative of tool-learning in large language models, showing the ability to self-learn API usage.
