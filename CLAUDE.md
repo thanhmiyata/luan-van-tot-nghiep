@@ -10,10 +10,10 @@
 
 ## Overview
 
-Dự án nghiên cứu hệ thống **NL2SQL đa tác nhân (Multi-Agent)** sử dụng CrewAI. So sánh 2 cấu hình pipeline:
-- **6 bước (R1/GPT-4o)**: EX=85.0%, EM=40.0% (Mẫu 50c, EX Hard 100%)
-- **6 bước (Flash/GPT-4o)**: EX=85.6%, EM=77.8% (Full dev set)
-- **4 bước (baseline)**: EX=79.5%, EM=71.2%
+Dự án nghiên cứu hệ thống **NL2SQL đa tác nhân (Multi-Agent)** sử dụng CrewAI. Với bản conference hiện tại, các mốc chính đã khóa là:
+- **6 bước (main conference variant: Flash/GPT-4o)**: EX=85.6%, EM=77.8% (Spider 1.0 dev, full 1,034 câu)
+- **4 bước (baseline)**: EX=81.2%, EM=73.7% (Spider 1.0 dev, full 1,034 câu)
+- **Biến thể DeepSeek-R1**: chỉ giữ như thử nghiệm thăm dò, không phải cấu hình chính để viết paper
 
 Benchmark: Spider 1.0 dev set (1.034 câu hỏi)
 
@@ -53,11 +53,11 @@ MEMORY.md                      # Trạng thái làm việc
 
 | Agent | Model | Role |
 |-------|-------|------|
-| Question Analyzer | DeepSeek-R1 | Phân tích ý định |
+| Question Analyzer | Gemini 2.5 Flash | Phân tích ý định |
 | Schema Selector | Gemini 2.5 Flash | Lọc schema |
-| Query Planner | DeepSeek-R1 | Lập kế hoạch |
+| Query Planner | Gemini 2.5 Flash | Lập kế hoạch |
 | SQL Expert | GPT-4o | Sinh SQL |
-| SQL Refiner | DeepSeek-R1 | Tinh chỉnh |
+| SQL Refiner | Gemini 2.5 Flash | Tinh chỉnh |
 | SQL Validator | Gemini 2.5 Flash | Kiểm tra |
 
 ---

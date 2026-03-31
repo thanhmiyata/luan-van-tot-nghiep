@@ -37,7 +37,7 @@ Lược bỏ bước **Query Planner** và **SQL Refiner** để đánh giá t�
 
 ## 2. Kết quả Thực nghiệm (Spider 1.0)
 
-Đánh giá trên toàn bộ tập dữ liệu **Spider Dev Set (1.034 câu hỏi)** sử dụng mô hình **Gemini 2.5 Flash**.
+Đánh giá conference-ready được khóa trên toàn bộ tập dữ liệu **Spider Dev Set (1.034 câu hỏi)** với cấu hình chính: **Gemini 2.5 Flash** cho Analyzer/Schema/Planner/Refiner/Validator và **GPT-4o** cho SQL Generation.
 
 ### 2.1 Bảng so sánh tổng quát
 | Cấu hình | Exact Match (EM) | Execution Accuracy (EX) | Ghi chú |
@@ -45,35 +45,25 @@ Lược bỏ bước **Query Planner** và **SQL Refiner** để đánh giá t�
 | **4-Step ** | 73.7% | 81.2% |   |
 | **6-Step Proposed** | **77.8%** | **85.6%** | **Δ +4.4% EX** |
 
-### 2.2 Phân tích theo độ khó (Execution Accuracy - EX)
-| Độ khó | Số lượng | 4-Step EX | 6-Step (Sonet 4) | **6-Step (R1)** |
-| :--- | :---: | :---: | :---: | :---: |
-| Easy | 248 | 76.6% | 81.9% | **100.0%** |
-| Medium | 446 | 83.4% | 86.3% | **83.3%** |
-| **Hard** | **174** | **78.2%** | **87.4%** | **100.0%** |
-| Extra-hard | 166 | 85.5% | 87.3% | **66.7%** |
-| **Tất cả** | **1034** | **81.2%** | **85.6%** | **85.0%** |
+### 2.2 Phân tích theo độ khó
+| Độ khó | Số lượng | 4-Step EX | 4-Step EM | 6-Step EX | 6-Step EM |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Easy | 248 | 76.6% | 69.0% | 81.9% | 72.2% |
+| Medium | 446 | 83.4% | 75.8% | 86.3% | 79.1% |
+| **Hard** | **174** | **78.2%** | **70.7%** | **87.4%** | **79.9%** |
+| Extra-hard | 166 | 85.5% | 78.3% | 87.3% | 80.1% |
+| **Tất cả** | **1034** | **81.2%** | **73.7%** | **85.6%** | **77.8%** |
 
 > [!IMPORTANT]
-> **Nhận xét quan trọng:** Cấu hình 6 bước cho thấy ưu thế vượt trội ở cấp độ **Hard (+9.2%)**. Điều này chứng minh rằng việc có thêm bước **Query Planner** giúp hệ thống xử lý các cấu trúc SQL phức tạp (nhiều JOIN, lồng nhau) tốt hơn hẳn so với cách tiếp cận trực tiếp.
+> **Nhận xét quan trọng:** Cấu hình 6 bước cho thấy ưu thế vượt trội ở cấp độ **Hard (+9.2 EX / +9.2 EM)**. Đây là bằng chứng mạnh nhất trong gói conference-ready rằng bước **Query Planner** và **SQL Refiner** giúp hệ thống xử lý truy vấn có cấu trúc mong manh tốt hơn so với pipeline rút gọn.
 
 ---
 
-### 2.3 Thí nghiệm cắt giảm (Ablation Study)
+### 2.3 Ghi chú về ablation và các biến thể thăm dò
 > [!NOTE]
-> Các kết quả dưới đây dựa trên **Short Test (mẫu 100 câu hỏi)** để định lượng nhanh tác động của từng thành phần.
+> Trong lịch sử dự án có một số ablation subset-size nhỏ và biến thể `DeepSeek-R1`. Tuy nhiên, chúng **không** được dùng làm bằng chứng chính cho bản conference hiện tại vì không cùng protocol với kết quả `full Spider dev`.
 
-| Variant (Biến thể) | EX (%) | EM (%) | Tác động / Ưu thế |
-| :--- | :---: | :---: | :--- |
-| **Full 6-Step (DeepSeek-R1)** | **85.0** | **40.0** | **Reasoning mạnh (100% EX Hard)** |
-| **Full 6-Step (Sonet 4)** | **90.0** | **68.0** | Cấu hình ổn định, EM cao |
-| no_planner | 86.0 | 58.0 | Δ EM -10.0% (Mất tính cấu trúc) |
-| no_refiner | 84.0 | 62.0 | Δ EX -6.0% (Thiếu bước sửa lỗi) |
-| 4-step | 78.0 | 44.0 | Δ EM -24.0% (Sụt giảm nặng nhất) |
-
-**Kết luận:** 
-1. Planner và Refiner có **tính cộng hưởng**. Khi bỏ cả hai, độ chính xác sụt giảm 24%.
-2. Tích hợp **DeepSeek-R1** mang lại khả năng suy luận "vô đối" ở các câu hỏi mức độ **Hard (100% EX)**, dù EM thấp hơn do model có xu hướng viết SQL linh hoạt.
+**Nguyên tắc conference-ready:** chỉ xem hai mốc `4-step` và `6-step` trên `Spider dev 1,034 câu` là nguồn chân lý chính cho phần kết quả.
 
 ---
 
@@ -83,10 +73,10 @@ Dựa trên việc kiểm tra thủ công các trường hợp thất bại, ch�
 
 | Nhóm lỗi | Tỉ lệ lỗi | Mô tả & Giải pháp |
 | :--- | :---: | :--- |
-| **JSON Parsing Error** | ~20% | Model reasoning (R1) trả về tag `<thought>` hoặc text thừa làm hỏng cấu trúc JSON API. Giải pháp: Hậu xử lý Regex. |
-| **JOIN Redundancy** | ~35% | Thêm bảng không cần thiết vào JOIN. Đã giảm đáng kể nhờ DeepSeek-R1 Planner. |
-| **GROUP BY Mismatch** | ~20% | Nhóm theo cột không phải PK. GPT-4o Refiner đã sửa được phần lớn. |
-| **Schema Pruning** | ~10% | Schema Selector cắt nhầm bảng trung gian trong các câu JOIN phức tạp. |
+| **Subquery Wrapper Artifact** | 47 cases in both runs | Dạng `SELECT * FROM (...) AS subq` vẫn là lỗi formatting lặp lại. |
+| **LIMIT 0 Artifact** | 37 -> 27 | Giảm rõ trong 6-step, cho thấy hậu xử lý cuối tốt hơn. |
+| **Redundant CROSS JOIN** | 28 -> 19 | Ít JOIN dư thừa hơn sau khi có Planner/Refiner. |
+| **Extra Output Column** | 12 -> 4 | 6-step kiểm soát output shape tốt hơn đáng kể. |
 
 ---
 
@@ -113,7 +103,7 @@ Dưới đây là danh sách các hội nghị và tạp chí mục tiêu, đư�
 
 ### 4.3 Phân tích tính khả thi & Chiến lược
 1.  **Tính khả thi cao nhất:** **SN Computer Science**. Đây là đích đến an toàn nhất vì dự án đã có bộ Ablation Study đầy đủ và phân tích lỗi chi tiết, khớp hoàn hảo với format Original Research của Springer.
-2.  **Đặc thù kỹ thuật:** Các diễn đàn Q2 (ADMA, Applied Intelligence) đòi hỏi phải nhấn mạnh vào **"Tại sao 6 bước lại tốt hơn 4 bước"** bằng toán học hoặc logic suy luận sâu (DeepSeek-R1 đã cung cấp dữ liệu này).
+2.  **Đặc thù kỹ thuật:** Các diễn đàn Q2 đòi hỏi phải nhấn mạnh vào **"Tại sao 6 bước lại tốt hơn 4 bước"** bằng bằng chứng thực nghiệm rõ ràng trên cùng protocol, đặc biệt là breakdown theo độ khó và log-based error analysis.
 3.  **Hành động tiếp theo:**
     *   Rút gọn bài viết từ 25 trang xuống **12-14 trang** cho các hội nghị.
     *   Chuyển toàn bộ Mermaid Diagrams sang định dạng PNG chất lượng cao.

@@ -10,11 +10,11 @@
 ### 1.1 Mục tiêu
 Nghiên cứu và phát triển hệ thống **NL2SQL đa tác nhân (Multi-Agent)** để chuyển đổi câu hỏi ngôn ngữ tự nhiên thành truy vấn SQL. Tập trung vào việc so sánh và đánh giá vai trò của từng thành phần trong pipeline thông qua thiết kế mô-đun hóa.
 
-### 1.2 Kết quả chính (Cập nhật 02/03/2026)
-- **Cấu hình 6 bước (Flash/GPT-4o)**: EX=85.6%, EM=77.8% (Spider 1.0 full)
-- **Cấu hình 6 bước (DeepSeek-R1 Upgrade)**: EX=85.0%, EM=40.0% (Mẫu 50c, EX Hard đạt 100%)
-- **Cấu hình 4 bước (baseline)**: EX=79.5%, EM=71.2%
-- **Cải thiện**: DeepSeek-R1 giúp giải quyết triệt để các câu JOIN phức tạp (mức Hard).
+### 1.2 Kết quả chính (Conference evidence package)
+- **Cấu hình 6 bước (main conference variant)**: EX=85.6%, EM=77.8% (Spider 1.0 dev, full 1,034 questions)
+- **Cấu hình 4 bước (baseline)**: EX=81.2%, EM=73.7% (Spider 1.0 dev, full 1,034 questions)
+- **Cải thiện đã khóa cho paper**: +4.4 EX points, +4.1 EM points
+- **Biến thể DeepSeek-R1**: chỉ giữ như thử nghiệm thăm dò trên mẫu nhỏ, không dùng làm bằng chứng chính trong bản conference
 
 ### 1.3 Đóng góp khoa học
 - **C1 (Khung)**: Khung NL2SQL đa tác nhân mô-đun hóa 3 pha
@@ -25,40 +25,42 @@ Nghiên cứu và phát triển hệ thống **NL2SQL đa tác nhân (Multi-Agen
 
 ## 2. Kiến trúc Hệ thống
 
-### 2.1 Pipeline 6 bước (Cấu hình đầy đủ)
+### 2.1 Pipeline 6 bước (Cấu hình đầy đủ báo cáo chính)
 
 ```
 Pha 1: Phân tích & Liên kết lược đồ
-  ├── [1] Question Analyzer (Claude 3.7 Sonnet)
+  ├── [1] Question Analyzer (Gemini 2.5 Flash)
   │       └── Trích xuất intent, expected_output_fields, constraints
-  └── [2] Schema Selector (Gemini 2.0 Flash)
+  └── [2] Schema Selector (Gemini 2.5 Flash)
           └── Lọc bảng/cột, giữ PK/FK cần thiết
 
 Pha 2: Lập kế hoạch & Sinh SQL  
-  ├── [3] Query Planner (Claude 3.7 Sonnet)
+  ├── [3] Query Planner (Gemini 2.5 Flash)
   │       └── Tạo kế hoạch logic, xác định join path
   └── [4] SQL Expert (GPT-4o)
           └── Sinh SQL sơ bộ từ kế hoạch
 
 Pha 3: Tinh chỉnh & Kiểm tra
-  ├── [5] SQL Refiner (Claude 3.7 Sonnet)
+  ├── [5] SQL Refiner (Gemini 2.5 Flash)
   │       └── Đối soát SELECT với expected_output_fields
-  └── [6] SQL Validator (Gemini 2.0 Flash)
+  └── [6] SQL Validator (Gemini 2.5 Flash)
           └── Kiểm tra cú pháp và tính hợp lệ kỹ thuật
 ```
 
 ### 2.2 Pipeline 4 bước (Cấu hình cơ sở)
 Bỏ bước [3] Query Planner và [5] SQL Refiner
 
-### 2.3 Hybrid LLM Strategy (Upgrade 02/03/2026)
+### 2.3 Hybrid LLM Strategy (Main conference variant)
 | Agent | Model | Lý do |
 |-------|-------|-------|
-| Question Analyzer | DeepSeek-R1 | Suy luận semantic và chốt output fields |
+| Question Analyzer | Gemini 2.5 Flash | Phân tích intent ổn định, phù hợp full-dev protocol |
 | Schema Selector | Gemini 2.5 Flash | Lọc schema tốc độ cao |
-| Query Planner | DeepSeek-R1 | Lập kế hoạch JOIN logic sâu (Chain-of-thought) |
+| Query Planner | Gemini 2.5 Flash | Lập kế hoạch logic nhất quán với cấu hình báo cáo chính |
 | SQL Expert | GPT-4o | Chuyển đổi logic sang cú pháp SQL chuẩn |
-| SQL Refiner | DeepSeek-R1 | Đối soát và sửa lỗi logic nâng cao |
+| SQL Refiner | Gemini 2.5 Flash | Đối soát và sửa lỗi logic trong một pass |
 | SQL Validator | Gemini 2.5 Flash | Kiểm tra kỹ thuật nhanh |
+
+> Ghi chú: repo có lưu một số thử nghiệm DeepSeek-R1 lịch sử. Chúng không phải cấu hình chính của bản conference hiện tại.
 
 ---
 
