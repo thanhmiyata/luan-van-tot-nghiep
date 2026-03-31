@@ -1,0 +1,136 @@
+% \section{Product Knowledge Graph}
+\section{Product Knowledge Graph for Conversational Guidance}\label{sec:knowledge_graph}
+
+An effective question suggestion system requires a deep understanding of semantic relationships among products. To steer a conversation from a user’s initial interest to a business-defined target item, the system must identify a coherent sequence of intermediate products that form a logical and convincing progression. A knowledge graph offers an ideal framework for modeling these complex interconnections, enabling structured and explainable navigation across the product space.
+
+% Nền tảng của một hệ thống gợi ý có khả năng dẫn dắt hiệu quả nằm ở việc thấu hiểu sâu sắc mối quan hệ giữa các sản phẩm. Để điều hướng một cuộc hội thoại từ sản phẩm A (người dùng đang quan tâm) đến sản phẩm B (mục tiêu của doanh nghiệp), hệ thống cần tìm ra một chuỗi các sản phẩm trung gian liên quan logic, tạo thành một cây cầu kết nối tự nhiên và thuyết phục. Đồ thị tri thức (Knowledge Graph - KG) là một cấu trúc dữ liệu lý tưởng để mô hình hóa mạng lưới quan hệ phức tạp này.
+
+% \subsection{Cấu trúc và Xây dựng Đồ thị tri thức}
+
+\subsection{Building the Product Knowledge Graph}
+
+% We collected and processed data from the Vietnamese e-commerce website \textit{Thegioididong.com}, focusing on the smartphone category. A total of 193 smartphone models were analyzed to extract 16 key attributes. Based on this information, we constructed a product knowledge graph consisting of 107 nodes, where each node represents a distinct product line, and 10,789 edges that capture the semantic relationships between products. \textcolor{red}{We restrict evaluation to a single domain (smartphones) and a limited dataset size of 193 models, since our focus is to demonstrate the framework’s feasibility rather than to cover all product categories. Extending to larger, cross-domain datasets is an important next step.}
+
+We collected and processed data from the Vietnamese e-commerce website \textit{Thegioididong.com}, focusing on the smartphone category. From 193 smartphone models, we extracted 16 key attributes to construct a product knowledge graph with 107 nodes, each representing a distinct product line, and 10,789 edges encoding semantic relationships between products. For evaluation, we restrict our study to smartphones and a dataset of 193 models to demonstrate feasibility. Scaling to larger, cross-domain datasets remains an important direction for future work.
+
+% Chúng tôi đã tiến hành thu thập và xử lý dữ liệu từ trang web thương mại điện tử Thegioididong.com, tập trung vào danh mục điện thoại thông minh (smartphone). Dữ liệu của 193 mẫu smartphone đã được xử lý để trích xuất 16 thuộc tính quan trọng, từ đó xây dựng một đồ thị tri thức gồm 107 nút (mỗi nút đại diện cho một dòng sản phẩm chính) và 10,789 quan hệ.
+
+The knowledge graph is constructed based on three fundamental components: nodes, relationships, and relationship weights. We implemented the graph using the Neo4j graph database. Each node represents a unique smartphone model, such as “iPhone 15 Pro” or “Samsung Galaxy S25.” Variants that differ only in minor details, such as storage capacity, are grouped into a single node to avoid redundancy.
+% Đồ thị tri thức được xây dựng dựa trên ba khái niệm cơ bản: Nút (Node), Quan hệ (Relationship) và Trọng số Quan hệ (Relationship Weights). Để triển khai, chúng tôi sử dụng cơ sở dữ liệu đồ thị Neo4j. Mỗi nút trong đồ thị đại diện cho một mẫu smartphone duy nhất (ví dụ: "iPhone 15 Pro", "Samsung Galaxy S25"). Các biến thể điện thoại chỉ khác nhau về các chi tiết nhỏ như dung lượng lưu trữ được gộp chung vào một nút để tránh sự dư thừa.
+
+A relationship is established between two nodes whenever the corresponding products share the same value in an attribute. As shown in Table~\ref{tab:relationships}, we define eleven types of relationships, each corresponding to a specific product attribute and capturing a distinct semantic connection. To reflect the relative importance of each relationship in guiding conversations, a priority weight is assigned. Relationships with lower weights are given higher priority during path search. This weighting scheme is essential, as different product attributes carry varying levels of influence on user decision-making. For example, users tend to care more about price and brand than about case material. Since product relationships are derived from shared values in certain attributes, the corresponding relationship types naturally vary in importance.
+
+
+
+% Một quan hệ được thiết lập giữa hai nút (hai sản phẩm) nếu chúng chia sẻ một thuộc tính chung. Như thể hiện trong Bảng \ref{tab:relationships}, chúng tôi xác định 11 loại quan hệ; mỗi quan hệ ứng với một thuộc tính tương ứng của điện thoại, mang một ý nghĩa ngữ nghĩa cụ thể, giúp cho việc dẫn dắt trở nên logic. Mỗi quan hệ sẽ được gán một trọng số ưu tiên để phản ánh mức độ ảnh hưởng của nó. Các quan hệ có trọng số thấp hơn (ưu tiên cao hơn) sẽ được ưu tiên trong quá trình tìm đường đi. Trọng số quan hệ là cần thiết, vì các thuộc tính của điện thoại có tầm quan trọng khác nhau trong quyết định của người dùng. Ví dụ, người dùng thường quan tâm đến "giá" và "thương hiệu" hơn là "chất liệu vỏ máy". Do quan hệ giữa các mẫu điện thoại được xây dựng dựa trên thuộc tính, nên các quan hệ ứng với các thuộc tính cũng có tầm quan trọng khác nhau.
+
+A key aspect of our graph design is the integration of personalization context through user interaction history. Nodes corresponding to products that a user has previously viewed or purchased are marked with a user-specific flag indicating prior interaction. This annotation enriches the graph with personalized signals while preserving its topological structure.
+% Một điểm quan trọng trong kiến trúc đồ thị của chúng tôi là việc tích hợp bối cảnh cá nhân hóa thông qua lịch sử tương tác của người dùng. Các nút trong đồ thị tương ứng với các sản phẩm người dùng đã xem hoặc đã mua được đánh dấu bằng một thuộc tính chuyên biệt (ví dụ: user\_history=true). Quá trình đánh dấu này không làm thay đổi cấu trúc topo của đồ thị mà chỉ làm giàu nó với một lớp thông tin người dùng.
+
+This enrichment enables the system to strategically handle \textit{two distinct suggestion strategies}. The first involves recommending a product from the user's interaction history, which serves as a familiar anchor point, potentially increasing user trust and maintaining conversational continuity. In contrast, suggesting a completely new product creates an opportunity for exploration and interest expansion. While our system supports both strategies, the path-finding algorithm presented below is deliberately designed to favor routes that pass through previously interacted nodes. We hypothesize that this prioritization yields suggestions that feel more relevant and less intrusive, thereby significantly improving the likelihood of user acceptance.
+
+
+% Việc làm giàu thông tin này cho phép hệ thống phân biệt và xử lý hai kịch bản gợi ý một cách chiến lược. Kịch bản một là Gợi ý một sản phẩm đã có trong lịch sử người dùng đóng vai trò như một điểm nối lại quen thuộc, có khả năng tăng cường sự tin tưởng và duy trì tính liên tục của hội thoại. Ngược lại, kịch bản gợi ý một sản phẩm hoàn toàn mới tạo cơ hội cho việc khám phá và mở rộng mối quan tâm của người dùng. Mặc dù hệ thống của chúng tôi hỗ trợ cả hai kịch bản, thuật toán tìm đường đi trình bày dưới đây được thiết kế để ưu tiên một cách có chủ đích các đường đi đi qua các nút đã được đánh dấu. Chúng tôi giả định rằng chiến lược ưu tiên này sẽ tạo ra các gợi ý được người dùng cảm nhận là phù hợp hơn và ít gượng ép hơn, từ đó làm tăng đáng kể khả năng chấp nhận chúng.
+
+\begin{table}[!t]
+    \centering
+    \caption{Types of relationships and their priority weights in the product knowledge graph.}
+    \label{tab:relationships}
+    \begin{tabularx}{\columnwidth}{|l|c|X|}
+        \hline
+        \textbf{Relationship Type} & \textbf{Weight} & \textbf{Source Attributes} \\
+        \hline
+        Same brand & 1 & Brand \\ \hline
+        Same price range & 1 & Price \\ \hline
+        Equivalent memory configuration & 2 & Internal storage, RAM \\ \hline
+        Equivalent processor & 2 & CPU \\ \hline
+        Equivalent camera system & 2 & Front camera, Rear camera \\ \hline
+        Equivalent display & 2 & Display technology, Resolution, Size, Refresh rate \\ \hline
+        Same operating system & 4 & Operating system \\ \hline
+        Similar battery capacity & 3 & Battery capacity \\ \hline
+        Equivalent material & 3 & Body material \\ \hline
+        5G support & 4 & 5G capability \\ \hline
+        Similar release date & 4 & Release date \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+% \begin{table}[!t]
+%     \centering
+%     \caption{Các loại quan hệ và trọng số ưu tiên trong đồ thị tri thức.}
+%     \label{tab:relationships}
+%     \begin{tabularx}{\columnwidth}{|l|c| >{\raggedright\arraybackslash}X |}
+%         \hline
+%         \textbf{Loại quan hệ} & \textbf{Trọng số} & \textbf{Thuộc tính nguồn} \\
+%         \hline
+%         CÙNG\_HÃNG & 1 & Hãng \\ \hline
+%         CÙNG\_TẦM\_GIÁ & 1 & Giá \\ \hline
+%         CÙNG\_THÔNG\_SỐ\_BỘ\_NHỚ & 2 & Bộ nhớ trong, RAM \\ \hline
+%         CPU\_TƯƠNG\_ĐƯƠNG & 2 & CPU \\ \hline
+%         CAMERA\_TƯƠNG\_ĐƯƠNG & 2 & Camera trước, Camera sau \\ \hline
+%         MÀN\_HÌNH\_TƯƠNG\_ĐƯƠNG & 2 & Công nghệ, Độ phân giải, Kích thước, Tần số quét \\ \hline
+%         CÙNG\_HỆ\_ĐIỀU\_HÀNH & 4 & Hệ điều hành \\ \hline
+%         CÙNG\_DUNG\_LƯỢNG\_PIN & 3 & Dung lượng pin \\ \hline
+%         CHẤT\_LIỆU\_TƯƠNG\_ĐƯƠNG & 3 & Chất liệu \\ \hline
+%         CÙNG\_HỖ\_TRỢ\_5G & 4 & Hỗ trợ 5G \\ \hline
+%         CÙNG\_THỜI\_ĐIỂM\_RA\_MẮT & 4 & Thời điểm ra mắt \\
+%         \hline
+%     \end{tabularx}
+% \end{table}
+
+
+% \subsection{Thuật toán Tìm kiếm Đường đi Gợi ý}
+\subsection{Goal-Oriented Path Search in the Product Knowledge Graph}
+
+% To guide users effectively, the system must compute optimal paths from one or more source entities—representing the products mentioned by the user—to a predefined target entity, which corresponds to a product the business intends to promote. An optimal path must satisfy two criteria: (1) it should be short and contextually coherent so that the user does not perceive the suggestion as forced, and (2) it should align with the user’s preferences to increase the likelihood of acceptance.
+
+To guide users effectively, the system computes optimal paths from the source entities, which are the products mentioned by the user, to a target entity defined as the product that the business aims to promote. An optimal path must meet two criteria. First, it should be short and contextually coherent so that the recommendation appears natural rather than forced. Second, it should align with the user’s preferences to increase the likelihood of acceptance.
+
+
+
+% Trong quá trình định hướng người dùng, cần xây dựng thuật toán tìm đường (\textit{path}) tối ưu từ \textbf{một hoặc nhiều} \textit{thực thể nguồn} (các sản phẩm người dùng đang đề cập) đến một \textit{thực thể mục tiêu} (sản phẩm doanh nghiệp muốn quảng bá). Một con đường tối ưu phải thỏa mãn hai tiêu chí: (1) ngắn và tự nhiên để người dùng không cảm thấy bị dẫn dắt một cách lộ liễu, và (2) phù hợp với sở thích của người dùng để tăng khả năng họ chấp nhận gợi ý.
+
+
+The path search algorithm is designed to leverage the personalized knowledge graph. It systematically explores and scores candidate paths, with a scoring function that explicitly prioritizes those passing through user-marked nodes. The algorithm proceeds in three steps:
+
+\textbf{Step 1 – Source and Target Identification:} Determine the source entities based on the current user query and retrieve the target entity as predefined by the business.
+
+\textbf{Step 2 – Shortest Path Enumeration:} Use a graph traversal algorithm (e.g., bidirectional BFS) to find all shortest paths from each source entity to the target entity.
+
+\textbf{Step 3 – Path Filtering and Ranking:} Since multiple shortest paths may exist, each path is scored using a function that combines two factors: the priority of the relationships it traverses and the extent to which it aligns with the user's interaction history. The scoring function for a path \texttt{p} is defined in Equation~\eqref{eq:score}, where:
+\begin{itemize}
+    \item $\alpha$ and $\beta$ are weighting coefficients that balance system-defined priorities and user personalization, subject to $\alpha + \beta = 1$.
+    \item $w_r$ is the priority weight assigned to relationship $r$, as defined in Table~\ref{tab:relationships}. The inverse $\frac{1}{w_r}$ ensures that more important relationships (with lower weights) contribute more to the score.
+    \item $\mathcal{R}(p)$ denotes the set of relationships along path $p$.
+    \item $\mathcal{E}(p)$ denotes the set of entities (products) along path $p$.
+    \item $I(e)$ is an indicator function that returns 1 if entity $e$ appears in the user's interaction history $H$, and 0 otherwise.
+\end{itemize}
+
+\begin{equation}
+\label{eq:score}
+\mathrm{Score}(p) = \alpha \sum_{r \in \mathcal{R}(p)} \frac{1}{w_r} + \beta \sum_{e \in \mathcal{E}(p)} I(e)
+\end{equation}
+
+
+
+% Thuật toán tìm đường đi được thiết kế để tận dụng đồ thị tri thức đã được cá nhân hóa. Nó tìm kiếm và chấm điểm các đường đi tiềm năng một cách có hệ thống, với hàm tính điểm ưu tiên một cách rõ ràng các đường đi đi qua các nút đã được "đánh dấu" từ lịch sử người dùng. Thuật toán tìm đường được thực hiện qua 3 bước như sau:
+
+% \textbf{Bước 1 - Xác định Nguồn và Đích:} Xác định thực thể nguồn từ câu hỏi hiện tại của người dùng và thực thể đích được doanh nghiệp cung cấp trước.
+
+% \textbf{Bước 2 - Tìm tất cả các đường đi ngắn nhất:} Sử dụng thuật toán tìm kiếm trên đồ thị (ví dụ: Bi-directional BFS), tìm tất cả các đường đi ngắn nhất từ mỗi thực thể nguồn đến thực thể đích.
+
+% \textbf{Bước 3 - Lọc và Xếp hạng đường đi:} Do thường có nhiều đường đi ngắn nhất từ sản phẩm nguồn tới sản phẩm đích, mỗi đường đi này sẽ được chấm điểm dựa trên một hàm số kết hợp hai yếu tố: sự ưu tiên của các quan hệ và sự liên quan đến lịch sử người dùng. Hàm tính điểm cho một đường đi \texttt{p} được định nghĩa như công thức \eqref{eq:score}.
+% \begin{equation} \label{eq:score}
+% \text{Score}(p) = \alpha \sum_{r \in \text{relationships}(p)} w_r^{-1} + \beta \sum_{e \in \text{entities}(p)} I(e)
+% \end{equation}
+% Trong đó:
+% \begin{itemize}
+%     \item $\alpha$ và $\beta$ là các hệ số trọng số, với $\alpha + \beta = 1$, dùng để cân bằng giữa sự ưu tiên của hệ thống và sự cá nhân hóa.
+%     \item $w_r$ là trọng số của quan hệ $r$ (lấy từ Bảng \ref{tab:relationships}). Công thức sử dụng giá trị nghịc đảo $w_r^{-1}$ để quan hệ có trọng số nhỏ (ưu tiên cao) đóng góp điểm số lớn hơn.
+%     \item $H$ là tập hợp các sản phẩm người dùng đã tương tác.
+%     \item $I(e)$ là một hàm chỉ báo, có giá trị bằng 1 nếu thực thể (sản phẩm) $e$ nằm trong lịch sử $H$ của người dùng, và bằng 0 trong trường hợp ngược lại.
+% \end{itemize}
+
+This scoring approach favors paths that traverse high-priority relationships (e.g., brand, price range) and include products previously interacted with by the user. The system then selects the top $N$ highest-scoring paths (e.g., $N = 2$) and forwards them to the \textit{Question Guidance Component} for question generation.
+
+% Bằng cách này, một đường đi sẽ được chấm điểm cao nếu nó đi qua các mối quan hệ quan trọng (như tầm giá, hãng) và đồng thời đi qua các sản phẩm mà người dùng đã từng thể hiện sự quan tâm. Cuối cùng, hệ thống sẽ chọn ra N (ví dụ N=2) đường đi có điểm số cao nhất để chuyển cho tác tử gợi ý.

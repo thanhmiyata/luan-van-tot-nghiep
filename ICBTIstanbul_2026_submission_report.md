@@ -1,6 +1,6 @@
 # Bao cao tong hop ICBTIstanbul 2026 cho de tai NL2SQL
 
-Cap nhat: 2026-03-08
+Cap nhat: 2026-03-25
 
 ## 1. Muc tieu cua bao cao
 
@@ -135,14 +135,16 @@ Nguon:
 
 - Website cung cap `Springer template` dang Word `.docx`
 - Chua thay template LaTeX cong khai tren website
+- Ban to chuc da xac nhan qua email: `Only Springer template`
 
 Link template:
 - https://www.dropbox.com/scl/fi/0fp43tpp70imzj99uzut2/Springer_Template_ISEBT2021_ISEBT_2021_2n2bC48K8H.docx?rlkey=78rhrqro2jmyv4ucytiusc377&e=3&dl=0
 
 Y nghia thuc te:
 - Ban co the viet nhap bang LaTeX de de quan ly cong thuc, trich dan, bang bieu
-- Nhung ban nen san sang chuyen/noi dung sang Word template cuoi cung de nop
-- Hien tai khong co bang chung cong khai rang venue nay co nhan file LaTeX
+- Nhung ban nop cuoi cung nen dua tren `Word Springer template`
+- Theo email, khong nen ky vong venue se nhan mot workflow LaTeX/PDF doc lap
+- Giao dien template trong file docx cho thay day la mot mau Springer kieu `LNCS/LNNS` co heading, figure caption, table caption theo phong cach proceedings cua Springer
 
 ## 5.3. So trang
 
@@ -166,11 +168,18 @@ Theo `Review Process`:
 - acceptance rate: `29%`
 - similarity rate: `< 20%`
 - AI similarity rate: `< 20%`
+- gioi han do dai: `toi da 12 trang`
 
 Luu y:
-- Trang `Publication Opportunity` lai ghi `double-blind peer-review`
-- Tuy nhien ban to chuc da tra loi email va yeu cau xem trang `Review Process`
-- Vi vay, tam thoi coi `single-blind` la thong tin van hanh chinh
+- Co mau thuan ro rang giua cac nguon:
+  - Trang `Review Process` ghi `single-blind`
+  - Email tra loi cua ban to chuc co luc noi `double-blind review`
+  - Trong email sau, ban to chuc viet: `Plz share those pages to correct them, but it is double-blind review.`
+- Dieu nay cho thay website dang `khong dong nhat` va quy trinh review thuc te chua duoc the hien nhat quan tren cac trang cong khai.
+- Ve mat thuc dung, ban nen:
+  - chuan bi ban thao sach, trung lap thap, dung template Springer
+  - san sang cho ca hai tinh huong: co danh tinh tac gia hoac can anonymize
+  - luu email tra loi lam bang chung noi bo neu can giai trinh
 
 Nguon:
 - https://icbtistanbul.com/review-process/
@@ -203,16 +212,20 @@ Noi dung duoc ban to chuc tra loi:
 1. Neu bai duoc nhan, tac gia co the chuyen sang `virtual mode`.
 2. Neu chua dang ky, co the chon `virtual registration option` ngay khi dang ky.
 3. Bai trinh bay online van `duoc dua vao conference proceedings va indexed duoi cung dieu kien nhu onsite`.
-4. Chi tiet `Springer book series` se duoc chia se trong `copyright form` sau hoi nghi.
-5. Ban to chuc yeu cau su dung `Springer Word template` tren website.
+4. O mot email, ban to chuc noi chi tiet `Springer book series` se duoc chia se trong `copyright form` sau hoi nghi.
+5. O email sau, ban to chuc tra loi ro hon rang `accepted English papers` se vao `LNNS series`.
+6. Ban to chuc yeu cau su dung `Springer Word template` tren website.
+7. Ban to chuc tra loi `Only Springer template` khi duoc hoi ve LaTeX/PDF.
+8. Ban to chuc tra loi review la `double-blind`, du trang review-process hien cong khai ghi `single-blind`.
 
 Y nghia:
 - Voi dieu kien cua ban la khong the toi hoi nghi offline, diem nghen lon nhat da duoc giai toa.
 - Ban da co xac nhan truc tiep rang `virtual presentation + publication/indexing` la hop le.
+- Ban da co xac nhan qua email ve huong proceedings `LNNS`, dieu nay tang muc do tin cay so voi giai doan ban dau.
 
 Han che:
-- Van chua biet ten `Springer series` cu the truoc khi nop.
-- Dieu nay khong ngan can viec nop, nhung la mot rui ro ve minh bach publication venue.
+- Van con mau thuan giua email va website ve `single-blind` vs `double-blind`.
+- Chua co mot trang cong khai tren website giai thich nhat quan tat ca cac thong tin nay.
 
 ## 8. Publication opportunity: cach hieu dung
 
@@ -227,6 +240,7 @@ Can hieu than trong:
 - Day la `publication opportunity`, khong phai cam ket tat ca bai se vao journal.
 - Cam ket thuc su can nhin la `conference proceedings`.
 - Journal invitation neu co se yeu cau mo rong bai `40-50%`.
+- Trong phan proceedings, email da cung cap them mot chi tiet quan trong: venue du kien la `LNNS series`.
 
 Danh gia:
 - Nen xem phan journal la co hoi them, khong phai ly do chinh de nop.
@@ -252,10 +266,27 @@ Nguon:
 
 ## 9.2. Diem can than trong
 
-- Chua ro `Springer series` cu the truoc khi nop.
 - Chi co Word template cong khai.
-- Co su khong dong nhat nho giua mot vai trang tren website.
+- Co su khong dong nhat ro rang giua email va website ve `single-blind` vs `double-blind`.
+- Website co ve chua duoc dong bo hoan toan, nen moi quyet dinh quan trong nen duoc dua tren email xac nhan + luu bang chung.
 - Venue nghieng ve `Business and Technology`, nen bai can duoc frame theo huong ung dung, khong nen qua "benchmark-only".
+
+## 9.3. Ket luan cap nhat
+
+Sau khi doi chieu them email va trang `Review Process`, ICBTIstanbul 2026 tro thanh mot venue `thuc dung va kha kha dung duoc` neu uu tien la:
+
+- duoc phep `virtual presentation`
+- bai online van vao proceedings/indexing
+- co gioi han `12 trang` ro rang de lap ke hoach rut gon ban thao
+- co huong proceedings Springer duoc xac nhan them la `LNNS`
+
+Tuy nhien, venue nay van ton tai mot diem tru lon ve `do nhat quan thong tin cong khai`, dac biet quanh review mode. Vi vay, neu nop venue nay, ban nen:
+
+1. Luu toan bo email xac nhan.
+2. Chuan bi ban thao theo `Springer Word template`.
+3. Rut bai ve muc `10-12 trang`.
+4. Giu similarity va AI similarity duoi `20%`.
+5. Framing bai theo huong `business analytics / decision support / natural language access to structured data` de hop venue hon.
 
 ## 9.3. Ket luan
 
