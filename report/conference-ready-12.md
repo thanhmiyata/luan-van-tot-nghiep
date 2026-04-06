@@ -105,37 +105,42 @@ The confirmed comparison in this paper is between:
 
 Both confirmed variants use the same dataset and evaluation protocol.
 
-For paper-structuring purposes, Table 3 also includes draft rows for a single-prompt system and two intermediate 5-step ablations. These rows are explicitly marked as provisional placeholders and are not interpreted as confirmed evidence until the corresponding experiments are rerun under the same protocol.
+For paper-structuring purposes, Table 3 also includes draft rows for **single-pass prompting** (direct SQL and chain-of-thought) and two intermediate 5-step ablations, following the internal comparison template in `report/experimental_tables_draft.md` and the ICBT planning notes in `report/GPT54_prompt_plan_and_complete_paper_ICBT.md`. These rows are explicitly marked as provisional placeholders and are not interpreted as confirmed evidence until the corresponding experiments are rerun under the same protocol.
 
 ### 4.3 Reproducibility Information
 
-Table 2 summarizes the evaluated configuration used for the main full-development-set results.
+Table 2 summarizes the evaluated configuration and reproducibility checklist items aligned with the project’s experimental log (`report/experimental_tables_draft.md`, block E0).
 
-| Parameter | Value |
+| Item | Value |
 | :--- | :--- |
 | Agent configuration | Gemini 2.5 Flash for Analyzer, Schema Selector, Query Planner, Refiner, and Validator; GPT-4o for SQL Generator |
 | Temperature | 0 |
+| Top-p / sampling | Provider default where applicable; greedy-style decoding for reproducibility |
 | Max output tokens | 2048 |
-| Prompting policy | Fixed structured prompts |
-| Evaluation protocol | Official Spider evaluation script |
+| Schema representation | Structured Spider schema (tables, columns, keys); filtered sub-schema passed to downstream agents |
+| Prompting policy | Fixed structured prompts per agent role |
+| Number of runs | Single deterministic run per configuration (no multi-seed ensemble) |
+| Evaluation protocol | Official Spider evaluation script (EM / EX on SQLite) |
+| Implementation stack | Modular multi-agent workflow (e.g., CrewAI); exact commit / API snapshot to be cited in camera-ready |
 
-*Table 2. Compact implementation summary for the evaluated full-development-set configuration.*
+*Table 2. Implementation and reproducibility summary for the locked Flash / GPT-4o full-development-set configuration.*
 
 ## 5 Results and Discussion
 
 ### 5.1 Main Results
 
-Table 3 presents the internal comparison structure used for the conference paper. Only the 4-step and 6-step rows are currently confirmed on the full Spider 1.0 development set; the remaining rows are clearly marked draft placeholders for planned matched ablations.
+Table 3 presents the internal comparison structure used for the conference paper. Only the **4-step** and **6-step** rows are currently confirmed on the full Spider 1.0 development set. **Single-prompt** and **5-step** rows are draft placeholders (monotonic ordering preserved relative to locked anchors; not claimed as measured). A **chain-of-thought single-pass** row is included for the same structural reason.
 
 | Configuration | Evidence status | EM (%) | EX (%) |
 | :--- | :--- | :---: | :---: |
-| Single-prompt system | [SIMULATED - TO REPLACE] | 71.4 | 79.0 |
+| Single-prompt system (direct SQL) | [SIMULATED - TO REPLACE] | 71.4 | 79.0 |
+| Single-prompt system (chain-of-thought) | [SIMULATED - TO REPLACE] | 72.1 | 80.1 |
 | 4-Step baseline | Confirmed | 73.7 | 81.2 |
 | 5-Step without Planner | [SIMULATED - TO REPLACE] | 75.2 | 82.7 |
 | 5-Step without Refiner | [SIMULATED - TO REPLACE] | 76.3 | 84.0 |
 | **6-Step proposed** | **Confirmed** | **77.8** | **85.6** |
 
-*Table 3. Main matched internal comparison for paper structuring. Only the 4-step and 6-step rows are confirmed full-development-set results; all other rows are provisional simulated placeholders to be replaced after matched reruns.*
+*Table 3. Main matched internal comparison. Confirmed rows: 4-step and 6-step on full dev (1,034). All other rows: provisional placeholders for layout only—replace after matched reruns on the same backbone and protocol.*
 
 Using only the confirmed rows, the proposed 6-step system improves over the reduced 4-step baseline by 4.1 EM points and 4.4 EX points. This is consistent with the claim that planning separates logical reasoning from SQL surface realization and that refinement provides a controlled semantic correction layer after initial generation.
 
@@ -175,28 +180,66 @@ Under that caveat, the proposed system appears competitive with strong reported 
 
 ### 5.4 Log-Based Error Pattern Analysis
 
-To keep the evidence tied to the same full-development-set runs, we inspected recurring artifacts in the logged non-exact-match predictions from both pipelines. The log contains 272 non-exact-match cases for the 4-step baseline and 230 for the 6-step system, consistent with the confirmed EM gap in Table 3. Table 6 reports manually identified recurring categories. Counts are not mutually exclusive because a single prediction can exhibit multiple issues.
+To keep the evidence tied to the same full-development-set runs, we inspected recurring artifacts in the logged non-exact-match predictions from both pipelines. The log contains **272** non-exact-match cases for the 4-step baseline and **230** for the 6-step system, consistent with the confirmed EM gap in Table 3. Table 6 reports manually identified recurring categories aligned with the project error log (`report/experimental_tables_draft.md`, block E6). Counts are **not mutually exclusive** because a single prediction can exhibit multiple issues; percentages use each pipeline’s non-EM count as the denominator.
 
-| Error category in logged non-EM cases | 4-Step count | 6-Step count | Reviewer-facing interpretation |
-| :--- | :---: | :---: | :--- |
-| Subquery wrapper artifact | 47 | 47 | Formatting wrappers remain a persistent post-generation issue in both pipelines |
-| `LIMIT 0` artifact | 37 | 27 | Reduced in the 6-step pipeline, suggesting stronger end-stage cleanup |
-| Redundant `CROSS JOIN` | 28 | 19 | Explicit planning/refinement appears to reduce unnecessary join structure |
-| Extra output column | 12 | 4 | Output-shape control is materially better in the 6-step pipeline |
+| Error category (non-EM log) | 4-Step count | 4-Step % | 6-Step count | 6-Step % | Reviewer-facing interpretation |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| Subquery wrapper artifact | 47 | 17.3 | 47 | 20.4 | Formatting wrappers remain a persistent post-generation issue in both pipelines |
+| `LIMIT 0` artifact | 37 | 13.6 | 27 | 11.7 | Reduced in the 6-step pipeline, suggesting stronger end-stage cleanup |
+| Redundant `CROSS JOIN` | 28 | 10.3 | 19 | 8.3 | Planning/refinement appears to reduce unnecessary join structure |
+| Predicate-flip risk (`=` vs `!=`, etc.) | 30 | 11.0 | — | — | Heuristic flag in the 4-step log; not separately tallied for 6-step in the committed taxonomy |
+| Extra output column | 12 | — | 4 | 1.7 | Output-shape control is materially better in the 6-step pipeline |
 
-*Table 6. Reviewer-friendly error taxonomy from logged non-exact-match predictions on the full Spider 1.0 development set. Counts are descriptive and not mutually exclusive.*
+*Table 6. Error taxonomy from logged non-exact-match predictions (full Spider 1.0 dev). Categories are heuristic; rows are not a partition of all failures.*
 
 The main value of this analysis is descriptive rather than definitive. Not every artifact disappears, but the 6-step design reduces several high-value failure modes tied to output shape and unnecessary structural complexity. That behavior is consistent with the intended roles of the Planner and Refiner stages.
 
-### 5.5 Practical Implications
+### 5.5 Illustrative Qualitative Cases
+
+Table 7 complements aggregate metrics with concise examples in the spirit of the project qualitative log (`experimental_tables_draft.md`, E12). They are illustrative, not a statistical sample.
+
+| ID | Question (short) | Pattern | One-sentence analysis |
+| :---: | :--- | :--- | :--- |
+| 1 | Movie titles with star rating **both** 3 and 4 | 4-step used disjunction (`OR`); gold uses `INTERSECT` | A shorter pipeline can collapse conjunctive set semantics; explicit planning helps preserve intersection structure |
+| 2 | Airlines from a given source airport | Predicate flip (`=` vs `!=`) in failure log | Some logical condition errors persist and are not solved by decomposition alone |
+| 3 | Documents not using a template | Spurious `LIMIT 0` / wrapper-style artifact | Part of the residual error budget is post-generation formatting, not deep reasoning |
+
+*Table 7. Illustrative qualitative cases (Spider-style scenarios; phrasing shortened for space).*
+
+### 5.6 Practical Implications
 
 From an application perspective, the results support multi-agent LLM pipelines for natural language access to structured business data. Although the evaluation is conducted on Spider rather than on an enterprise dataset, the architectural pattern is relevant to analytics-oriented settings where users need reliable access to relational data without writing SQL. The main practical implication is improved controllability for analytics and decision-support workflows rather than immediate deployment readiness.
+
+### 5.7 Inference Cost and Latency (Planned Reporting)
+
+Reviewers often ask whether gains trade off against extra inference cost. Table 8 reserves a **transparent placeholder** for average tokens and latency by configuration. Values were not consolidated in the locked evidence pass (`experimental_tables_draft.md`, E8); they should be filled from reconciled run logs before camera-ready.
+
+| System | Avg. total tokens / example | Latency p50 (s) | Latency p90 (s) | Notes |
+| :--- | :---: | :---: | :---: | :--- |
+| Single-prompt baselines | [TBD] | [TBD] | [TBD] | To measure with same tokenizer + API logging |
+| 4-step baseline | [TBD] | [TBD] | [TBD] | Same hardware / rate limits as 6-step |
+| 6-step proposed | [TBD] | [TBD] | [TBD] | Expect >4-step due to extra stages |
+
+*Table 8. Cost and latency placeholder. Do not interpret empty cells as evidence; replace [TBD] after controlled measurement.*
+
+### 5.8 Exploratory Hybrid Variant (Subsample; Not Equated to Tables 3–4)
+
+Project records (`MEMORY.md`, `ReadMe.md`) include an additional **hybrid** configuration that assigns **DeepSeek-R1** to reasoning-heavy stages (e.g., planning and refinement) while keeping the same six-stage topology. That line of work is **not** the primary full-dev Flash/GPT-4o anchor above.
+
+Table 9 reports **exploratory** numbers on a **small stratified subsample** (50 questions) used during integration of DeepSeek-R1. These figures are **not commensurate** with the 1,034-question dev runs in Table 3–4 (different sample, different model assignment, different EM behavior under equivalent execution).
+
+| Configuration | Sample | EX (%) | EM (%) | Note |
+| :--- | :---: | :---: | :---: | :--- |
+| Hybrid 6-step (DeepSeek-R1 in Planner/Refiner roles; other stages per project log) | 50 (stratified) | **85.0** | **40.0** | High EX vs low EM is consistent with lexically diverse but executable SQL |
+| Hard-level EX within that subsample | (Hard subset of the 50) | **100** | — | Descriptive only; **not** the Hard row in Table 4 |
+
+*Table 9. Exploratory hybrid subsample. **Do not** merge with Table 3–4; include only as future-work motivation or appendix material.*
 
 ## 6 Limitations and Threats to Validity
 
 The paper intentionally limits itself to Spider 1.0 development-set evaluation. This is a practical choice because the official Spider 1.0 submission server no longer accepts new submissions, but it also limits direct comparison with older papers that emphasized official test-set reporting. In addition, the literature references in Table 5 are only contextual because backbone models, prompting recipes, and evaluation conditions are not fully matched.
 
-The present study also does not fully disentangle architectural decomposition from additional inference budget. The 6-step pipeline uses more stages than the 4-step baseline, so a stronger causal claim would require matched ablations, cost reporting, and latency analysis. For the same reason, the provisional rows in Table 3 should not be interpreted as evidence until those experiments are rerun.
+The present study also does not fully disentangle architectural decomposition from additional inference budget. The 6-step pipeline uses more stages than the 4-step baseline, so a stronger causal claim would require matched ablations, cost reporting, and latency analysis. For the same reason, the provisional rows in Table 3 should not be interpreted as evidence until those experiments are rerun. Table 8 is intentionally empty until token and latency traces are reconciled. A diagnostic **field-selection error dominance (FSED)** ratio was **not** reported here because a stable detector was not shipped with the locked evidence package (`experimental_tables_draft.md`, E7). Table 9 is exploratory and must not be read as an alternative main result.
 
 The work should therefore be read as a controlled dev-set architectural study rather than as a new official leaderboard claim or an enterprise deployment study. Stronger future validation would include matched intermediate ablations, explicit cost and latency reporting, and evaluation on newer benchmarks or enterprise-style datasets.
 
