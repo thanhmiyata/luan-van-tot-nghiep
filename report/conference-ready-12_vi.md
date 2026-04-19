@@ -53,27 +53,55 @@ Hệ thống được đề xuất phân rã NL2SQL thành sáu giai đoạn tu�
 5. Tinh chỉnh SQL
 6. Kiểm định SQL
 
-Luồng dữ liệu giữa các tác nhân được minh họa như sau (chỉ mang tính sơ đồ; chi tiết gán model: **Bảng 2**):
+Luồng dữ liệu giữa các tác nhân được minh họa như sau (chỉ mang tính sơ đồ; chi tiết gán model: **Bảng 2**). **Baseline 4 bước** dùng cùng đầu vào (câu hỏi + lược đồ thô) nhưng **bỏ bước lập kế hoạch và bước tinh chỉnh**, tức đi thẳng *Phân tích → Lược đồ → Sinh SQL → Kiểm định*. **Pipeline 6 bước** chèn thêm *Lập kế hoạch* trước khi sinh SQL và *Tinh chỉnh* ngay sau bản SQL ban đầu, nên đường đi từ ngôn ngữ tự nhiên tới SQL vẫn là một dãy tuần tự, chỉ khác ở chỗ hai giai đoạn suy luận trung gian được tách riêng thay vì gom vào một lần sinh.
 
 ```mermaid
-flowchart LR
-  Q[Câu hỏi NL] --> A[Phân tích Câu hỏi]
-  S0[Lược đồ thô] --> A
-  A --> B[Lựa chọn Lược đồ]
-  S0 --> B
-  B --> C[Lập kế hoạch Truy vấn]
-  A --> C
-  C --> D[Sinh SQL]
-  B --> D
-  A --> D
-  D --> E[Tinh chỉnh SQL]
-  A --> E
-  C --> E
-  B --> E
-  E --> F[Kiểm định SQL]
-  B --> F
-  F --> Out[SQL cuối]
+flowchart TB
+  subgraph IN["Đầu vào"]
+    Q["Câu hỏi NL"]
+    S0["Lược đồ thô"]
+  end
+
+  subgraph SIX["Pipeline 6 bước (đề xuất) — tuần tự một lượt"]
+    direction TB
+    A["1 · Phân tích Câu hỏi"]
+    B["2 · Lựa chọn Lược đồ"]
+    C["3 · Lập kế hoạch Truy vấn"]
+    D["4 · Sinh SQL"]
+    E["5 · Tinh chỉnh SQL"]
+    F["6 · Kiểm định SQL"]
+    A --> B --> C --> D --> E --> F
+  end
+
+  subgraph FOUR["Baseline 4 bước (cùng Q, S0)"]
+    direction LR
+    A4["1 · Phân tích"]
+    B4["2 · Lược đồ"]
+    D4["3 · Sinh SQL"]
+    F4["4 · Kiểm định"]
+    A4 --> B4 --> D4 --> F4
+  end
+
+  Q --> A
+  S0 --> A
+  Q --> A4
+  S0 --> A4
+
+  A -. "ngữ cảnh" .-> C
+  A -. "ngữ cảnh" .-> D
+  A -. "ngữ cảnh" .-> E
+  B -. "lược đồ đã lọc" .-> C
+  B -. "lược đồ đã lọc" .-> D
+  B -. "lược đồ đã lọc" .-> E
+  B -. "lược đồ đã lọc" .-> F
+  C -. "kế hoạch" .-> D
+  C -. "kế hoạch" .-> E
+
+  F --> OUT["SQL cuối hoặc báo lỗi kiểm định"]
+  F4 --> OUT4["SQL cuối hoặc báo lỗi kiểm định"]
 ```
+
+**Bước 5 và 6 (tinh chỉnh so với kiểm định):** Trong triển khai được báo cáo, orchestration là **một lượt đi xuôi**, không có vòng lặp tự phản biện nhiều lần (mục 3.4). **Tinh chỉnh** thực hiện **một lượt** sửa lỗi ngữ nghĩa cục bộ trên SQL vừa sinh, dựa trên phân tích, lược đồ đã lọc và kế hoạch — **không** quay lại từ đầu chu trình (ví dụ không chạy lại Planner hay Generator) khi phát hiện sai. **Kiểm định** là bước kiểm tra kỹ thuật/cú pháp và nhất quán với lược đồ; đầu ra là **SQL chấp nhận được** hoặc **báo lỗi** — **không** coi SQL sai là sản phẩm cuối và cũng **không** tự kích hoạt thêm một vòng xử lý lại toàn pipeline trong cấu hình đánh giá đã khóa.
 
 Mỗi tác nhân xử lý một tiểu bài toán quyết định riêng. Tác nhân Phân tích Câu hỏi trích xuất ý định và các trường đầu ra kỳ vọng. Tác nhân Lựa chọn Lược đồ giảm nhiễu lược đồ. Tác nhân Lập kế hoạch Truy vấn xây dựng kế hoạch logic trước khi SQL được viết ra. Tác nhân Sinh SQL tạo truy vấn SQL ban đầu, Tác nhân Tinh chỉnh SQL thực hiện một lượt sửa lỗi ngữ nghĩa, và Tác nhân Kiểm định SQL kiểm tra tính nhất quán kỹ thuật ở mức lược đồ và khả năng thực thi SQL.
 
