@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 import csv
+import hashlib
 import json
 import os
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime
 from pprint import pprint
-from typing import List, Dict, Tuple
+from typing import Any, List, Dict, Tuple
 from pydantic import BaseModel, Field
 from crewai import LLM, Crew
 from crewai.flow.flow import Flow, listen, start
@@ -86,6 +89,9 @@ class NL2SQLState(BaseModel):
 class NL2SQLFlow(Flow[NL2SQLState]):
     """Flow for generate SQL from natural language instructions."""
 
+    STEP_TIMEOUT_SECONDS = int(os.getenv("NL2SQL_STEP_TIMEOUT_SECONDS", "120"))
+    STEP_MAX_RETRIES = int(os.getenv("NL2SQL_STEP_MAX_RETRIES", "2"))
+
     def __init__(self, _question: NLQuestions, _raw_schema: SQLDbSchema):
         super().__init__()
         self.question = _question
@@ -102,32 +108,134 @@ class NL2SQLFlow(Flow[NL2SQLState]):
 
     def parse_json_safely(self, text: str) -> Dict:
         """Extract and parse JSON from LLM output that might contain markdown backticks."""
-        try:
-            # Try to find JSON block
-            match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL)
-            if match:
-                return json.loads(match.group(1))
-            # Try direct parse
-            return json.loads(text.strip())
-        except Exception as e:
-            print(f"Warning: Failed to parse JSON from text. Error: {e}")
-            # Try to find something that looks like a JSON object { ... }
+        def iter_json_candidates(raw_text: str):
+            stripped = raw_text.strip()
+            if stripped:
+                yield stripped
+
+            # Many providers wrap valid JSON in fenced code blocks.
+            for match in re.finditer(r'```(?:json)?\s*(.*?)\s*```', raw_text, re.DOTALL | re.IGNORECASE):
+                candidate = match.group(1).strip()
+                if candidate:
+                    yield candidate
+
+            # Some models prepend prose and then append a JSON object at the end.
+            stack = 0
+            start_idx = None
+            objects = []
+            for idx, ch in enumerate(raw_text):
+                if ch == "{":
+                    if stack == 0:
+                        start_idx = idx
+                    stack += 1
+                elif ch == "}":
+                    if stack > 0:
+                        stack -= 1
+                        if stack == 0 and start_idx is not None:
+                            candidate = raw_text[start_idx:idx + 1].strip()
+                            if candidate:
+                                objects.append(candidate)
+                            start_idx = None
+
+            # Prefer later JSON objects because the actual answer is often appended last.
+            for candidate in reversed(objects):
+                yield candidate
+
+        last_error = None
+        for candidate in iter_json_candidates(text):
             try:
-                match = re.search(r'(\{.*\})', text, re.DOTALL)
-                if match:
-                    return json.loads(match.group(1))
-            except:
-                pass
-            return {}
+                return json.loads(candidate)
+            except Exception as e:
+                last_error = e
+
+        if last_error is not None:
+            print(f"Warning: Failed to parse JSON from text. Error: {last_error}")
+        return {}
+
+    def _sanitize_text(self, value: str) -> str:
+        """Remove characters that frequently break JSON serialization or provider parsing."""
+        if not value:
+            return value
+        sanitized = value.replace("\x00", "")
+        sanitized = sanitized.encode("utf-8", "replace").decode("utf-8")
+        sanitized = re.sub(r"[\x01-\x08\x0b\x0c\x0e-\x1f]", " ", sanitized)
+        return sanitized
+
+    def _sanitize_inputs(self, value: Any) -> Any:
+        if isinstance(value, str):
+            return self._sanitize_text(value)
+        if isinstance(value, list):
+            return [self._sanitize_inputs(item) for item in value]
+        if isinstance(value, dict):
+            return {key: self._sanitize_inputs(val) for key, val in value.items()}
+        return value
+
+    def _log_input_summary(self, step_name: str, inputs: Dict[str, Any]) -> None:
+        summary_parts = []
+        for key, value in inputs.items():
+            serialized = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+            digest = hashlib.md5(serialized.encode("utf-8", "ignore")).hexdigest()[:8]
+            preview = serialized[:120].replace("\n", " ")
+            summary_parts.append(
+                f"{key}:len={len(serialized)} md5={digest} preview={preview!r}"
+            )
+        print(f"[API][{step_name}] Input summary")
+        for part in summary_parts:
+            print(f"  - {part}")
+
+    def _run_crew_step(self, step_name: str, crew_factory, inputs: Dict[str, Any]):
+        sanitized_inputs = self._sanitize_inputs(inputs)
+        self._log_input_summary(step_name, sanitized_inputs)
+        last_error: Exception | None = None
+
+        for attempt in range(1, self.STEP_MAX_RETRIES + 1):
+            executor = ThreadPoolExecutor(max_workers=1)
+            started_at = time.time()
+            print(
+                f"[API][{step_name}] Attempt {attempt}/{self.STEP_MAX_RETRIES} started "
+                f"(timeout={self.STEP_TIMEOUT_SECONDS}s)"
+            )
+            try:
+                future = executor.submit(lambda: crew_factory().kickoff(inputs=sanitized_inputs))
+                result = future.result(timeout=self.STEP_TIMEOUT_SECONDS)
+                elapsed = time.time() - started_at
+                raw_text = getattr(result, "raw", "")
+                print(
+                    f"[API][{step_name}] Attempt {attempt} completed in {elapsed:.1f}s "
+                    f"(raw_len={len(raw_text)})"
+                )
+                executor.shutdown(wait=False, cancel_futures=True)
+                return result
+            except FuturesTimeoutError as e:
+                last_error = TimeoutError(
+                    f"{step_name} timed out after {self.STEP_TIMEOUT_SECONDS}s on attempt {attempt}"
+                )
+                print(f"[API][{step_name}] Timeout on attempt {attempt}")
+                future.cancel()
+                executor.shutdown(wait=False, cancel_futures=True)
+            except Exception as e:
+                last_error = e
+                print(f"[API][{step_name}] Error on attempt {attempt}: {type(e).__name__}: {e}")
+                executor.shutdown(wait=False, cancel_futures=True)
+
+            if attempt < self.STEP_MAX_RETRIES:
+                backoff = min(5 * attempt, 15)
+                print(f"[API][{step_name}] Retrying after {backoff}s")
+                time.sleep(backoff)
+
+        assert last_error is not None
+        raise last_error
 
     @listen(get_user_input)
     def question_analysis(self):
         print(f"\nAnalyzing question for intent and complexity\n")
-        result = Nl2SqlCrew().question_analysis_crew().kickoff(
-            inputs={
+        result = self._run_crew_step(
+            "question_analysis",
+            Nl2SqlCrew().question_analysis_crew,
+            {
                 "question": self.state.question,
                 "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
-            }
+            },
         )
         self.state.question_analysis = self.parse_json_safely(result.raw)
         print(
@@ -137,12 +245,14 @@ class NL2SQLFlow(Flow[NL2SQLState]):
     @listen(question_analysis)
     def schema_selector(self):
         print(f"\nSelecting needed schema database for question\n")
-        result = Nl2SqlCrew().select_needed_schema_crew().kickoff(
-            inputs={
+        result = self._run_crew_step(
+            "schema_selector",
+            Nl2SqlCrew().select_needed_schema_crew,
+            {
                 "question": self.state.question,
                 "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
                 "question_analysis": json.dumps(self.state.question_analysis),
-            }
+            },
         )
         schema_dict = self.parse_json_safely(result.raw)
         self.state.db_schema = SQLDbSchema(**schema_dict)
@@ -151,12 +261,14 @@ class NL2SQLFlow(Flow[NL2SQLState]):
     @listen(schema_selector)
     def query_planning(self):
         print(f"\nPlanning query strategy\n")
-        result = Nl2SqlCrew().query_planning_crew().kickoff(
-            inputs={
+        result = self._run_crew_step(
+            "query_planning",
+            Nl2SqlCrew().query_planning_crew,
+            {
                 "question": self.state.question,
                 "db_schema": self.state.db_schema.model_dump_json(),
                 "question_analysis": json.dumps(self.state.question_analysis),
-            }
+            },
         )
         self.state.query_plan = self.parse_json_safely(result.raw)
         print(f"\nQuery Plan:\n{json.dumps(self.state.query_plan, indent=2)}\n")
@@ -165,13 +277,15 @@ class NL2SQLFlow(Flow[NL2SQLState]):
     @listen(query_planning)
     def generate_sql(self):
         print(f"\nGenerating SQL for question\n")
-        result = Nl2SqlCrew().generated_sql_crew().kickoff(
-            inputs={
+        result = self._run_crew_step(
+            "generate_sql",
+            Nl2SqlCrew().generated_sql_crew,
+            {
                 "question": self.state.question,
                 "db_schema": self.state.db_schema.model_dump_json(),
                 "question_analysis": json.dumps(self.state.question_analysis),
                 "query_plan": json.dumps(self.state.query_plan),
-            }
+            },
         )
         sql_dict = self.parse_json_safely(result.raw)
         self.state.intermediate_sql = sql_dict.get("sql", result.raw)
@@ -181,33 +295,49 @@ class NL2SQLFlow(Flow[NL2SQLState]):
     @listen(generate_sql)
     def refine_sql(self):
         print(f"\nRefining generated SQL\n")
-        result = Nl2SqlCrew().sql_refinement_crew().kickoff(
-            inputs={
-                "question": self.state.question,
-                "db_schema": self.state.db_schema.model_dump_json(),
-                "sql": self.state.intermediate_sql,
-                "question_analysis": json.dumps(self.state.question_analysis),
-                "query_plan": json.dumps(self.state.query_plan),
-            }
-        )
-        result_dict = self.parse_json_safely(result.raw)
-        self.state.result.sql = result_dict.get("sql", self.state.intermediate_sql)
+        try:
+            result = self._run_crew_step(
+                "refine_sql",
+                Nl2SqlCrew().sql_refinement_crew,
+                {
+                    "question": self.state.question,
+                    "db_schema": self.state.db_schema.model_dump_json(),
+                    "sql": self.state.intermediate_sql,
+                    "question_analysis": json.dumps(self.state.question_analysis),
+                    "query_plan": json.dumps(self.state.query_plan),
+                },
+            )
+            result_dict = self.parse_json_safely(result.raw)
+            self.state.result.sql = result_dict.get("sql", self.state.intermediate_sql)
+        except Exception as e:
+            print(f"[API][refine_sql] Fallback to intermediate SQL due to: {type(e).__name__}: {e}")
+            self.state.result.sql = self.state.intermediate_sql
         print(f"\nRefined SQL:\n{self.state.result.sql}\n")
         return self.state
 
     @listen(refine_sql)
     def validate_sql(self):
         print(f"\nValidate generated SQL\n")
-        result = Nl2SqlCrew().validate_sql_crew().kickoff(
-            inputs={
-                "question": self.state.question,
-                "db_schema": self.state.db_schema.model_dump_json(),
-                "sql": self.state.result.sql,
-                "question_analysis": json.dumps(self.state.question_analysis),
-            }
-        )
-        result_dict = self.parse_json_safely(result.raw)
-        self.state.result = NL2SQLResult(**result_dict)
+        try:
+            result = self._run_crew_step(
+                "validate_sql",
+                Nl2SqlCrew().validate_sql_crew,
+                {
+                    "question": self.state.question,
+                    "db_schema": self.state.db_schema.model_dump_json(),
+                    "sql": self.state.result.sql,
+                    "question_analysis": json.dumps(self.state.question_analysis),
+                },
+            )
+            result_dict = self.parse_json_safely(result.raw)
+            self.state.result = NL2SQLResult(**result_dict)
+        except Exception as e:
+            print(f"[API][validate_sql] Fallback to current SQL due to: {type(e).__name__}: {e}")
+            self.state.result = NL2SQLResult(
+                sql=self.state.result.sql,
+                explain="Validator fallback after API failure/timeout.",
+                error="",
+            )
         print(f"\nFinal SQL:\n")
         print(json.dumps(self.state.result.model_dump(), indent=4))
 

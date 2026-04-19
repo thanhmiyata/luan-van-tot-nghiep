@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 DATA_DIR = Path("data")                   # data chung cho tất cả pipeline
 SPIDER_DATA_DIR = DATA_DIR / "spider_data"       # chứa database Spider
 OUTPUT_BASE_DIR = Path("output")          # thư mục output chung
+DEV_QUESTIONS_FILE = OUTPUT_BASE_DIR / "questions_dev.json"
 
 # Các biến toàn cục phụ thuộc loại pipeline (4-step hoặc 6-step)
 NL2SQL_BASE_DIR: Path | None = None       # sẽ được set trong configure_pipeline()
@@ -112,37 +113,40 @@ def setup_environment():
     return True
 
 
-def get_test_questions(num_questions=40):
-    """Lấy số câu hỏi test từ train_spider.json - chọn database có >50 câu hỏi và random n câu"""
+def get_test_questions(num_questions=40, db_id=None, seed=None):
+    """Lấy câu hỏi test từ Spider dev set với tùy chọn cố định database và seed."""
     global timing_metrics
     start_time = time.time()
 
     import random
+    rng = random.Random(seed)
 
     # Các file Spider dùng chung cho mọi pipeline (4-step, 6-step, single)
-    train_spider_file = DATA_DIR / 'train_spider.json'
+    dev_questions_file = DEV_QUESTIONS_FILE
     tables_file = DATA_DIR / 'tables.json'
 
-    with open(train_spider_file, 'r', encoding='utf-8') as f:
+    with open(dev_questions_file, 'r', encoding='utf-8') as f:
         spider_data = json.load(f)
 
     with open(tables_file, 'r', encoding='utf-8') as f:
         tables_data = json.load(f)
 
     # Đếm số câu hỏi theo database
-    print("🔍 Phân tích dữ liệu Spider...")
+    print("🔍 Phân tích dữ liệu Spider dev set...")
     db_counts = {}
     db_questions = {}
 
-    for item in spider_data:
-        db_id = item['db_id']
-        if db_id not in db_counts:
-            db_counts[db_id] = 0
-            db_questions[db_id] = []
-        db_counts[db_id] += 1
-        db_questions[db_id].append(item)
+    requested_db_id = db_id
 
-    # Lọc databases có >50 câu hỏi
+    for item in spider_data:
+        item_db_id = item['db_id']
+        if item_db_id not in db_counts:
+            db_counts[item_db_id] = 0
+            db_questions[item_db_id] = []
+        db_counts[item_db_id] += 1
+        db_questions[item_db_id].append(item)
+
+    # Lọc databases có >50 câu hỏi để hỗ trợ random benchmark nhanh
     eligible_dbs = {db: count for db, count in db_counts.items() if count > 50}
     print(f"📊 Tìm thấy {len(eligible_dbs)} databases có >50 câu hỏi:")
 
@@ -151,12 +155,25 @@ def get_test_questions(num_questions=40):
     for i, (db, count) in enumerate(sorted_dbs[:10], 1):
         print(f"   {i}. {db}: {count} câu hỏi")
 
-    # Chọn ngẫu nhiên một database có >50 câu hỏi
-    selected_db = random.choice(list(eligible_dbs.keys()))
-    available_questions = db_questions[selected_db]
+    if requested_db_id is not None:
+        if requested_db_id not in db_questions:
+            available_db_preview = ", ".join(sorted(db_questions.keys())[:15])
+            raise ValueError(
+                f"db_id '{requested_db_id}' không tồn tại trong Spider dev set. Ví dụ db_id hợp lệ: {available_db_preview}"
+            )
+        selected_db = requested_db_id
+        available_questions = db_questions[selected_db]
+        print(f"\n🎯 Sử dụng database do người dùng chỉ định: '{selected_db}' với {len(available_questions)} câu hỏi")
+    else:
+        # Chọn ngẫu nhiên một database có >50 câu hỏi để benchmark nhanh
+        selected_db = rng.choice(list(eligible_dbs.keys()))
+        available_questions = db_questions[selected_db]
+        print(
+            f"\n🎯 Đã chọn database ngẫu nhiên: '{selected_db}' với {len(available_questions)} câu hỏi"
+        )
 
-    print(
-        f"\n🎯 Đã chọn database: '{selected_db}' với {len(available_questions)} câu hỏi")
+    if seed is not None:
+        print(f"🎲 Seed lấy mẫu: {seed}")
 
     # Random chọn num_questions câu hỏi từ database đã chọn
     if num_questions > len(available_questions):
@@ -164,7 +181,7 @@ def get_test_questions(num_questions=40):
             f"⚠️  Yêu cầu {num_questions} câu hỏi nhưng chỉ có {len(available_questions)} câu. Lấy tất cả.")
         selected_items = available_questions
     else:
-        selected_items = random.sample(available_questions, num_questions)
+        selected_items = rng.sample(available_questions, num_questions)
 
     # Tìm schema tương ứng và tạo test_questions
     test_questions = []
@@ -766,8 +783,20 @@ def main():
     parser.add_argument(
         "--num_questions",
         type=int,
-        default=5,
-        help="Số câu hỏi sẽ được random từ Spider để test pipeline (mặc định: 5).",
+        default=50,
+        help="Số câu hỏi sẽ được lấy từ Spider để test pipeline (mặc định: 50).",
+    )
+    parser.add_argument(
+        "--db_id",
+        type=str,
+        default=None,
+        help="Cố định một database Spider cụ thể để so sánh công bằng giữa các lần chạy.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed cố định cho việc chọn mẫu câu hỏi trong database (mặc định: 42).",
     )
     args = parser.parse_args()
 
@@ -785,7 +814,11 @@ def main():
         return
 
     # 2. Lấy câu hỏi test (số lượng cấu hình bằng tham số dòng lệnh)
-    test_questions = get_test_questions(num_questions=args.num_questions)
+    test_questions = get_test_questions(
+        num_questions=args.num_questions,
+        db_id=args.db_id,
+        seed=args.seed,
+    )
 
     # 3. Chạy NL2SQL system
     csv_filename, results = run_nl2sql_system(test_questions)

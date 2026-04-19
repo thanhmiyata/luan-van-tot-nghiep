@@ -2,6 +2,7 @@
 import csv
 import json
 import os
+import re
 from datetime import datetime
 from pprint import pprint
 from typing import List, Dict, Tuple
@@ -84,6 +85,45 @@ class NL2SQLFlow(Flow[NL2SQLState]):
         self.state.question = self.question.question
         return self.state
 
+    def parse_json_safely(self, text: str) -> Dict:
+        """Extract JSON even when the model wraps it in prose or fences."""
+        def iter_json_candidates(raw_text: str):
+            stripped = raw_text.strip()
+            if stripped:
+                yield stripped
+
+            for match in re.finditer(r'```(?:json)?\s*(.*?)\s*```', raw_text, re.DOTALL | re.IGNORECASE):
+                candidate = match.group(1).strip()
+                if candidate:
+                    yield candidate
+
+            stack = 0
+            start_idx = None
+            objects = []
+            for idx, ch in enumerate(raw_text):
+                if ch == "{":
+                    if stack == 0:
+                        start_idx = idx
+                    stack += 1
+                elif ch == "}":
+                    if stack > 0:
+                        stack -= 1
+                        if stack == 0 and start_idx is not None:
+                            candidate = raw_text[start_idx:idx + 1].strip()
+                            if candidate:
+                                objects.append(candidate)
+                            start_idx = None
+
+            for candidate in reversed(objects):
+                yield candidate
+
+        for candidate in iter_json_candidates(text):
+            try:
+                return json.loads(candidate)
+            except Exception:
+                continue
+        return {}
+
     @listen(get_user_input)
     def question_analysis(self):
         print(f"\nAnalyzing question for intent and complexity\n")
@@ -93,7 +133,7 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
             }
         )
-        self.state.question_analysis = result.to_dict()
+        self.state.question_analysis = self.parse_json_safely(result.raw)
         print(
             f"\nQuestion Analysis Results:\n{json.dumps(self.state.question_analysis, indent=2)}\n")
         return self.state
@@ -108,7 +148,7 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "question_analysis": json.dumps(self.state.question_analysis),
             }
         )
-        self.state.db_schema = SQLDbSchema(**result.to_dict())
+        self.state.db_schema = SQLDbSchema(**self.parse_json_safely(result.raw))
         return self.state
 
     @listen(schema_selector)
@@ -121,7 +161,8 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "question_analysis": json.dumps(self.state.question_analysis),
             }
         )
-        self.state.result.sql = result.to_dict()["sql"]
+        sql_dict = self.parse_json_safely(result.raw)
+        self.state.result.sql = sql_dict.get("sql", result.raw)
         print(f"\nGenerated SQL:\n{self.state.result.sql}\n")
         return self.state
 
@@ -135,8 +176,8 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 "sql": self.state.result.sql,
                 "question_analysis": json.dumps(self.state.question_analysis),
             }
-        ).to_dict()
-        self.state.result = NL2SQLResult(**result)
+        )
+        self.state.result = NL2SQLResult(**self.parse_json_safely(result.raw))
         print(f"\nFinal SQL:\n")
         print(json.dumps(self.state.result.model_dump(), indent=4))
 

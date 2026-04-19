@@ -59,21 +59,29 @@ class Nl2SqlCrew():
             llm=self.llm
         )
 
+    @task
+    def question_analysis_task(self) -> Task:
         return Task(
             # type: ignore[index]
             config=self.tasks_config['question_analysis_task'],
         )
 
+    @task
+    def select_needed_schema_task(self) -> Task:
         return Task(
             # type: ignore[index]
             config=self.tasks_config['select_needed_schema_task'],
         )
 
+    @task
+    def generate_sql_task(self) -> Task:
         return Task(
             # type: ignore[index]
             config=self.tasks_config['generate_sql_task'],
         )
 
+    @task
+    def validate_sql_task(self) -> Task:
         return Task(
             # type: ignore[index]
             config=self.tasks_config['validate_sql_task'],

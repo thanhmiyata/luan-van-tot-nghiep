@@ -112,6 +112,24 @@ Pick at least one row you can defend (reimplementation, official code, or cited 
 | 6-step: extra output column | `4` | `1.7` | Added synthetic output column such as `_extra` |
 | **Note** | `—` | `—` | Rows are non-exclusive and should be read as recurring patterns, not a partition of all failures |
 
+### E6a. Locked subset diagnostic for current best mixed-model
+
+*Use this block only for internal benchmark/discussion tables, not as a replacement for the full-dev main result.*
+
+**Subset:** `flight_2`, `50` questions, fixed `seed = 42`  
+**Config:** `GPT-4o` for Analyzer/Planner/Generator/Refiner, `Gemini 2.5 Flash` for Schema Selector/Validator.
+
+| Item | Value | Interpretation |
+| :--- | :---: | :--- |
+| EX (%) | `94.0` | `47/50` execution-correct queries |
+| EM (%) | `80.0` | `40/50` exact-match queries |
+| EX - EM gap | `14.0` pp | `7` cases likely fail only canonical Spider matching while preserving execution |
+| Non-EM cases | `10` | Population used for quick qualitative audit |
+| Dominant pattern 1 | `4/10` | Entity-linking / FK-ID confusion (e.g., airline name vs `uid`, city vs airport code) |
+| Dominant pattern 2 | `5/10` | Canonical-but-equivalent rewrites (`LEFT JOIN ... IS NULL`, `IN` vs `OR`, `COUNT(col)` vs `COUNT(*)`, alternate grouping/order form) |
+| Dominant pattern 3 | `1/10` | Projection / aggregation artifact (`SELECT T1.count` instead of `COUNT(*)`) |
+| IUEN F1 | `1.000` | Set-operation handling was not the main bottleneck on this subset |
+
 ---
 
 ## E7. FSED (Field Selection Error Dominance) — diagnostic
@@ -181,9 +199,10 @@ Fill 3–5 rows for the paper body or appendix.
 
 | ID | Question (short) | Gold SQL (short) | Pred SQL (short) | Error type | One-sentence analysis |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | Movie titles rated both 3 and 4 | `... INTERSECT ...` | `... OR ...` in 4-step baseline | Set-operation mismatch | Planning helps preserve intersection logic that a shorter pipeline can flatten into disjunction |
-| 2 | Airlines from one source airport | `WHERE SourceAirport = "AHD"` | `WHERE SourceAirport != "AHD"` | Predicate flip | Remaining logical condition errors are not solved purely by decomposition |
-| 3 | Documents not using a template | `EXCEPT SELECT template_id FROM Documents` | same query plus `LIMIT 0` | Formatting artifact | Some failures are post-generation artifacts rather than deep reasoning errors |
+| 1 | Number of JetBlue Airways flights | `JOIN airlines ... WHERE Airline = "JetBlue Airways"` | `WHERE flights.Airline = "JetBlue Airways"` | FK-ID / entity-linking mismatch | The pipeline copied the surface airline name into a foreign-key field instead of joining through `airlines.uid` |
+| 2 | Flights arriving in Aberdeen | `JOIN airports ... WHERE City = "Aberdeen"` | `WHERE DestAirport = "Aberdeen"` | Value-to-column mapping error | The model mapped a city mention directly to an airport-code column, indicating residual schema-linking confusion |
+| 3 | Airports with no flights | `NOT IN (SELECT SourceAirport UNION SELECT DestAirport)` | `LEFT JOIN ... WHERE FlightNo IS NULL` | Canonical-equivalent rewrite | Execution stayed correct, but the rewritten anti-join lost exact-match credit under Spider canonicalization |
+| 4 | Count United flights to `ASY` | `SELECT count(*) ...` | `SELECT T1.count ...` | Projection artifact | A local surface-form mistake in the `SELECT` clause caused a hard failure despite otherwise correct joins/filters |
 
 ---
 

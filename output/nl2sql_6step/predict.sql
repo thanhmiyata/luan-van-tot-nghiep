@@ -1,40 +1,50 @@
-select T1.invoice_number, T1.invoice_date from Invoices as T1 join Financial_Transactions as T2 on T1.invoice_number = T2.invoice_number group by T1.invoice_number, T1.invoice_date order by count(*) desc limit 1	customers_and_invoices
-select account_id, count(transaction_id) from Financial_Transactions group by account_id	customers_and_invoices
-select count(account_id), customer_id from Accounts group by customer_id	customers_and_invoices
-select c.customer_last_name, c.customer_id, c.phone_number from Customers as c join Orders as o on c.customer_id = o.customer_id group by c.customer_id order by count(*) desc limit 1	customers_and_invoices
-select T1.customer_first_name, T1.customer_last_name from Customers as T1 join Accounts as T2 on T1.customer_id = T2.customer_id where T2.account_name = "900"	customers_and_invoices
-select T1.account_id, T1.account_name, T1.date_account_opened, T1.other_account_details from Accounts as T1 join Customers as T2 on T1.customer_id = T2.customer_id where T2.customer_first_name = "Meaghan"	customers_and_invoices
-select c.customer_first_name, c.customer_id from Customers as c join Accounts as a on c.customer_id = a.customer_id group by c.customer_id having count(*) >= 2	customers_and_invoices
-select order_id, count(order_item_id) from Order_Items group by order_id	customers_and_invoices
-select distinct T1.customer_first_name, T1.customer_last_name, T1.phone_number from Customers as T1 join Accounts as T2 on T1.customer_id = T2.customer_id	customers_and_invoices
-select Accounts.account_id, Accounts.account_name from Accounts inner join Financial_Transactions on Accounts.account_id = Financial_Transactions.account_id group by Accounts.account_id, Accounts.account_name having count(*) >= 4	customers_and_invoices
-select invoice_number, count(*) from Financial_Transactions group by invoice_number	customers_and_invoices
-select T1.order_id, sum(T2.product_quantity) from Orders as T1 join Order_Items as T2 on T1.order_id = T2.order_id group by T1.order_id	customers_and_invoices
-select transaction_id from Financial_Transactions where transaction_amount > (select avg(transaction_amount) from Financial_Transactions)	customers_and_invoices
-select T1.order_id, T1.order_details from Orders as T1 inner join Invoices as T2 on T1.order_id = T2.order_id group by T1.order_id having count(*) >= 2	customers_and_invoices
-select count(Customers.customer_id) from Customers left join Accounts on Customers.customer_id = Accounts.customer_id where Accounts.customer_id is null	customers_and_invoices
-select order_id, count(invoice_number) from Invoices group by order_id	customers_and_invoices
-select product_size from Products	customers_and_invoices
-select avg(transaction_amount), min(transaction_amount), max(transaction_amount), sum(transaction_amount) from Financial_Transactions	customers_and_invoices
-select account_id, date_account_opened, account_name, other_account_details from Accounts	customers_and_invoices
-select Customers.customer_id from Customers left join Accounts on Customers.customer_id = Accounts.customer_id where Accounts.customer_id is null	customers_and_invoices
-select customer_id, count(account_id) from Accounts group by customer_id	customers_and_invoices
-select Invoices.invoice_date, Invoices.order_id, Orders.order_details from Invoices inner join Orders on Invoices.order_id = Orders.order_id	customers_and_invoices
-select count(distinct customer_id) from Accounts	customers_and_invoices
-select Customers.customer_id, Customers.customer_first_name, Customers.customer_last_name from Customers inner join Accounts on Customers.customer_id = Accounts.customer_id group by Customers.customer_id, Customers.customer_first_name, Customers.customer_last_name order by count(*) desc limit 1	customers_and_invoices
-select count(*) from Accounts	customers_and_invoices
-select T1.product_name from Products as T1 left join Order_Items as T2 on T1.product_id = T2.product_id where T2.product_id is null	customers_and_invoices
-select C.customer_id, C.customer_first_name, C.customer_middle_initial, C.customer_last_name from Customers C join Accounts A on C.customer_id = A.customer_id group by C.customer_id, C.customer_first_name, C.customer_middle_initial, C.customer_last_name order by count(*) desc limit 1	customers_and_invoices
-select count(*) from Financial_Transactions	customers_and_invoices
-select count(transaction_id), account_id as "account id" from Financial_Transactions group by account_id	customers_and_invoices
-select count(distinct customer_id) from Accounts	customers_and_invoices
-select account_id from Financial_Transactions group by account_id order by count(*) desc limit 1	customers_and_invoices
-select gender, count(customer_id) from Customers group by gender	customers_and_invoices
-select count(*) from Accounts inner join Financial_Transactions on Accounts.account_id = Financial_Transactions.account_id where Accounts.account_name = "337"	customers_and_invoices
-select invoice_number, count(transaction_id) from Financial_Transactions group by invoice_number	customers_and_invoices
-select c.customer_first_name, c.customer_id from Customers c join Accounts a on c.customer_id = a.customer_id group by c.customer_id, c.customer_first_name having count(*) >= 2	customers_and_invoices
-select T1.invoice_number, T1.invoice_date from Invoices as T1 join Financial_Transactions as T2 on T1.invoice_number = T2.invoice_number group by T1.invoice_number, T1.invoice_date order by count(*) desc limit 1	customers_and_invoices
-select Accounts.account_name, Accounts.account_id, count(*) from Accounts join Financial_Transactions on Accounts.account_id = Financial_Transactions.account_id group by Accounts.account_name, Accounts.account_id	customers_and_invoices
-select Customers.customer_first_name, Customers.customer_middle_initial, Customers.customer_last_name, Customers.customer_id, count(Accounts.account_id) from Customers left join Accounts on Customers.customer_id = Accounts.customer_id group by Customers.customer_id	customers_and_invoices
-select account_id, date_account_opened, account_name, other_account_details from Accounts	customers_and_invoices
-select T1.product_name from Products as T1 left join Order_Items as T2 on T1.product_id = T2.product_id where T2.product_id is null	customers_and_invoices
+select Abbreviation from airlines where Airline = "Jetblue Airways"	flight_2
+select count(*) from flights where flights.Airline = (select uid from airlines where Airline = "Jetblue Airways")	flight_2
+select count(*) from flights where DestAirport = "Aberdeen"	flight_2
+select count(*) from flights join airports on flights.SourceAirport = airports.AirportCode where airports.City = "Aberdeen"	flight_2
+select count(*) from airlines where Country = "USA"	flight_2
+select count(*) from flights	flight_2
+select FlightNo from flights where SourceAirport = "APG"	flight_2
+select count(*) from airports	flight_2
+select distinct T1.Airline from airlines as T1 join flights as T2 on T1.uid = T2.Airline where T2.SourceAirport = "AHD"	flight_2
+select Airline, Abbreviation from airlines where Country = "USA"	flight_2
+select T1.AirportName from airports as T1 left join flights as T2 on T1.AirportCode = T2.SourceAirport or T1.AirportCode = T2.DestAirport where T2.FlightNo is null	flight_2
+select flights.FlightNo from flights join airports on flights.SourceAirport = airports.AirportCode where airports.City = "Aberdeen"	flight_2
+select count(*) from flights where DestAirport = "ATO"	flight_2
+select count(*) from flights join airports on flights.SourceAirport = airports.AirportCode where airports.City = "Aberdeen"	flight_2
+select a.Airline from airlines as a join flights as f on a.uid = f.Airline group by a.uid having count(f.Airline) < 200	flight_2
+select FlightNo from flights join airports on flights.SourceAirport = airports.AirportCode where airports.City = "Aberdeen"	flight_2
+select count(*) from flights where SourceAirport = "APG"	flight_2
+select T1.City from airports as T1 join flights as T2 on T1.AirportCode = T2.SourceAirport group by T1.City order by count(*) desc limit 1	flight_2
+select count(*) from flights join airlines on flights.Airline = airlines.uid join airports on flights.DestAirport = airports.AirportCode where airlines.Airline = "United Airlines" and airports.City = "Aberdeen"	flight_2
+select T1.City from flights as T2 join airports as T1 on T2.SourceAirport = T1.AirportCode group by T1.City order by count(*) desc limit 1	flight_2
+select count(*) from flights where Airline = "JetBlue Airways"	flight_2
+select count(*) from flights where DestAirport = "ATO"	flight_2
+select Airline from airlines where Abbreviation = "UAL"	flight_2
+select count(*) from flights join airports on flights.DestAirport = airports.AirportCode where airports.City in ("Aberdeen", "Abilene")	flight_2
+select T1.count from flights as T1 inner join airlines as T2 on T1.Airline = T2.uid where T2.Airline = "United Airlines" and T1.DestAirport = "ASY"	flight_2
+select flights.FlightNo from flights join airports on flights.DestAirport = airports.AirportCode where airports.City = "Aberdeen"	flight_2
+select T1.Airline from airlines as T1 join flights as T2 on T1.Airline = T2.Airline group by T1.Airline order by count(*) desc limit 1	flight_2
+select Country from airlines where Airline = "JetBlue Airways"	flight_2
+select airports.AirportCode from flights join airports on flights.SourceAirport = airports.AirportCode group by airports.AirportCode order by count(flights.FlightNo) asc limit 1	flight_2
+select count(*) from airports	flight_2
+select distinct airlines.Airline from flights join airlines on airlines.uid = flights.Airline where flights.SourceAirport = "CVO" except select distinct airlines.Airline from flights join airlines on airlines.uid = flights.Airline where flights.SourceAirport = "APG"	flight_2
+select T1.FlightNo from flights as T1 join airlines as T2 on T1.Airline = T2.uid where T2.Airline = "United Airlines"	flight_2
+select AirportName from airports where AirportCode = "AKO"	flight_2
+select FlightNo from flights where DestAirport = "APG"	flight_2
+select count(*) from airlines	flight_2
+select flights.FlightNo from flights join airports on flights.DestAirport = airports.AirportCode where airports.City = "Aberdeen"	flight_2
+select airports.AirportCode from flights join airports on flights.SourceAirport = airports.AirportCode group by airports.AirportCode order by count(*) desc limit 1	flight_2
+select AirportCode, AirportName from airports where City = "Anthony"	flight_2
+select Airline, Abbreviation from airlines where Country = "USA"	flight_2
+select count(*) from flights where SourceAirport = "APG"	flight_2
+select airports.City from airports join flights on flights.DestAirport = airports.AirportCode group by airports.City order by count(flights.DestAirport) desc limit 1	flight_2
+select AirportName from airports where City = "Aberdeen"	flight_2
+select count(*) from flights join airlines on flights.Airline = airlines.uid where airlines.Airline = "United Airlines" and flights.SourceAirport = "AHD"	flight_2
+select count(*) from airlines where Country = "USA"	flight_2
+select Abbreviation from airlines where Airline = "JetBlue Airways"	flight_2
+select T1.FlightNo from flights as T1 join airlines as T2 on T1.Airline = T2.uid where T2.Airline = "United Airlines"	flight_2
+select AirportCode, AirportName from airports where City = "Anthony"	flight_2
+select count(*) from flights join airports on flights.DestAirport = airports.AirportCode where flights.Airline = "United Airlines" and airports.City = "Aberdeen"	flight_2
+select distinct a.Airline from airlines as a join flights as f1 on a.Airline = f1.Airline where f1.SourceAirport = "CVO" except select distinct a.Airline from airlines as a join flights as f2 on a.Airline = f2.Airline where f2.SourceAirport = "APG"	flight_2
+select a.AirportCode from airports as a join flights as f on a.AirportCode = f.SourceAirport or a.AirportCode = f.DestAirport group by a.AirportCode order by count(*) desc limit 1	flight_2

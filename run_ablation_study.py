@@ -30,6 +30,7 @@ import random
 import argparse
 import subprocess
 import time
+import re
 from pathlib import Path
 from datetime import datetime
 from collections import Counter
@@ -159,10 +160,59 @@ def run_6step_ablation(questions, skip_planner, skip_refiner, variant_dir):
     from nl2sql_flow.crews.nl2sql_crew.nl2sql_crew import Nl2SqlCrew
     from nl2sql_flow.main import NLQuestions, SQLDbSchema
 
+    def parse_json_safely(text: str):
+        def iter_json_candidates(raw_text: str):
+            stripped = raw_text.strip()
+            if stripped:
+                yield stripped
+
+            for match in re.finditer(r'```(?:json)?\s*(.*?)\s*```', raw_text, re.DOTALL | re.IGNORECASE):
+                candidate = match.group(1).strip()
+                if candidate:
+                    yield candidate
+
+            stack = 0
+            start_idx = None
+            objects = []
+            for idx, ch in enumerate(raw_text):
+                if ch == "{":
+                    if stack == 0:
+                        start_idx = idx
+                    stack += 1
+                elif ch == "}":
+                    if stack > 0:
+                        stack -= 1
+                        if stack == 0 and start_idx is not None:
+                            candidate = raw_text[start_idx:idx + 1].strip()
+                            if candidate:
+                                objects.append(candidate)
+                            start_idx = None
+
+            for candidate in reversed(objects):
+                yield candidate
+
+        for candidate in iter_json_candidates(text or ""):
+            try:
+                return json.loads(candidate)
+            except Exception:
+                continue
+        return {}
+
+    def crew_json(output):
+        raw_text = getattr(output, "raw", "") or ""
+        parsed = parse_json_safely(raw_text)
+        if parsed:
+            return parsed
+        try:
+            return output.to_dict()
+        except Exception:
+            return {}
+
     crew = Nl2SqlCrew()
     results = []
     for i, q in enumerate(questions, 1):
-        print(f"\n  [{i}/{len(questions)}] ({q['hardness']}) {q['question'][:50]}...")
+        hardness = q.get("hardness", "fixed")
+        print(f"\n  [{i}/{len(questions)}] ({hardness}) {q['question'][:50]}...")
         schema = SQLDbSchema(
             db_id=q["db_id"],
             table_names_original=q["table_names_original"],
@@ -171,16 +221,24 @@ def run_6step_ablation(questions, skip_planner, skip_refiner, variant_dir):
             foreign_keys=q.get("foreign_keys", []),
             primary_keys=q.get("primary_keys", []),
         )
-        qa = crew.question_analysis_crew().kickoff(inputs={"question": q["question"], "raw_db_schema": schema.model_dump_json()}).to_dict()
-        ss = crew.select_needed_schema_crew().kickoff(inputs={"question": q["question"], "raw_db_schema": schema.model_dump_json(), "question_analysis": json.dumps(qa)})
-        db_schema = SQLDbSchema(**ss.to_dict())
-        qp = {} if skip_planner else crew.query_planning_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "question_analysis": json.dumps(qa)}).to_dict()
-        gen = crew.generated_sql_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "question_analysis": json.dumps(qa), "query_plan": json.dumps(qp)}).to_dict()
-        sql = gen["sql"]
+        qa_output = crew.question_analysis_crew().kickoff(inputs={"question": q["question"], "raw_db_schema": schema.model_dump_json()})
+        qa = crew_json(qa_output)
+        ss_output = crew.select_needed_schema_crew().kickoff(inputs={"question": q["question"], "raw_db_schema": schema.model_dump_json(), "question_analysis": json.dumps(qa)})
+        ss = crew_json(ss_output)
+        db_schema = SQLDbSchema(**ss)
+        qp = {}
+        if not skip_planner:
+            qp_output = crew.query_planning_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "question_analysis": json.dumps(qa)})
+            qp = crew_json(qp_output)
+        gen_output = crew.generated_sql_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "question_analysis": json.dumps(qa), "query_plan": json.dumps(qp)})
+        gen = crew_json(gen_output)
+        sql = gen.get("sql", getattr(gen_output, "raw", "")) or ""
         if not skip_refiner:
-            ref = crew.sql_refinement_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "sql": sql, "question_analysis": json.dumps(qa), "query_plan": json.dumps(qp)}).to_dict()
+            ref_output = crew.sql_refinement_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "sql": sql, "question_analysis": json.dumps(qa), "query_plan": json.dumps(qp)})
+            ref = crew_json(ref_output)
             sql = ref.get("sql", sql)
-        val = crew.validate_sql_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "sql": sql, "question_analysis": json.dumps(qa)}).to_dict()
+        val_output = crew.validate_sql_crew().kickoff(inputs={"question": q["question"], "db_schema": db_schema.model_dump_json(), "sql": sql, "question_analysis": json.dumps(qa)})
+        val = crew_json(val_output)
         sql = val.get("sql", sql)
         results.append({"db_id": q["db_id"], "question": q["question"], "gold_query": q["gold_query"], "sql": sql or "", "explain": "", "error": ""})
     return results

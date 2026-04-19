@@ -1,7 +1,8 @@
-# Project Memory - Last Updated: 2026-03-25
+# Project Memory - Last Updated: 2026-04-16
 
 ## Trạng thái hiện tại
 
+- **Mới (bài hội nghị Việt)**: `report/conference-ready-12_vi.md` đã đồng bộ mixed-model với `src/nl2sql_6step/.../agents.yaml` (GPT-4o: Analyzer/Planner/Generator/Refiner; Gemini 2.5 Flash: Schema/Validator), nêu trung thực baseline 4 bước (Claude Sonnet 4 cho Question Analyzer), và sửa Bảng 2 (dòng căn cột `| :--- | :--- |`, bỏ hàng “Lý do” trùng lặp).
 - **Vừa hoàn thành**: Tích hợp và đánh giá thành công **DeepSeek-R1 (Reasoner)** vào Pipeline 6 bước.
 - **Kết quả tổng hợp**: Toàn bộ kết quả thực nghiệm và kế hoạch nộp bài được hợp nhất tại `ReadMe.md`.
 - **Đang thực hiện**: (1) Chạy thực nghiệm bổ sung và điền số vào `report/experimental_tables_draft.md`; (2) Hoàn thiện bản thảo `report/complete_paper_combined.md` (bỏ placeholder, baseline ngoài, ablation có số). **Kế hoạch công bố song song**: tạp chí **SN Computer Science (Springer)** / hội nghị **SEKE 2026** (đã có trong kế hoạch cũ) **và** hướng tạp chí **Q3–Q4** hoặc **MDPI *Informatics*** sau khi có đủ bảng thực nghiệm — xem mục **Nghiên cứu tạp chí & hội nghị** bên dưới.
