@@ -2,7 +2,7 @@
 
 ### Tóm tắt
 
-Chuyển đổi ngôn ngữ tự nhiên sang SQL (NL2SQL) có thể làm giảm rào cản giữa người dùng nghiệp vụ và dữ liệu quan hệ, nhưng các hệ thống dựa trên mô hình ngôn ngữ lớn (LLM) vẫn gặp khó khăn trong việc bám lược đồ, lựa chọn phép nối, xử lý tổng hợp và logic lồng nhau. Bài báo này trình bày một nghiên cứu kiến trúc theo định hướng ứng dụng về pipeline NL2SQL đa tác nhân gồm sáu bước với các điểm kiểm soát suy luận tường minh: Phân tích Câu hỏi, Lựa chọn Lược đồ, Lập kế hoạch Truy vấn, Sinh SQL, Tinh chỉnh SQL và Kiểm định SQL. Hệ thống được đánh giá theo một giao thức cố định trên tập phát triển Spider 1.0 (1.034 câu hỏi), được sử dụng vì máy chủ nộp bài chính thức của Spider 1.0 không còn chấp nhận bài nộp mới. Trên toàn bộ tập phát triển này, pipeline 6 bước được đề xuất đạt 77,8% Exact Match (EM) và 85,6% Execution Accuracy (EX), cao hơn baseline 4 bước tương ứng với 73,7% EM và 81,2% EX. Các bằng chứng này ủng hộ giá trị thực tiễn của việc phân rã suy luận nhằm tăng độ bền vững và khả năng kiểm soát trong NL2SQL, đồng thời giữ bài báo trong khuôn khổ một nghiên cứu kiến trúc có kiểm soát trên tập dev thay vì một tuyên bố mới về bảng xếp hạng chính thức.
+Chuyển đổi ngôn ngữ tự nhiên sang SQL (NL2SQL) có thể làm giảm rào cản giữa người dùng nghiệp vụ và dữ liệu quan hệ, nhưng các hệ thống dựa trên mô hình ngôn ngữ lớn (LLM) vẫn gặp khó khăn trong việc bám lược đồ, lựa chọn phép nối, xử lý tổng hợp và logic lồng nhau. Bài báo này trình bày một nghiên cứu kiến trúc theo định hướng ứng dụng về pipeline NL2SQL đa tác nhân gồm sáu bước với các điểm kiểm soát suy luận tường minh: Phân tích Câu hỏi, Lựa chọn Lược đồ, Lập kế hoạch Truy vấn, Sinh SQL, Tinh chỉnh SQL và Kiểm định SQL. Hệ thống được đánh giá theo một giao thức cố định trên tập phát triển Spider 1.0 (1.034 câu hỏi), được sử dụng vì máy chủ nộp bài chính thức của Spider 1.0 không còn chấp nhận bài nộp mới. Trên toàn bộ tập phát triển này, pipeline 6 bước được đề xuất đạt 77,8% Exact Match (EM) và 85,6% Execution Accuracy (EX), cao hơn baseline 4 bước tương ứng với 73,7% EM và 81,2% EX. Các bằng chứng này ủng hộ giá trị thực tiễn của việc phân rã suy luận nhằm tăng độ bền vững và khả năng kiểm soát trong NL2SQL, đồng thời giữ bài báo trong khuôn khổ một nghiên cứu kiến trúc có kiểm soát trên tập dev thay vì một tuyên bố mới về bảng xếp hạng chính thức. Chi tiết cấu hình mixed-model và tái lập được tóm tắt ở Bảng 2.
 
 **Từ khóa:** NL2SQL; Text-to-SQL; hệ đa tác nhân; mô hình ngôn ngữ lớn; phân tích kinh doanh; hỗ trợ ra quyết định.
 
@@ -19,7 +19,7 @@ Bài báo này giải quyết hạn chế đó bằng một kiến trúc đa tá
 Hệ thống được thực nghiệm trên tập Spider 1.0 - đây là một benchmark Text-to-SQL liên miền quy mô lớn, gồm các câu hỏi ngôn ngữ tự nhiên và truy vấn SQL chuẩn trải trên nhiều cơ sở dữ liệu khác nhau, được sử dụng rộng rãi để đánh giá khả năng khái quát hóa và suy luận liên lược đồ của các hệ NL2SQL.
 Do máy chủ nộp bài chính thức của Spider 1.0 không còn hoạt động, hệ thống chỉ được đánh giá trên tập phát triển Spider 1.0. Pipeline 6 bước đạt 77,8% Exact Match (EM) và 85,6% Execution Accuracy (EX), vượt baseline 4 bước với 73,7% EM và 81,2% EX. Kết quả này ủng hộ nhận định rằng bước lập kế hoạch và bước tinh chỉnh tường minh giúp cải thiện chất lượng truy vấn và giảm lỗi cấu trúc, dù nghiên cứu hiện tại vẫn chưa tách biệt hoàn toàn ảnh hưởng của phân rã suy luận với ảnh hưởng của ngân sách suy luận tăng thêm.
 
-Trong phiên bản hội nghị này, các kết quả trên toàn bộ tập phát triển cho pipeline 6 bước đề xuất được báo cáo cho một biến thể mixed-model đã được khóa trước khi viết bài và khớp với cấu hình mặc định trong mã nguồn (`agents.yaml` của pipeline 6 bước): GPT-4o đảm nhiệm Phân tích Câu hỏi, Lập kế hoạch Truy vấn, Sinh SQL và Tinh chỉnh SQL; Gemini 2.5 Flash đảm nhiệm Lựa chọn Lược đồ và Kiểm định SQL.
+Trong phiên bản hội nghị này, các kết quả trên toàn bộ tập phát triển cho pipeline 6 bước đề xuất được báo cáo cho một biến thể mixed-model đã được khóa trước khi viết bài (chi tiết gán model và tham số: **Bảng 2**; khớp `agents.yaml` của pipeline 6 bước).
 
 Các đóng góp chính của bài báo gồm:
 
@@ -27,6 +27,8 @@ Các đóng góp chính của bài báo gồm:
 - Cung cấp một so sánh trên toàn bộ tập phát triển giữa baseline 4 bước rút gọn và pipeline 6 bước đầy đủ dưới cùng một giao thức đánh giá, kèm mô tả trung thực về gán model theo từng pipeline (mục 4.2).
 - Phân tích hành vi theo mức độ khó và các mẫu lỗi lặp lại trong log để chỉ ra những nơi lợi ích kiến trúc có khả năng xuất hiện mạnh nhất.
 - Kết nối kiến trúc với các kịch bản truy cập dữ liệu kinh doanh và hỗ trợ ra quyết định mà không tuyên bố sẵn sàng triển khai sản xuất.
+
+**Định vị venue:** Bài báo không nhắm tuyên bố xếp hạng trên tập kiểm tra Spider 1.0 chính thức; trọng tâm là **kiến trúc có kiểm soát** và bằng chứng thực nghiệm trên tập phát triển dưới giao thức tái lập thống nhất.
 
 ## 2 Công trình liên quan
 
@@ -50,6 +52,28 @@ Hệ thống được đề xuất phân rã NL2SQL thành sáu giai đoạn tu�
 4. Sinh SQL
 5. Tinh chỉnh SQL
 6. Kiểm định SQL
+
+Luồng dữ liệu giữa các tác nhân được minh họa như sau (chỉ mang tính sơ đồ; chi tiết gán model: **Bảng 2**):
+
+```mermaid
+flowchart LR
+  Q[Câu hỏi NL] --> A[Phân tích Câu hỏi]
+  S0[Lược đồ thô] --> A
+  A --> B[Lựa chọn Lược đồ]
+  S0 --> B
+  B --> C[Lập kế hoạch Truy vấn]
+  A --> C
+  C --> D[Sinh SQL]
+  B --> D
+  A --> D
+  D --> E[Tinh chỉnh SQL]
+  A --> E
+  C --> E
+  B --> E
+  E --> F[Kiểm định SQL]
+  B --> F
+  F --> Out[SQL cuối]
+```
 
 Mỗi tác nhân xử lý một tiểu bài toán quyết định riêng. Tác nhân Phân tích Câu hỏi trích xuất ý định và các trường đầu ra kỳ vọng. Tác nhân Lựa chọn Lược đồ giảm nhiễu lược đồ. Tác nhân Lập kế hoạch Truy vấn xây dựng kế hoạch logic trước khi SQL được viết ra. Tác nhân Sinh SQL tạo truy vấn SQL ban đầu, Tác nhân Tinh chỉnh SQL thực hiện một lượt sửa lỗi ngữ nghĩa, và Tác nhân Kiểm định SQL kiểm tra tính nhất quán kỹ thuật ở mức lược đồ và khả năng thực thi SQL.
 
@@ -95,7 +119,11 @@ Hệ thống sử dụng các prompt có cấu trúc cố định trong một wo
 
 Chúng tôi đánh giá trên Spider 1.0 [3], một benchmark Text-to-SQL liên miền tiêu chuẩn. Theo thực hành hiện tại sau khi máy chủ đánh giá Spider 1.0 chính thức đóng lại, chúng tôi báo cáo kết quả trên tập phát triển, gồm 1.034 câu hỏi trải trên 20 cơ sở dữ liệu.
 
+**Mức độ khó (Easy / Medium / Hard / Extra)** được gán cho từng câu bằng hàm `eval_hardness` trong script đánh giá Spider (`experiments/test-suite-sql-eval/evaluation.py`, cùng giao thức với [3]): độ khó được **suy ra từ cấu trúc SQL tham chiếu (gold)** (đếm thành phần cú pháp như join, nhóm, tập hợp, v.v.), không phải nhãn ngoài SQL do chúng tôi tự thêm. Bảng 4 gọi nhóm cuối là **Extra Hard** cho sát nhãn hiển thị thường dùng; trong log script tương ứng mức **extra**.
+
 Chúng tôi sử dụng hai chỉ số tiêu chuẩn: Exact Match (EM), đo độ tương đương về cấu trúc với SQL tham chiếu, và Execution Accuracy (EX), đo việc truy vấn dự đoán có trả về cùng kết quả với truy vấn chuẩn hay không.
+
+**Ghi chú thống kê:** Với `temperature = 0` và orchestration xác định (Bảng 2), mỗi cấu hình chỉ cần **một** lượt đánh giá đầy đủ trên 1.034 câu; chúng tôi không báo cáo khoảng tin cậy bootstrap vì không có biến thể ngẫu nhiên ở mức sampling của LLM trong thiết lập này. (Biến thể API hoặc drift phiên bản model vẫn là đe dọa độ tin cậy — xem mục 6.)
 
 ### 4.2 Các cấu hình được so sánh
 
@@ -150,13 +178,15 @@ Bảng 3 trình bày cấu trúc so sánh nội bộ được dùng cho bài h�
 
 *Bảng 3. So sánh nội bộ chính giữa các biến thể prompting và pipeline.*
 
-Nếu chỉ xét các hàng đã xác nhận, hệ 6 bước đề xuất cải thiện 4,1 điểm EM và 4,4 điểm EX so với baseline 4 bước rút gọn. Điều này phù hợp với nhận định rằng bước lập kế hoạch giúp tách suy luận logic khỏi việc hiện thực hóa bề mặt SQL, còn bước tinh chỉnh cung cấp một lớp sửa lỗi ngữ nghĩa có kiểm soát sau bước sinh ban đầu.
+Trên các hàng của Bảng 3, hệ 6 bước đề xuất cải thiện 4,1 điểm EM và 4,4 điểm EX so với baseline 4 bước rút gọn. Điều này phù hợp với nhận định rằng bước lập kế hoạch giúp tách suy luận logic khỏi việc hiện thực hóa bề mặt SQL, còn bước tinh chỉnh cung cấp một lớp sửa lỗi ngữ nghĩa có kiểm soát sau bước sinh ban đầu.
+
+**Đối chiếu bổ trợ trên subset cố định (không thay thế Bảng 3–4).** Ngoài tổng hợp toàn dev, chúng tôi báo cáo một cặp lượt đối sánh trên cùng **`db_id = flight_2`**, **50 câu**, **`seed = 42`**, cùng script đánh giá Spider: baseline 4 bước (đúng gán model mục 4.2: Claude Sonnet 4 cho Question Analyzer; Gemini 2.5 Flash cho Schema Selector và SQL Validator; GPT-4o cho SQL Generator) đạt **86,0% EX** và **50,0% EM**; pipeline 6 bước mixed-model khóa (GPT-4o cho Analyzer, Planner, Generator, Refiner; Gemini 2.5 Flash cho Schema Selector và SQL Validator) đạt **94,0% EX** và **80,0% EM**. Khoảng cách lớn trên subset này **ủng hộ** xu hướng trong Bảng 3–4 khi cố định miền dữ liệu; các số **không** gộp vào 1.034 câu và **không** loại bỏ hoàn toàn nhiễu do khác model ở Question Analyzer (trùng điều kiện mục 4.2).
 
 Đồng thời, bằng chứng này vẫn cần được đọc một cách thận trọng. Kết quả hiện tại ủng hộ tính hữu ích của phân rã dưới một giao thức cố định, nhưng chưa tách biệt hoàn toàn việc lợi ích đến từ thiết kế tốt hơn, từ ngân sách suy luận lớn hơn, hay từ cả hai.
 
 ### 5.2 Kết quả theo mức độ khó
 
-Bảng 4 phân rã các kết quả đã xác nhận trên toàn bộ tập phát triển theo mức độ khó của Spider. Mức cải thiện lớn nhất xuất hiện ở nhóm Hard, nơi pipeline 6 bước tăng 9,2 điểm EX và 9,2 điểm EM so với baseline 4 bước.
+Bảng 4 phân rã các kết quả trên toàn bộ tập phát triển theo mức độ khó của Spider (nhãn gốc của bộ dữ liệu). Mức cải thiện lớn nhất xuất hiện ở nhóm Hard, nơi pipeline 6 bước tăng 9,2 điểm EX và 9,2 điểm EM so với baseline 4 bước.
 
 | Độ khó | #Ví dụ | 4-Step EX (%) | 4-Step EM (%) | 6-Step EX (%) | 6-Step EM (%) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -252,7 +282,7 @@ Bảng 9 báo cáo các con số **thăm dò** trên một mẫu phân tầng nh
 
 Bài báo cố ý giới hạn ở đánh giá trên tập phát triển Spider 1.0. Đây là lựa chọn thực dụng vì máy chủ nộp bài chính thức của Spider 1.0 không còn mở, đồng thời Spider cung cấp đầy đủ gold SQL, cơ sở dữ liệu thực thi và official evaluation script ổn định cho một nghiên cứu có kiểm soát trong điều kiện tài nguyên hạn chế. Tuy nhiên, lựa chọn này cũng làm giảm khả năng so trực tiếp với các bài trước vốn nhấn mạnh báo cáo trên test set chính thức. Ngoài ra, các tham chiếu tài liệu trong Bảng 5 chỉ mang tính ngữ cảnh vì backbone model, recipe prompting và điều kiện đánh giá không hoàn toàn đối sánh.
 
-Nghiên cứu hiện tại cũng chưa tách biệt hoàn toàn ảnh hưởng của phân rã kiến trúc với ảnh hưởng của ngân sách suy luận tăng thêm. Pipeline 6 bước dùng nhiều stage hơn baseline 4 bước, nên một tuyên bố nhân quả mạnh hơn sẽ cần các ablation có đối sánh về chi phí, log chi phí trực tiếp và phân tích độ trễ trên cùng một gói chạy lại. So sánh 4 bước và 6 bước trên Bảng 3–4 còn kèm khác biệt backbone ở bước Phân tích Câu hỏi (Claude Sonnet 4 so với GPT-4o), nên một phần chênh lệch có thể đi kèm hiệp lực model ngoài việc có hay không Planner và Refiner. Cấu hình mixed-model cũng tạo ra một nhiễu giữa kiến trúc và hiệp lực model, dù benchmark nội bộ của chúng tôi cho thấy cách phân công hiện tại thuận lợi hơn các phương án đồng nhất như all-Flash, all-GPT-4o, all-Sonnet 4, all-Opus 4 và all-DeepSeek-R1. Chỉ số chẩn đoán **FSED** (field-selection error dominance) chưa được báo cáo trong bài này vì bộ phát hiện hiện vẫn chưa được chuẩn hóa đủ cho phiên bản hội nghị. Bảng 9 chỉ mang tính thăm dò và không được đọc như một kết quả chính thay thế.
+Nghiên cứu hiện tại cũng chưa tách biệt hoàn toàn ảnh hưởng của phân rã kiến trúc với ảnh hưởng của ngân sách suy luận tăng thêm. Pipeline 6 bước dùng nhiều stage hơn baseline 4 bước, nên một tuyên bố nhân quả mạnh hơn sẽ cần các ablation có đối sánh về chi phí, log chi phí trực tiếp và phân tích độ trễ trên cùng một gói chạy lại. So sánh 4 bước và 6 bước trên Bảng 3–4 còn kèm khác biệt backbone ở bước Phân tích Câu hỏi (Claude Sonnet 4 so với GPT-4o), nên một phần chênh lệch có thể đi kèm hiệp lực model ngoài việc có hay không Planner và Refiner. **Thực nghiệm bổ sung đáng ưu tiên:** chạy baseline 4 bước với **cùng** GPT-4o ở Question Analyzer (các bước khác giữ như mã nguồn baseline), trên **cùng** 1.034 câu và cùng giao thức — để cô lập đúng hiệu ứng Planner/Refiner; các lượt subset trong mục 5.1 chỉ mang tính minh họa xu hướng. Cấu hình mixed-model cũng tạo ra một nhiễu giữa kiến trúc và hiệp lực model, dù benchmark nội bộ của chúng tôi cho thấy cách phân công hiện tại thuận lợi hơn các phương án đồng nhất như all-Flash, all-GPT-4o, all-Sonnet 4, all-Opus 4 và all-DeepSeek-R1. Phân tích chẩn đoán bổ sung theo thành phần `SELECT` (ví dụ tỷ lệ lỗi chọn trường trong tập thực thi sai) có thể bổ sung trong phiên bản mở rộng. Bảng 9 chỉ mang tính thăm dò và không được đọc như một kết quả chính thay thế.
 
 Vì vậy, bài báo nên được hiểu như một nghiên cứu kiến trúc có kiểm soát trên tập dev thay vì một tuyên bố mới về bảng xếp hạng chính thức hay một nghiên cứu triển khai doanh nghiệp. Việc kiểm chứng mạnh hơn trong tương lai sẽ bao gồm các ablation trung gian có đối sánh, báo cáo chi phí và độ trễ tường minh, cũng như đánh giá trên các benchmark mới hơn hoặc định hướng robustness như BIRD-dev, DR.Spider, Spider-DK và Spider 2.0-lite.
 
@@ -260,7 +290,7 @@ Vì vậy, bài báo nên được hiểu như một nghiên cứu kiến trúc 
 
 Bài báo này trình bày một kiến trúc đa tác nhân sáu bước cho NL2SQL, tách biệt quá trình hiểu câu hỏi, thu gọn lược đồ, lập kế hoạch logic, sinh SQL, tinh chỉnh và kiểm định. Trên tập phát triển Spider 1.0, pipeline 6 bước đề xuất đạt 77,8% Exact Match và 85,6% Execution Accuracy, cao hơn baseline 4 bước rút gọn dưới cùng một giao thức.
 
-Các kết quả trên pipeline 6 bước được báo cáo tương ứng với biến thể mixed-model đã khóa: GPT-4o cho Phân tích Câu hỏi, Lập kế hoạch Truy vấn, Sinh SQL và Tinh chỉnh SQL; Gemini 2.5 Flash cho Lựa chọn Lược đồ và Kiểm định SQL.
+Các kết quả trên pipeline 6 bước tương ứng với biến thể mixed-model đã khóa (**Bảng 2**).
 
 Nhìn chung, các kết quả cho thấy phân rã suy luận tường minh là một lựa chọn thiết kế hứa hẹn để cải thiện độ bền vững và khả năng kiểm soát trong sinh Text-to-SQL. Đối với một venue thiên về business-and-technology, đóng góp của bài nên được hiểu như bằng chứng cho một kiến trúc NL2SQL thực tiễn phục vụ phân tích và hỗ trợ ra quyết định, chứ không phải một tuyên bố rộng về thống trị benchmark hay sẵn sàng triển khai sản xuất.
 
