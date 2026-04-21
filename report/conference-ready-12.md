@@ -25,6 +25,7 @@ The main contributions are:
 
 - It formulates NL2SQL as a six-step pipeline with explicit reasoning checkpoints for analysis, schema grounding, planning, generation, refinement, and validation.
 - It provides a full-development-split comparison between a reduced 4-step baseline and the full 6-step pipeline under the same evaluation protocol, with a transparent description of per-pipeline model assignment (Section 4.2).
+- It situates the proposed system against representative Spider-based studies so the reported dev-set results can be read relative to established benchmark references and recent decomposition-oriented methods.
 - It analyzes difficulty-level behavior and recurring logged error patterns to show where architectural benefits are most plausible.
 - It connects the architecture to business-data access and decision-support scenarios without claiming production deployment readiness.
 
@@ -227,21 +228,24 @@ The difficulty breakdown sharpens the main claim. Improvements are not limited t
 
 ### 5.3 Contextual Comparison with Reported Spider 1.0 Results
 
-Table 5 places the proposed system beside several widely cited Spider references and recent decomposition-oriented systems raised in review. These rows are included only for external context: prior numbers were reported with different backbone models, prompting strategies, and often different evaluation splits or reporting conventions. Therefore, this table is not a claim of apples-to-apples superiority.
+One reviewer-facing question is where the proposed system sits relative to prior Spider-based work. To answer that directly, Table 5 broadens the comparison across three benchmark lineages on `Spider 1.0`: early schema-aware parsers (`RAT-SQL`, `BRIDGE`), later strong benchmark references (`PICARD`, `RESDSQL`), and recent LLM-era prompting or decomposition systems (`DIN-SQL`, `DAIL-SQL`, `SGU-SQL`, `SSEV / ReCAPAgent-SQL`). The comparison is contextual rather than strictly controlled because backbone models, prompting recipes, available database content, and sometimes evaluation splits or reporting conventions differ across papers. Some prior studies also report only one of the two metrics, so unavailable values are marked with an em dash.
 
 | System | EM (%) | EX (%) | Split / note |
 | :--- | :---: | :---: | :--- |
+| RAT-SQL + BERT [4] | 65.6 | — | Early schema-aware Spider benchmark milestone |
+| BRIDGE + BERT (ensemble) [5] | 71.1 | — | Schema-aware parser with value grounding |
 | PICARD + T5-3B [12] | 70.6 | 75.7 | Commonly cited Spider benchmark reference |
 | RESDSQL + NatSQL [6] | 76.7 | 78.2 | Commonly cited Spider benchmark reference |
 | DIN-SQL + Codex [7] | 57.0 | 78.0 | Prompt-based literature reference |
+| DAIL-SQL + GPT-4 [8] | — | 86.6 | Spider leaderboard EX reference for in-context prompting |
 | SGU-SQL [15] | 78.3 | 88.0 | Reported Spider-dev result for structure-guided decomposition |
 | SSEV / ReCAPAgent-SQL [16] | — | 85.5 | Reported Spider-dev EX for multi-agent refinement / voting |
 | 4-step baseline (this work) | 73.7 | 81.2 | Spider 1.0 dev, full 1,034 questions |
 | **6-step proposed (this work)** | **77.8** | **85.6** | Spider 1.0 dev, full 1,034 questions |
 
-*Table 5. Contextual comparison against selected Spider references and recent decomposition-oriented systems. Values from prior work are shown only as literature context because reporting conditions differ.*
+*Table 5. Contextual comparison against representative Spider 1.0 systems across schema-aware parsing, prompt-based LLM methods, and decomposition-oriented methods. Values from prior work are shown only as literature context because reporting conditions differ.*
 
-Under that caveat, the proposed system appears competitive with strong reported references while being motivated by architectural control rather than a claim of state-of-the-art benchmark leadership.
+The main takeaway is clearer when read by comparison group. First, relative to the schema-aware parsing line represented by `RAT-SQL` and `BRIDGE`, the proposed pipeline is substantially stronger, which suggests that explicit intermediate reasoning now matters at least as much as encoder-side schema representation. Second, relative to later benchmark references such as `PICARD` and `RESDSQL`, the proposed system remains competitive and exceeds their reported EX values in this contextual view. Third, relative to LLM prompting methods, the result is stronger than `DIN-SQL`, while `DAIL-SQL` still defines a stronger EX-only reference for highly optimized in-context prompting. Finally, compared with recent decomposition-oriented systems, the picture is more balanced: the 6-step pipeline remains below `SGU-SQL` but is essentially on par with the reported `SSEV / ReCAPAgent-SQL` EX figure. In other words, the present system should be read not as a new leaderboard claim, but as evidence that a relatively simple six-stage control architecture can reach the same broad performance band as recent Spider-focused decomposition methods while staying interpretable through explicit intermediate checkpoints.
 
 ### 5.4 Log-Based Error Pattern Analysis
 
