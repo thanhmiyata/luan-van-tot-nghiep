@@ -1,0 +1,69 @@
+{
+  "question_index": 757,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "What is the language that is used by the largest number of Asian nations?",
+  "gold_query": "SELECT T2.Language FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T1.Continent  =  \"Asia\" GROUP BY T2.Language ORDER BY COUNT (*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.667,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Asia\", \"value_type\": \"STRING\"}],\n  \"group_by\": [{\"table\": \"countrylanguage\", \"column\": \"Language\"}],\n  \"order_by\": [{\"table\": \"countrylanguage\", \"column\": \"COUNT\", \"direction\": \"DESC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"Join to get languages spoken in Asian countries using country code\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Language\", \"Continent\"], \"values\": [\"Asia\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1227,
+        "prompt_tokens": 968,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 259,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:37:52.192344"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.527,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\n1.  **Identify relevant tables**: The analysis explicitly mentions `country` and `countrylanguage`.\n2.  **Identify output, filter, group by, order by columns**:\n    *   Output: `countrylanguage.Language`\n    *   Filter: `country.Continent`\n    *   Group By: `countrylanguage.Language`\n    *   Order By: Implicitly `COUNT` of countries for each language, which means `countrylanguage.CountryCode` or `countrylanguage.Language` itself (when grouped by language) will be used.\n3.  **Identify PK/FK for joins**: The analysis hints at joining `country` and `countrylanguage`. The foreign key `[23,8]` indicates `countrylanguage.CountryCode` (global index 23) references `country.Code` (global index 8). So, `countrylanguage.CountryCode` and `country.Code` are necessary.\n4.  **List all required columns with their original global indices**:\n    *   `country.Code` (index 8) - PK, FK target, join column.\n    *   `country.Continent` (index 10) - Filter.\n    *   `countrylanguage.CountryCode` (index 23) - FK source, PK, used for counting.\n    *   `countrylanguage.Language` (index 24) - Output, Group By.\n5.  **Construct the new schema**:\n    *   `db_id`: \"world_1\" remains the same.\n    *   `table_names_original`: Keep only \"country\" and \"countrylanguage\". These become new table indices 0 and 1 respectively.\n    *   `column_names_original`: Map the selected columns to the new table indices and new global column indices.\n        *   `country.Code` (original global index 8, table 2) -> `[0, \"Code\"]` (new global index 0)\n        *   `country.Continent` (original global index 10, table 2) -> `[0, \"Continent\"]` (new global index 1)\n        *   `countrylanguage.CountryCode` (original global index 23, table 3) -> `[1, \"CountryCode\"]` (new global index 2)\n        *   `countrylanguage.Language` (original global index 24, table 3) -> `[1, \"Language\"]` (new global index 3)\n    *   `column_types`: Extract types for the selected columns based on their original global indices.\n        *   `Code` (idx 8) -> \"text\"\n        *   `Continent` (idx 10) -> \"text\"\n        *   `CountryCode` (idx 23) -> \"text\"\n        *   `Language` (idx 24) -> \"text\"\n    *   `foreign_keys`: Update original FK `[23,8]` to use new global indices.\n        *   Original 23 maps to new 2.\n        *   Original 8 maps to new 0.\n        *   New FK: `[2,0]`\n    *   `primary_keys`: Update original PKs `[8,23]` (dropping `city.ID` which was 1) to use new global indices.\n        *   Original 8 maps to new 0.\n        *   Original 23 maps to new 2.\n        *   New PKs: `[0,2]`\n\nAll necessary tables and columns, along with their relationships, are preserved for the query.{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[0, \"Code\"], [0, \"Continent\"], [1, \"CountryCode\"], [1, \"Language\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\"], \"foreign_keys\": [[2, 0]], \"primary_keys\": [0, 2]}",
+      "token_usage": {
+        "total_tokens": 4114,
+        "prompt_tokens": 831,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3283,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:38:06.732456"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.185,
+      "raw_response": "{\"sql\": \"SELECT Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE Continent = 'Asia' GROUP BY Language ORDER BY COUNT(DISTINCT country.Code) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1052,
+        "prompt_tokens": 921,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 131,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:38:08.931570"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.038,
+      "raw_response": "I need to validate the given SQL query against the provided schema, question, and analysis.\n\nHere's the checklist I'll follow:\n1.  **SELECT matches expected_output_fields (content/order); COUNT uses DISTINCT when counting entities.**\n    *   Expected output fields: `[\"Language\"]`.\n    *   Current SELECT: `Language`. This matches.\n    *   COUNT uses DISTINCT: `COUNT(DISTINCT country.Code)`. This correctly counts distinct countries, which is what the question implies (\"largest number of Asian nations\").\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT uses DISTINCT when counting entities.**\n    *   **Joins:** `country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode`. This is a necessary join as `Continent` is in `country` and `Language` is in `countrylanguage`. `country.Code` is the PK of `country` and `countrylanguage.CountryCode` is the FK to `country`. This is correct and minimal.\n    *   **ORDER BY:** `ORDER BY COUNT(DISTINCT country.Code) DESC LIMIT 1`. The question is \"What is the language that is used by the largest number of Asian nations?\", which implies a `MAX_MIN` intent and requires ordering by the count in descending order and limiting to 1. This `ORDER BY` is necessary.\n    *   **COUNT uses DISTINCT:** Already checked, `COUNT(DISTINCT country.Code)` is correct.\n\n3.  **Column/table names exist; SQL is complete and one line.**\n    *   `country`, `countrylanguage`: Exist in `table_names_original`.\n    *   `Code`, `Continent`, `CountryCode`, `Language`: Exist in `column_names_original`.\n    *   SQL is complete and appears to be one line (excluding formatting for readability here).\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable.**\n\nThe current SQL seems correct and adheres to all the validation rules. No fixes are necessary.{\n\"sql\": \"SELECT Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE Continent = 'Asia' GROUP BY Language ORDER BY COUNT(DISTINCT country.Code) DESC LIMIT 1\",\n\"explain\": \"The original SQL query correctly identifies the language used by the largest number of Asian nations. It joins 'country' and 'countrylanguage' tables, filters for 'Asia' continent, groups by 'Language', and orders by the count of distinct countries in descending order, limiting to the top result.\",\n\"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1299,
+        "prompt_tokens": 734,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 565,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:38:11.981006"
+    }
+  ],
+  "final_sql": "SELECT Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE Continent = 'Asia' GROUP BY Language ORDER BY COUNT(DISTINCT country.Code) DESC LIMIT 1",
+  "explain": "The original SQL query correctly identifies the language used by the largest number of Asian nations. It joins 'country' and 'countrylanguage' tables, filters for 'Asia' continent, groups by 'Language', and orders by the count of distinct countries in descending order, limiting to the top result.",
+  "error": "",
+  "timestamp": "2026-07-23T23:38:11.983114"
+}

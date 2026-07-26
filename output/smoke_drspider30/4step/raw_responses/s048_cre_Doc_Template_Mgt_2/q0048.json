@@ -1,0 +1,66 @@
+{
+  "question_index": 48,
+  "pipeline": "4step",
+  "db_id": "s048_cre_Doc_Template_Mgt_2",
+  "question": "Show all template type codes that are not used by any document.",
+  "gold_query": "SELECT Templates.template_kind_codification FROM Templates EXCEPT SELECT Templates.template_kind_codification FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.348,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"category_cipher\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"],\n  \"required_columns\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"category_cipher\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"Templates\", \"column\": \"template_kind_codification\", \"purpose\": \"JOIN\"},\n    {\"table\": \"Templates\", \"column\": \"Template_ID\", \"purpose\": \"JOIN\"},\n    {\"table\": \"Documents\", \"column\": \"Template_ID\", \"purpose\": \"JOIN\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"category_cipher\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": true,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"NOT_EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"No document uses the template type\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": [\n      {\n        \"branch_id\": \"b1\",\n        \"scope_id\": \"s1\",\n        \"required_tables\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"],\n        \"required_columns\": [\n          {\"table\": \"Ref_Template_Types\", \"column\": \"category_cipher\"},\n          {\"table\": \"Templates\", \"column\": \"template_kind_codification\"},\n          {\"table\": \"Templates\", \"column\": \"Template_ID\"},\n          {\"table\": \"Documents\", \"column\": \"Template_ID\"}\n        ],\n        \"purpose\": \"Identify template types not used by any document\"\n      }\n    ],\n    \"reason\": \"Negation over related rows to exclude used template types\"\n  },\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Templates\", \"to_table\": \"Ref_Template_Types\", \"reason\": \"Template type matching\"},\n    {\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"Finding documents by template link\"}\n  ],\n  \"entities\": {\n    \"tables\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"],\n    \"columns\": [\"category_cipher\", \"template_kind_codification\", \"Template_ID\"],\n    \"values\": []\n  },\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2990,
+        "prompt_tokens": 2403,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 587,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T18:50:33.308995"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 10.863,
+      "raw_response": "Thought: The user wants to filter the schema. I need to identify all necessary tables and columns based on the provided analysis, keeping in mind the need for joins, output, and preserving PK/FK relationships for the retained tables.\n\n1.  **Identify `required_tables` from the `analysis`:**\n    `Ref_Template_Types`, `Templates`, `Documents`.\n\n2.  **Identify `required_columns` for output and joins from the `analysis`:**\n    *   `Ref_Template_Types.category_cipher` (OUTPUT, JOIN)\n    *   `Templates.template_kind_codification` (JOIN)\n    *   `Templates.Template_ID` (JOIN)\n    *   `Documents.Template_ID` (JOIN)\n\n3.  **Add Primary Keys for all retained tables:**\n    *   `Ref_Template_Types`: `category_cipher` (Already identified as required for output/join, and is indeed a PK based on `primary_keys` [1] which is column index 0)\n    *   `Templates`: `Template_ID` (Already identified as required for join, and is a PK based on `primary_keys` [3] which is column index 3)\n    *   `Documents`: `Document_ID` (Not explicitly required by analysis, but is the PK based on `primary_keys` [9] which is column index 9. Must be retained.)\n\n4.  **Verify Foreign Keys for retained tables and columns:**\n    *   `Templates.template_kind_codification` -> `Ref_Template_Types.category_cipher`: Both columns are retained.\n    *   `Documents.Template_ID` -> `Templates.Template_ID`: Both columns are retained.\n    *   The `Paragraphs` table and its FK `Paragraphs.Document_ID` -> `Documents.Document_ID` are not needed as `Paragraphs` is not a required table for this question.\n\n5.  **Construct the final list of table and column names:**\n\n    *   `Ref_Template_Types`:\n        *   `category_cipher` (Required for output, PK)\n    *   `Templates`:\n        *   `Template_ID` (PK, required for join)\n        *   `template_kind_codification` (FK, required for join)\n    *   `Documents`:\n        *   `Document_ID` (PK)\n        *   `Template_ID` (FK, required for join)\n\nThis set of tables and columns covers all requirements for the question, including output, join conditions, and maintaining referential integrity for the chosen subset.{\"table_names_original\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"column_names_original\": [[\"category_cipher\"], [\"Template_ID\", \"template_kind_codification\"], [\"Document_ID\", \"Template_ID\"]]}",
+      "token_usage": {
+        "total_tokens": 4024,
+        "prompt_tokens": 1685,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2339,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T18:50:44.174360"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.166,
+      "raw_response": "{\"sql\": \"SELECT category_cipher FROM Ref_Template_Types WHERE NOT EXISTS (SELECT 1 FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID WHERE Templates.template_kind_codification = Ref_Template_Types.category_cipher)\"}",
+      "token_usage": {
+        "total_tokens": 2416,
+        "prompt_tokens": 2359,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 57,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T18:50:45.342406",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/smoke_drspider30/database/s048_cre_Doc_Template_Mgt_2/s048_cre_Doc_Template_Mgt_2.sqlite",
+        "fatal_errors": [],
+        "warnings": [],
+        "checked_join_conditions": [
+          "Templates.Template_ID = Documents.Template_ID",
+          "Templates.template_kind_codification = Ref_Template_Types.category_cipher"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT category_cipher FROM Ref_Template_Types WHERE NOT EXISTS (SELECT 1 FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID WHERE Templates.template_kind_codification = Ref_Template_Types.category_cipher)",
+  "explain": "Validator no-op: Generator SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T18:50:45.346910"
+}

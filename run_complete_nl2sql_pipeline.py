@@ -113,16 +113,9 @@ def setup_environment():
     return True
 
 
-def get_test_questions(num_questions=40, db_id=None, seed=None):
-    """Lấy câu hỏi test từ Spider dev set với tùy chọn cố định database và seed."""
-    global timing_metrics
-    start_time = time.time()
-
-    import random
-    rng = random.Random(seed)
-
-    # Các file Spider dùng chung cho mọi pipeline (4-step, 6-step, single)
-    dev_questions_file = DEV_QUESTIONS_FILE
+def load_spider_dev_data():
+    """Load Spider dev questions (with global index) and table schemas."""
+    dev_questions_file = DEV_QUESTIONS_FILE if DEV_QUESTIONS_FILE.exists() else DATA_DIR / 'dev.json'
     tables_file = DATA_DIR / 'tables.json'
 
     with open(dev_questions_file, 'r', encoding='utf-8') as f:
@@ -131,20 +124,81 @@ def get_test_questions(num_questions=40, db_id=None, seed=None):
     with open(tables_file, 'r', encoding='utf-8') as f:
         tables_data = json.load(f)
 
+    # Attach a stable global index (position in the dev file) to every question
+    for idx, item in enumerate(spider_data):
+        item['question_index'] = idx
+
+    return spider_data, tables_data
+
+
+def group_questions_by_db(spider_data):
+    """Group dev questions by db_id, preserving original order."""
+    db_questions: Dict[str, list] = {}
+    for item in spider_data:
+        db_questions.setdefault(item['db_id'], []).append(item)
+    return db_questions
+
+
+def collect_column_sample_values(db_id, table_schema, max_values=4, max_len=30):
+    """Collect a few distinct sample values per TEXT column for value grounding.
+
+    Returns a list aligned with column_names_original ([] for '*', non-text
+    columns, or on any error). This lets agents see real literal casing/spelling
+    (e.g. 'Republic' vs 'republic') instead of guessing values.
+    """
+    import sqlite3
+
+    columns = table_schema['column_names_original']
+    types = table_schema['column_types']
+    samples = [[] for _ in columns]
+
+    db_file = SPIDER_DATA_DIR / 'database' / db_id / f'{db_id}.sqlite'
+    if not db_file.exists():
+        print(f"⚠️  Không tìm thấy {db_file}, bỏ qua value grounding cho db '{db_id}'")
+        return samples
+
+    try:
+        con = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
+        con.text_factory = lambda b: b.decode(errors='replace')
+        tables = table_schema['table_names_original']
+        for idx, (t_idx, col_name) in enumerate(columns):
+            if t_idx < 0 or idx >= len(types) or types[idx] != 'text':
+                continue
+            try:
+                rows = con.execute(
+                    f'SELECT DISTINCT "{col_name}" FROM "{tables[t_idx]}" '
+                    f'WHERE "{col_name}" IS NOT NULL LIMIT {max_values}'
+                ).fetchall()
+                samples[idx] = [str(r[0])[:max_len] for r in rows]
+            except Exception:
+                pass  # per-column failure is non-fatal
+        con.close()
+        n_grounded = sum(1 for s in samples if s)
+        print(f"🔎 Value grounding: lấy giá trị mẫu cho {n_grounded} cột text của '{db_id}'")
+    except Exception as e:
+        print(f"⚠️  Value grounding lỗi ({e}), tiếp tục không có sample values")
+    return samples
+
+
+def get_test_questions(num_questions=40, db_id=None, seed=None):
+    """Lấy câu hỏi test từ Spider dev set với tùy chọn cố định database và seed.
+
+    num_questions <= 0 nghĩa là lấy TOÀN BỘ câu hỏi của database (giữ nguyên thứ tự).
+    """
+    global timing_metrics
+    start_time = time.time()
+
+    import random
+    rng = random.Random(seed)
+
+    spider_data, tables_data = load_spider_dev_data()
+
     # Đếm số câu hỏi theo database
     print("🔍 Phân tích dữ liệu Spider dev set...")
-    db_counts = {}
-    db_questions = {}
+    db_questions = group_questions_by_db(spider_data)
+    db_counts = {db: len(qs) for db, qs in db_questions.items()}
 
     requested_db_id = db_id
-
-    for item in spider_data:
-        item_db_id = item['db_id']
-        if item_db_id not in db_counts:
-            db_counts[item_db_id] = 0
-            db_questions[item_db_id] = []
-        db_counts[item_db_id] += 1
-        db_questions[item_db_id].append(item)
 
     # Lọc databases có >50 câu hỏi để hỗ trợ random benchmark nhanh
     eligible_dbs = {db: count for db, count in db_counts.items() if count > 50}
@@ -175,8 +229,11 @@ def get_test_questions(num_questions=40, db_id=None, seed=None):
     if seed is not None:
         print(f"🎲 Seed lấy mẫu: {seed}")
 
-    # Random chọn num_questions câu hỏi từ database đã chọn
-    if num_questions > len(available_questions):
+    # num_questions <= 0: lấy TOÀN BỘ câu hỏi của db theo thứ tự gốc (chế độ benchmark full)
+    if num_questions <= 0:
+        print(f"📋 Chế độ full-db: lấy toàn bộ {len(available_questions)} câu hỏi (không sample)")
+        selected_items = available_questions
+    elif num_questions > len(available_questions):
         print(
             f"⚠️  Yêu cầu {num_questions} câu hỏi nhưng chỉ có {len(available_questions)} câu. Lấy tất cả.")
         selected_items = available_questions
@@ -192,8 +249,11 @@ def get_test_questions(num_questions=40, db_id=None, seed=None):
             break
 
     if table_schema:
+        # Value grounding: collect sample values per text column once per database
+        sample_values = collect_column_sample_values(selected_db, table_schema)
         for item in selected_items:
             test_questions.append({
+                'question_index': item.get('question_index', -1),
                 'db_id': item['db_id'],
                 'question': item['question'],
                 'gold_query': item['query'],  # Thêm ground truth
@@ -201,7 +261,8 @@ def get_test_questions(num_questions=40, db_id=None, seed=None):
                 'column_names_original': table_schema['column_names_original'],
                 'column_types': table_schema['column_types'],
                 'foreign_keys': table_schema.get('foreign_keys', []),
-                'primary_keys': table_schema.get('primary_keys', [])
+                'primary_keys': table_schema.get('primary_keys', []),
+                'column_sample_values': sample_values,
             })
 
     print(
@@ -289,10 +350,43 @@ def run_nl2sql_system(test_questions):
     results = []
     execution_metrics['total'] = len(test_questions)
 
+    # Thư mục lưu raw responses của từng agent theo từng câu hỏi
+    raw_responses_dir = PIPELINE_OUTPUT_DIR / 'raw_responses'
+
     for i, question in enumerate(test_questions, 1):
         question_start_time = time.time()
         print(
             f"\n📊 Xử lý câu hỏi {i}/{len(test_questions)}: {question['question'][:50]}...")
+
+        q_index = question.get('question_index', i)
+        raw_db_dir = raw_responses_dir / question['db_id']
+        raw_file = raw_db_dir / f"q{q_index:04d}.json"
+
+        # Resume: nếu câu này đã có kết quả từ lần chạy trước thì dùng lại, không gọi API
+        if raw_file.exists():
+            try:
+                with open(raw_file, 'r', encoding='utf-8') as f:
+                    cached = json.load(f)
+                result = {
+                    'db_id': cached['db_id'],
+                    'question': cached['question'],
+                    'gold_query': cached['gold_query'],
+                    'sql': cached.get('final_sql', ''),
+                    'explain': cached.get('explain', ''),
+                    'error': cached.get('error', ''),
+                }
+                results.append(result)
+                if result['sql'] and not result['error']:
+                    execution_metrics['successful'] += 1
+                else:
+                    execution_metrics['failed'] += 1
+                with open(csv_filename, 'a', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writerow(result)
+                print(f"   ⏩ Đã có kết quả từ lần chạy trước ({raw_file.name}), bỏ qua.")
+                continue
+            except Exception as e:
+                print(f"   ⚠️  Không đọc được cache {raw_file.name} ({e}), chạy lại câu này.")
 
         try:
             # Chạy NL2SQL flow với schema đã có sẵn trong question
@@ -304,7 +398,7 @@ def run_nl2sql_system(test_questions):
             ai_request_count += question_api_calls
             api_call_details['total_agent_calls'] += question_api_calls
 
-            flow_result = NL2SQLFlow(
+            flow = NL2SQLFlow(
                 _question=NLQuestions(
                     question=question['question'], db_id=question['db_id']),
                 _raw_schema=SQLDbSchema(
@@ -314,8 +408,10 @@ def run_nl2sql_system(test_questions):
                     column_types=question['column_types'],
                     foreign_keys=question.get('foreign_keys', []),
                     primary_keys=question.get('primary_keys', []),
+                    column_sample_values=question.get('column_sample_values', []),
                 )
-            ).kickoff()
+            )
+            flow_result = flow.kickoff()
 
             result = {
                 'db_id': flow_result.db_id,
@@ -325,6 +421,22 @@ def run_nl2sql_system(test_questions):
                 'explain': flow_result.result.explain,
                 'error': flow_result.result.error,
             }
+
+            # Lưu raw response của TẤT CẢ agent steps cho câu hỏi này
+            os.makedirs(raw_db_dir, exist_ok=True)
+            with open(raw_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'question_index': q_index,
+                    'pipeline': PIPELINE_TYPE,
+                    'db_id': question['db_id'],
+                    'question': question['question'],
+                    'gold_query': question['gold_query'],
+                    'steps': getattr(flow, 'step_traces', []),
+                    'final_sql': result['sql'],
+                    'explain': result['explain'],
+                    'error': result['error'],
+                    'timestamp': datetime.now().isoformat(),
+                }, f, ensure_ascii=False, indent=2)
 
             # ===== PHASE 1 IMPROVEMENT: SQL Enhancement =====
             if result['sql'] and not result['error']:
@@ -387,15 +499,35 @@ def run_nl2sql_system(test_questions):
             ai_request_count += failed_api_calls
             api_call_details['total_agent_calls'] += failed_api_calls
 
+            # Placeholder always-wrong SQL keeps one eval line per question (never drop failures)
             error_result = {
                 'db_id': question['db_id'],
                 'question': question['question'],
                 'gold_query': question['gold_query'],
-                'sql': '',
+                'sql': 'SELECT 1',
                 'explain': '',
                 'error': str(e),
             }
             results.append(error_result)
+
+            # Lưu trace lỗi vào file riêng (.error.json) để resume vẫn chạy lại câu này
+            try:
+                os.makedirs(raw_db_dir, exist_ok=True)
+                error_trace_file = raw_db_dir / f"q{q_index:04d}.error.json"
+                partial_steps = getattr(locals().get('flow'), 'step_traces', []) if 'flow' in locals() else []
+                with open(error_trace_file, 'w', encoding='utf-8') as f:
+                    json.dump({
+                        'question_index': q_index,
+                        'pipeline': PIPELINE_TYPE,
+                        'db_id': question['db_id'],
+                        'question': question['question'],
+                        'gold_query': question['gold_query'],
+                        'steps': partial_steps,
+                        'error': str(e),
+                        'timestamp': datetime.now().isoformat(),
+                    }, f, ensure_ascii=False, indent=2)
+            except Exception as log_err:
+                print(f"   ⚠️  Không lưu được error trace: {log_err}")
 
             # Ghi lỗi vào CSV
             with open(csv_filename, 'a', newline='', encoding='utf-8') as csvfile:
@@ -429,13 +561,58 @@ _SQL_KEYWORDS = (
 )
 
 
+def _alias_is_referenced_elsewhere(sql: str, alias: str, span: tuple[int, int]) -> bool:
+    """True if `alias` appears as an identifier outside its AS-definition span."""
+    elsewhere = sql[: span[0]] + sql[span[1] :]
+    return re.search(r"\b" + re.escape(alias) + r"\b", elsewhere, flags=re.IGNORECASE) is not None
+
+
+def _strip_unreferenced_as_aliases(sql: str) -> str:
+    """Remove AS aliases only when they are not referenced later (e.g. in outer MAX(alias))."""
+
+    def strip_paren_alias(match: re.Match) -> str:
+        alias = match.group(1)
+        if _alias_is_referenced_elsewhere(sql, alias, match.span()):
+            return match.group(0)
+        return ")"
+
+    def strip_plain_alias(match: re.Match) -> str:
+        alias = match.group(1)
+        if _alias_is_referenced_elsewhere(sql, alias, match.span()):
+            return match.group(0)
+        return " "
+
+    # ) AS alias  →  )   (keep when outer query uses the alias)
+    sql = re.sub(
+        r"\)\s+AS\s+([\w_]+)\b",
+        strip_paren_alias,
+        sql,
+        flags=re.IGNORECASE,
+    )
+    # identifier AS alias before comma / FROM
+    sql = re.sub(
+        r"\bAS\s+([\w_]+)\s*(?=,)",
+        strip_plain_alias,
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        r"\bAS\s+([\w_]+)\s*(?=FROM)",
+        strip_plain_alias,
+        sql,
+        flags=re.IGNORECASE,
+    )
+    return sql
+
+
 def normalize_sql_for_spider(sql: str) -> str:
     """
     Normalize predicted SQL toward Spider gold format to improve exact match.
     - Strip trailing semicolon and extra whitespace
     - Lowercase SQL keywords
     - Normalize string literals: single quotes -> double quotes (Spider style)
-    - Remove redundant AS alias after aggregate/column to match gold (e.g. "count(*) AS count" -> "count(*)")
+    - Remove redundant AS aliases only when the alias is not referenced elsewhere
+      (keeps subquery aliases used by outer MAX(alias) / subquery.alias)
     """
     if not sql or not sql.strip():
         return sql
@@ -447,17 +624,18 @@ def normalize_sql_for_spider(sql: str) -> str:
     def replace_quotes(m):
         return '"' + m.group(1).replace('"', '""') + '"'
     s = re.sub(r"'([^']*)'", replace_quotes, s)
-    # Remove " AS <alias>" when it follows ) or a single identifier (common with aggregates)
-    s = re.sub(r'\)\s+AS\s+[\w_]+\b', ')', s, flags=re.IGNORECASE)
-    s = re.sub(r'\bAS\s+[\w_]+\s*(?=,)', ' ', s, flags=re.IGNORECASE)
-    s = re.sub(r'\bAS\s+[\w_]+\s*(?=FROM)', ' ', s, flags=re.IGNORECASE)
+    s = _strip_unreferenced_as_aliases(s)
     # Collapse multiple spaces
     s = re.sub(r'\s+', ' ', s).strip()
     return s
 
 
-def convert_csv_to_evaluation_format(csv_filename):
-    """Convert CSV output sang format đánh giá"""
+def convert_csv_to_evaluation_format(csv_filename, output_dir=None):
+    """Convert CSV output sang format đánh giá.
+
+    output_dir: nếu được truyền (ví dụ thư mục per-db), gold/predict sẽ lưu vào đó
+    thay vì thư mục output chung của pipeline.
+    """
     global timing_metrics, PIPELINE_OUTPUT_DIR
     start_time = time.time()
 
@@ -468,9 +646,11 @@ def convert_csv_to_evaluation_format(csv_filename):
 
     print("\n🔄 Đang convert CSV sang format đánh giá...")
 
-    # Lưu gold/predict chung vào thư mục output của pipeline hiện tại
-    predict_file = PIPELINE_OUTPUT_DIR / 'predict.sql'
-    gold_file = PIPELINE_OUTPUT_DIR / 'gold.sql'
+    # Lưu gold/predict vào thư mục output của pipeline (hoặc thư mục per-db nếu chỉ định)
+    target_dir = Path(output_dir) if output_dir else PIPELINE_OUTPUT_DIR
+    os.makedirs(target_dir, exist_ok=True)
+    predict_file = target_dir / 'predict.sql'
+    gold_file = target_dir / 'gold.sql'
 
     # Đọc CSV results (đã có ground truth trong CSV)
     with open(csv_filename, 'r', encoding='utf-8') as f:
@@ -481,15 +661,16 @@ def convert_csv_to_evaluation_format(csv_filename):
 
             matched_count = 0
             for row in reader:
-                if row['gold_query'] and row['sql']:  # Kiểm tra có ground truth và predicted SQL
-                    # Format: SQL\tdb_id
-                    gold_f.write(f"{row['gold_query']}\t{row['db_id']}\n")
-                    pred_sql = normalize_sql_for_spider(row['sql'])
-                    pred_f.write(f"{pred_sql}\t{row['db_id']}\n")
-                    matched_count += 1
-                else:
+                if not row.get('gold_query'):
                     print(
-                        f"⚠️ Thiếu ground truth hoặc predicted SQL cho: {row['question'][:50]}...")
+                        f"⚠️ Thiếu ground truth cho: {row['question'][:50]}...")
+                    continue
+                # Always emit one gold/pred line per question; empty/failed SQL → always-wrong placeholder
+                pred_raw = (row.get('sql') or '').strip() or 'SELECT 1'
+                gold_f.write(f"{row['gold_query']}\t{row['db_id']}\n")
+                pred_sql = normalize_sql_for_spider(pred_raw)
+                pred_f.write(f"{pred_sql}\t{row['db_id']}\n")
+                matched_count += 1
 
     timing_metrics['conversion_time'] = time.time() - start_time
     print(f"✅ Convert hoàn thành. Matched {matched_count} câu hỏi")
@@ -750,6 +931,177 @@ def print_results_table(run_number, num_questions, eval_metrics, total_time):
     print_detailed_api_statistics()
 
 
+# ===== Benchmark full dev set theo từng database (round 2) =====
+
+def get_progress_file() -> Path:
+    """Progress file riêng cho từng pipeline."""
+    if PIPELINE_OUTPUT_DIR is None:
+        raise RuntimeError("Hãy gọi configure_pipeline() trước.")
+    return PIPELINE_OUTPUT_DIR / 'benchmark_progress.json'
+
+
+def init_or_load_progress() -> dict:
+    """Load progress file; nếu chưa có thì khởi tạo danh sách db theo số câu giảm dần."""
+    progress_file = get_progress_file()
+    if progress_file.exists():
+        with open(progress_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    spider_data, _ = load_spider_dev_data()
+    db_questions = group_questions_by_db(spider_data)
+    # Chạy db nhiều câu trước, db ít câu sau; tie-break theo tên cho ổn định
+    db_order = sorted(db_questions.keys(), key=lambda db: (-len(db_questions[db]), db))
+
+    progress = {
+        'pipeline': PIPELINE_TYPE,
+        'created_at': datetime.now().isoformat(),
+        'db_order': db_order,
+        'databases': {
+            db: {
+                'status': 'pending',
+                'num_questions': len(db_questions[db]),
+                'successful': 0,
+                'failed': 0,
+                'execution_rate': None,
+                'exact_match_rate': None,
+                'finished_at': None,
+            }
+            for db in db_order
+        },
+    }
+    save_progress(progress)
+    print(f"🆕 Đã khởi tạo progress file: {progress_file} ({len(db_order)} databases)")
+    return progress
+
+
+def save_progress(progress: dict) -> None:
+    progress_file = get_progress_file()
+    os.makedirs(progress_file.parent, exist_ok=True)
+    with open(progress_file, 'w', encoding='utf-8') as f:
+        json.dump(progress, f, ensure_ascii=False, indent=2)
+
+
+def get_next_pending_db(progress: dict) -> str | None:
+    for db in progress['db_order']:
+        if progress['databases'][db]['status'] != 'done':
+            return db
+    return None
+
+
+def print_benchmark_status(progress: dict) -> None:
+    print(f"\n📋 TIẾN ĐỘ BENCHMARK ({progress['pipeline']}) — thứ tự chạy: nhiều câu trước")
+    print("=" * 78)
+    print(f"{'#':>3}  {'Database':<28} {'Câu hỏi':>8} {'Trạng thái':<10} {'EX%':>6} {'EM%':>6}")
+    print("-" * 78)
+    total_q = done_q = 0
+    for i, db in enumerate(progress['db_order'], 1):
+        info = progress['databases'][db]
+        total_q += info['num_questions']
+        if info['status'] == 'done':
+            done_q += info['num_questions']
+        ex = f"{info['execution_rate']:.1f}" if info['execution_rate'] is not None else '-'
+        em = f"{info['exact_match_rate']:.1f}" if info['exact_match_rate'] is not None else '-'
+        print(f"{i:>3}  {db:<28} {info['num_questions']:>8} {info['status']:<10} {ex:>6} {em:>6}")
+    print("-" * 78)
+    print(f"Tổng: {done_q}/{total_q} câu hỏi đã hoàn thành")
+    next_db = get_next_pending_db(progress)
+    if next_db:
+        print(f"➡️  Database kế tiếp: '{next_db}' — chạy bằng: python run_complete_nl2sql_pipeline.py --pipeline {progress['pipeline']} --next")
+    else:
+        print(f"🎉 Đã chạy xong toàn bộ! Tổng hợp kết quả: python run_complete_nl2sql_pipeline.py --pipeline {progress['pipeline']} --aggregate")
+
+
+def run_single_db_benchmark(db_id: str) -> None:
+    """Chạy TOÀN BỘ câu hỏi của một database, lưu raw responses, đánh giá và cập nhật tiến độ."""
+    progress = init_or_load_progress()
+    if db_id not in progress['databases']:
+        raise ValueError(f"db_id '{db_id}' không có trong danh sách benchmark.")
+
+    info = progress['databases'][db_id]
+    print(f"\n🚀 Bắt đầu benchmark database '{db_id}' ({info['num_questions']} câu hỏi, pipeline {PIPELINE_TYPE})")
+
+    progress['databases'][db_id]['status'] = 'running'
+    save_progress(progress)
+
+    start_time = time.time()
+    try:
+        if not setup_environment():
+            raise RuntimeError("Setup environment thất bại")
+
+        # num_questions=0 -> lấy toàn bộ câu hỏi của db (resume tự động qua raw_responses)
+        test_questions = get_test_questions(num_questions=0, db_id=db_id)
+
+        csv_filename, results = run_nl2sql_system(test_questions)
+        if not csv_filename:
+            raise RuntimeError("NL2SQL system thất bại")
+
+        per_db_dir = PIPELINE_OUTPUT_DIR / 'per_db' / db_id
+        gold_file, predict_file = convert_csv_to_evaluation_format(csv_filename, output_dir=per_db_dir)
+        eval_metrics = run_evaluation(gold_file, predict_file)
+
+        duration = time.time() - start_time
+        print_results_table(1, len(test_questions), eval_metrics, duration)
+
+        progress = init_or_load_progress()
+        progress['databases'][db_id].update({
+            'status': 'done',
+            'successful': execution_metrics['successful'],
+            'failed': execution_metrics['failed'],
+            'execution_rate': eval_metrics.get('execution_rate') if eval_metrics else None,
+            'exact_match_rate': eval_metrics.get('exact_match_rate') if eval_metrics else None,
+            'finished_at': datetime.now().isoformat(),
+        })
+        save_progress(progress)
+
+        print(f"\n✅ Database '{db_id}' hoàn thành trong {duration:.1f}s")
+        print_benchmark_status(progress)
+    except Exception as e:
+        progress = init_or_load_progress()
+        progress['databases'][db_id]['status'] = 'failed'
+        save_progress(progress)
+        print(f"\n❌ Database '{db_id}' thất bại: {e}")
+        print(f"💡 Chạy lại (tự resume câu đã xong): python run_complete_nl2sql_pipeline.py --pipeline {PIPELINE_TYPE} --run-db {db_id}")
+        raise
+
+
+def aggregate_all_dbs() -> None:
+    """Gộp gold/predict của tất cả db đã xong và chạy đánh giá trên toàn bộ dev set."""
+    progress = init_or_load_progress()
+    per_db_root = PIPELINE_OUTPUT_DIR / 'per_db'
+    agg_dir = PIPELINE_OUTPUT_DIR / 'full_dev'
+    os.makedirs(agg_dir, exist_ok=True)
+
+    gold_lines, pred_lines, missing = [], [], []
+    for db in progress['db_order']:
+        db_dir = per_db_root / db
+        gold_f, pred_f = db_dir / 'gold.sql', db_dir / 'predict.sql'
+        if gold_f.exists() and pred_f.exists():
+            with open(gold_f, 'r', encoding='utf-8') as f:
+                gold_lines.extend(f.readlines())
+            with open(pred_f, 'r', encoding='utf-8') as f:
+                pred_lines.extend(f.readlines())
+        else:
+            missing.append(db)
+
+    if missing:
+        print(f"⚠️  Các database chưa có kết quả: {missing}")
+
+    agg_gold = agg_dir / 'gold.sql'
+    agg_pred = agg_dir / 'predict.sql'
+    with open(agg_gold, 'w', encoding='utf-8') as f:
+        f.writelines(gold_lines)
+    with open(agg_pred, 'w', encoding='utf-8') as f:
+        f.writelines(pred_lines)
+
+    print(f"📦 Đã gộp {len(gold_lines)} cặp gold/predict vào {agg_dir}")
+    if not setup_environment():
+        print("❌ Setup environment thất bại")
+        return
+    eval_metrics = run_evaluation(agg_gold, agg_pred)
+    if eval_metrics:
+        print(f"\n🏁 KẾT QUẢ FULL DEV SET ({PIPELINE_TYPE}): EX={eval_metrics['execution_rate']:.1f}%  EM={eval_metrics['exact_match_rate']:.1f}%")
+
+
 def main():
     """Hàm chính chạy toàn bộ pipeline"""
     global ai_request_count, execution_metrics, timing_metrics, api_call_details
@@ -784,7 +1136,7 @@ def main():
         "--num_questions",
         type=int,
         default=50,
-        help="Số câu hỏi sẽ được lấy từ Spider để test pipeline (mặc định: 50).",
+        help="Số câu hỏi sẽ được lấy từ Spider để test pipeline (mặc định: 50; 0 = toàn bộ câu hỏi của db).",
     )
     parser.add_argument(
         "--db_id",
@@ -798,10 +1150,53 @@ def main():
         default=42,
         help="Seed cố định cho việc chọn mẫu câu hỏi trong database (mặc định: 42).",
     )
+    # Chế độ benchmark full dev set theo từng database
+    parser.add_argument(
+        "--next",
+        action="store_true",
+        help="Chạy TOÀN BỘ câu hỏi của database kế tiếp chưa hoàn thành rồi dừng (benchmark mode).",
+    )
+    parser.add_argument(
+        "--run-db",
+        type=str,
+        default=None,
+        dest="run_db",
+        help="Chạy TOÀN BỘ câu hỏi của một database cụ thể trong benchmark mode (tự resume).",
+    )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="In tiến độ benchmark theo từng database rồi thoát.",
+    )
+    parser.add_argument(
+        "--aggregate",
+        action="store_true",
+        help="Gộp kết quả tất cả database đã chạy và đánh giá trên toàn bộ dev set.",
+    )
     args = parser.parse_args()
 
     # Cấu hình pipeline tương ứng
     configure_pipeline(args.pipeline)
+
+    # ==== Benchmark mode: chạy theo từng database ====
+    if args.status:
+        print_benchmark_status(init_or_load_progress())
+        return
+
+    if args.aggregate:
+        aggregate_all_dbs()
+        return
+
+    if args.next or args.run_db:
+        if args.run_db:
+            target_db = args.run_db
+        else:
+            target_db = get_next_pending_db(init_or_load_progress())
+            if target_db is None:
+                print("🎉 Tất cả database đã hoàn thành. Dùng --aggregate để lấy kết quả full dev set.")
+                return
+        run_single_db_benchmark(target_db)
+        return
 
     print(f"🚀 Bắt đầu chạy Complete NL2SQL Pipeline ({args.pipeline})")
     print("=" * 60)

@@ -1,0 +1,67 @@
+{
+  "question_index": 224,
+  "pipeline": "6step",
+  "db_id": "s224_car_1",
+  "question": "Show model cars that weigh less than 3500 and are NOT manufactured by Ford.",
+  "gold_query": "SELECT DISTINCT T1.model FROM MODEL_LIST AS T1 JOIN CAR_NAMES AS T2 ON T1.Model = T2.Model JOIN CARS_DATA AS T3 ON T2.MakeId = T3.Id JOIN CAR_MAKERS AS T4 ON T1.Maker = T4.Id WHERE T3.weight < 3500 AND T4.FullName != 'Ford Motor Company'",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.977,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Model\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"model_list\", \"car_names\", \"cars_data\", \"car_makers\"],\n  \"required_columns\": [\n    {\"table\": \"car_names\", \"column\": \"Model\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"cars_data\", \"column\": \"Weight\", \"purpose\": \"FILTER\"},\n    {\"table\": \"model_list\", \"column\": \"Maker\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"Maker\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"car_names\", \"column\": \"Model\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"cars_data\", \"column\": \"Weight\", \"operator\": \"<\", \"value\": 3500, \"value_type\": \"NUMBER\"},\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"Maker\", \"operator\": \"<>\", \"value\": \"ford\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"ford\", \"table\": \"car_makers\", \"column\": \"Maker\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"},\n    {\"literal\": 3500, \"table\": \"cars_data\", \"column\": \"Weight\", \"evidence\": \"QUESTION\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"All conditions must hold on the same car\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"model_list\", \"to_table\": \"car_names\", \"reason\": \"to get Model from model_list\"},\n    {\"from_table\": \"cars_data\", \"to_table\": \"car_names\", \"reason\": \"to filter by Weight\"},\n    {\"from_table\": \"model_list\", \"to_table\": \"car_makers\", \"reason\": \"to filter model_list by Maker\"}\n  ],\n  \"entities\": {\"tables\": [\"model_list\", \"car_names\", \"cars_data\", \"car_makers\"], \"columns\": [\"Model\", \"Weight\", \"Maker\"], \"values\": [\"ford\", 3500]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 3291,
+        "prompt_tokens": 2652,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 639,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T21:07:35.173548"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 9.879,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\n1.  **Identify required tables**: From `analysis.required_tables`, these are `model_list`, `car_names`, `cars_data`, `car_makers`.\n2.  **Identify required columns for output/filters**:\n    *   `car_names.Model` (output)\n    *   `cars_data.Weight` (filter)\n    *   `car_makers.Maker` (filter)\n3.  **Identify PK/FK columns for joins**: I will trace the `named_foreign_keys` to connect the required tables and ensure all necessary PKs and FKs are included.\n\n    *   **`cars_data`** (needs to join to `car_names` for `MakeId` and `Id`)\n        *   `cars_data.Id` (PK/FK to `car_names.MakeId`)\n        *   `cars_data.Weight` (filter)\n        *   Retain: `Id`, `Weight`\n\n    *   **`car_names`** (needs to join to `cars_data` and `model_list`)\n        *   `car_names.MakeId` (PK, referenced by `cars_data.Id`)\n        *   `car_names.Model` (output, also FK to `model_list.Model`)\n        *   Retain: `MakeId`, `Model`\n\n    *   **`model_list`** (needs to join to `car_names` and `car_makers`)\n        *   `model_list.ModelId` (PK of `model_list`, not directly used in the provided `named_foreign_keys` join `car_names.Model = model_list.Model` but should be included as a PK.)\n        *   `model_list.Model` (referenced by `car_names.Model`)\n        *   `model_list.Maker` (FK to `car_makers.Id`)\n        *   Retain: `ModelId`, `Model`, `Maker`\n\n    *   **`car_makers`** (needs to join to `model_list`)\n        *   `car_makers.Id` (PK, referenced by `model_list.Maker`)\n        *   `car_makers.Maker` (filter)\n        *   Retain: `Id`, `Maker`\n\n4.  **Consolidate all identified tables and columns**:\n\n    *   **Tables**: `car_makers`, `model_list`, `car_names`, `cars_data`\n    *   **Columns**:\n        *   `car_makers`: `Id`, `Maker`\n        *   `model_list`: `ModelId`, `Maker`, `Model`\n        *   `car_names`: `MakeId`, `Model`\n        *   `cars_data`: `Id`, `Weight`\n\nAll necessary columns for output, filters, and joins (including PKs and FKs as defined by the `named_foreign_keys` and standard PK requirements) are preserved.{\"table_names_original\": [\"car_makers\", \"model_list\", \"car_names\", \"cars_data\"], \"column_names_original\": [[-1, \"*\"], [2, \"Id\"], [2, \"Maker\"], [3, \"ModelId\"], [3, \"Maker\"], [3, \"Model\"], [4, \"MakeId\"], [4, \"Model\"], [5, \"Id\"], [5, \"Weight\"]]}",
+      "token_usage": {
+        "total_tokens": 4371,
+        "prompt_tokens": 2095,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2276,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T21:07:45.053238"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.485,
+      "raw_response": "{\"sql\": \"SELECT car_names.Model FROM cars_data JOIN car_names ON cars_data.Id = car_names.MakeId JOIN model_list ON car_names.Model = model_list.Model JOIN car_makers ON model_list.Maker = car_makers.Id WHERE cars_data.Weight < 3500 AND car_makers.Maker <> 'ford'\"}",
+      "token_usage": {
+        "total_tokens": 2792,
+        "prompt_tokens": 2714,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 78,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T21:07:46.541594",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/drspider340/database/s224_car_1/s224_car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": [],
+        "checked_join_conditions": [
+          "cars_data.Id = car_names.MakeId",
+          "car_names.Model = model_list.Model",
+          "model_list.Maker = car_makers.Id"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT car_names.Model FROM cars_data JOIN car_names ON cars_data.Id = car_names.MakeId JOIN model_list ON car_names.Model = model_list.Model JOIN car_makers ON model_list.Maker = car_makers.Id WHERE cars_data.Weight < 3500 AND car_makers.Maker <> 'ford'",
+  "explain": "Validator no-op: Generator SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T21:07:46.548722"
+}

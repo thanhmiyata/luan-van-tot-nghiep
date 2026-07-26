@@ -1,0 +1,97 @@
+{
+  "question_index": 313,
+  "pipeline": "6step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Show ids for all templates that are used by more than one document.",
+  "gold_query": "SELECT template_id FROM Documents GROUP BY template_id HAVING count(*)  >  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.699,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Templates\", \"column\": \"Template_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Templates\", \"column\": \"Template_ID\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"Templates are referenced by documents via Template_ID\"}],\n  \"entities\": {\"tables\": [\"Templates\", \"Documents\"], \"columns\": [\"Template_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1952,
+        "prompt_tokens": 1720,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 232,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:01:31.223169"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.345,
+      "raw_response": "{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Templates\", \"Documents\"], \"column_names_original\": [[-1, \"*\"], [0, \"Template_ID\"], [1, \"Document_ID\"], [1, \"Template_ID\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 4303,
+        "prompt_tokens": 923,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3380,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:01:45.588990"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.526,
+      "raw_response": "{\n    \"steps\": [\n        {\n            \"operation\": \"LIST\",\n            \"tables\": [\"Templates\", \"Documents\"],\n            \"conditions\": [],\n            \"output_fields\": [\"Templates.Template_ID\"],\n            \"pk_fk_pairs\": [\"Templates.Template_ID = Documents.Template_ID\"],\n            \"filtering\": [\n                {\n                    \"operation\": \"COUNT\",\n                    \"filter\": \">\",\n                    \"value\": 1,\n                    \"fields\": [\"Documents.Document_ID\"]\n                }\n            ],\n            \"group_by\": [\"Documents.Template_ID\"],\n            \"order_by\": [],\n            \"join_condition\": true,\n            \"join\": \"INNER JOIN\",\n            \"aggregation\": \"HAVING COUNT(*) > 1\"\n        }\n    ]\n}",
+      "token_usage": {
+        "total_tokens": 1672,
+        "prompt_tokens": 1380,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 292,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:01:50.134118"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.976,
+      "raw_response": "{\"sql\": \"SELECT Templates.Template_ID FROM Templates INNER JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID HAVING COUNT(*) > 1\"}",
+      "token_usage": {
+        "total_tokens": 1943,
+        "prompt_tokens": 1898,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 45,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:01:51.130784"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.399,
+      "raw_response": "{\"sql\": \"SELECT Templates.Template_ID FROM Templates INNER JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID HAVING COUNT(*) > 1\", \"notes\": \"SQL aligns with the requirement to show Template_IDs used by more than one document. Joins and GROUP BY are correctly implemented per expected output fields and question intent.\", \"diagnostics\": [\"No unnecessary joins to remove.\", \"COUNT(*) used correctly without need for COUNT(DISTINCT) due to specific table relations.\", \"GROUP BY aligns with intent and minimal non-aggregated selection.\"]}",
+      "token_usage": {
+        "total_tokens": 1589,
+        "prompt_tokens": 1461,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 128,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:01:53.551434"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.462,
+      "raw_response": "I need to perform a 6-step validation check on the provided SQL query against the given question, schema, and analysis.\n\n**Validation Checklist & Fixes:**\n\n1.  **SELECT matches `expected_output_fields` exactly (content & order):**\n    *   `expected_output_fields`: `[\"Template_ID\"]`\n    *   Current SELECT: `Templates.Template_ID`\n    *   Matches exactly. No change needed.\n\n2.  **For counts - Use COUNT(*), GROUP BY minimal and consistent:**\n    *   Current SQL uses `COUNT(*)`. This is correct for counting documents.\n    *   `GROUP BY Templates.Template_ID` is consistent with the `SELECT Templates.Template_ID` and the `HAVING COUNT(*)`. This is correct.\n\n3.  **Extremum patterns:**\n    *   Not applicable here as it's a `HAVING COUNT(*)` condition, not min/max.\n\n4.  **No unnecessary joins; correct PK/FK:**\n    *   The join `INNER JOIN Documents ON Templates.Template_ID = Documents.Template_ID` is necessary to link templates to documents and count documents per template.\n    *   The join condition `Templates.Template_ID = Documents.Template_ID` uses the correct PK/FK relationship.\n    *   `single_table_ok` is `false` in analysis, confirming a join is expected.\n    *   No unnecessary joins.\n\n5.  **Remove ORDER BY unless required:**\n    *   The current SQL has no `ORDER BY`.\n    *   The `analysis` also has `order_by: []`, indicating no ordering is required.\n    *   Correct.\n\n6.  **Names exist; SQL complete, single line, no comments:**\n    *   `Templates`, `Documents`, `Template_ID` all exist in the schema.\n    *   SQL is complete, single line, no comments.\n    *   Correct.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:**\n    *   `self_join_hint`: `false`. SQL does not use self-join, which is correct.\n\n2.  **Set Operation Validation:**\n    *   `set_operation_type`: `NONE`. SQL does not use set operations, which is correct.\n\n3.  **WHERE Condition Validation:**\n    *   `where_condition_type`: `RANGE` for `HAVING COUNT(*) > 1`. This is correctly implemented as `HAVING COUNT(*) > 1`.\n    *   `null_handling`: `UNKNOWN`. Not directly applicable to the `HAVING` clause.\n    *   No issues.\n\n4.  **GROUP BY Validation:**\n    *   The query aggregates per template, and `GROUP BY Templates.Template_ID` uses the PK (or unique identifier for templates in this context).\n    *   The `SELECT` clause includes the `GROUP BY` column.\n    *   Correct.\n\n5.  **ORDER BY Validation:**\n    *   `order_by: []` in analysis, and no `ORDER BY` in SQL.\n    *   Correct.\n\n6.  **DISTINCT Validation:**\n    *   `GROUP BY Templates.Template_ID` is used for aggregation (`COUNT(*)`), not just for uniqueness. So, `DISTINCT Templates.Template_ID` would not achieve the same result.\n    *   Correct.\n\nThe SQL appears to be correct and fully aligned with the analysis and question. No fixes are needed.{\"sql\": \"SELECT Templates.Template_ID FROM Templates INNER JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID HAVING COUNT(*) > 1\", \"explain\": \"The SQL query correctly identifies template IDs that are used by more than one document by joining Templates and Documents tables, grouping by Template_ID, and filtering with HAVING COUNT(*) > 1. All checks passed and the query matches the expected output fields and logic from the analysis.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2215,
+        "prompt_tokens": 1345,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 870,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:01:59.036321"
+    }
+  ],
+  "final_sql": "SELECT Templates.Template_ID FROM Templates INNER JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID HAVING COUNT(*) > 1",
+  "explain": "The SQL query correctly identifies template IDs that are used by more than one document by joining Templates and Documents tables, grouping by Template_ID, and filtering with HAVING COUNT(*) > 1. All checks passed and the query matches the expected output fields and logic from the analysis.",
+  "error": "",
+  "timestamp": "2026-07-25T05:01:59.038492"
+}

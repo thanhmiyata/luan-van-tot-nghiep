@@ -1,0 +1,69 @@
+{
+  "question_index": 898,
+  "pipeline": "4step",
+  "db_id": "network_1",
+  "question": "Show the ids of high schoolers who have friends and are also liked by someone else.",
+  "gold_query": "SELECT student_id FROM Friend INTERSECT SELECT liked_id FROM Likes",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.134,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Highschooler\", \"column\": \"ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Friend\", \"to_table\": \"Highschooler\", \"reason\": \"students have friends\"},\n    {\"from_table\": \"Likes\", \"to_table\": \"Highschooler\", \"reason\": \"students are liked by others\"}\n  ],\n  \"entities\": {\"tables\": [\"Highschooler\", \"Friend\", \"Likes\"], \"columns\": [\"ID\", \"student_id\", \"friend_id\", \"liked_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1175,
+        "prompt_tokens": 949,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 226,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:59:45.907063"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.626,
+      "raw_response": "{\n    \"db_id\": \"network_1\",\n    \"table_names_original\": [\n        \"Highschooler\",\n        \"Friend\",\n        \"Likes\"\n    ],\n    \"column_names_original\": [\n        [-1, \"*\"],\n        [0, \"ID\"],\n        [1, \"student_id\"],\n        [1, \"friend_id\"],\n        [2, \"student_id\"],\n        [2, \"liked_id\"]\n    ],\n    \"column_types\": [\n        \"text\",\n        \"number\",\n        \"number\",\n        \"number\",\n        \"number\",\n        \"number\"\n    ],\n    \"foreign_keys\": [\n        [3, 1],\n        [2, 1],\n        [4, 1],\n        [5, 1]\n    ],\n    \"primary_keys\": [\n        1,\n        2,\n        4\n    ],\n    \"column_sample_values\": [\n        [],\n        [],\n        [],\n        [],\n        [],\n        []\n    ]\n}",
+      "token_usage": {
+        "total_tokens": 3258,
+        "prompt_tokens": 712,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2546,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:59:57.534834"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.471,
+      "raw_response": "{\"sql\": \"SELECT H.ID FROM Highschooler H WHERE EXISTS (SELECT 1 FROM Friend F WHERE F.student_id = H.ID) AND EXISTS (SELECT 1 FROM Likes L WHERE L.liked_id = H.ID)\"}",
+      "token_usage": {
+        "total_tokens": 1164,
+        "prompt_tokens": 1105,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 59,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:59:59.007495"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.89,
+      "raw_response": "I need to validate the provided SQL query against the given criteria and the analysis.\n\n1.  **SELECT matches expected_output_fields:**\n    *   Expected: `ID`\n    *   Actual: `H.ID`\n    *   Match: Yes (column name and table alias usage is fine).\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows.**\n    *   The query uses `EXISTS` subqueries, which are efficient for checking existence and avoid duplicating rows.\n    *   The `EXISTS (SELECT 1 FROM Friend F WHERE F.student_id = H.ID)` checks if the highschooler (H.ID) has a friend, where `F.student_id` is a foreign key to `Highschooler.ID`. This is correct.\n    *   The `EXISTS (SELECT 1 FROM Likes L WHERE L.liked_id = H.ID)` checks if the highschooler (H.ID) is liked by someone, where `L.liked_id` is a foreign key to `Highschooler.ID`. This is also correct.\n    *   No `ORDER BY` is present, which is good as it's not requested.\n    *   The approach using `EXISTS` is minimal and appropriate.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available.**\n    *   No text literals are used in the query.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `Highschooler`, `Friend`, `Likes`, `ID`, `student_id`, `liked_id` all exist in the schema.\n    *   The SQL is complete and on one line.\n\nThe SQL query looks correct and meets all validation criteria.```json\n{\n  \"sql\": \"SELECT H.ID FROM Highschooler H WHERE EXISTS (SELECT 1 FROM Friend F WHERE F.student_id = H.ID) AND EXISTS (SELECT 1 FROM Likes L WHERE L.liked_id = H.ID)\",\n  \"explain\": \"The query correctly selects the IDs of high schoolers who exist in both the Friend table (as a student_id) and the Likes table (as a liked_id) using efficient EXISTS subqueries, matching the requested output fields and conditions.\",\n  \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1318,
+        "prompt_tokens": 790,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 528,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:00:01.898732"
+    }
+  ],
+  "final_sql": "SELECT H.ID FROM Highschooler H WHERE EXISTS (SELECT 1 FROM Friend F WHERE F.student_id = H.ID) AND EXISTS (SELECT 1 FROM Likes L WHERE L.liked_id = H.ID)",
+  "explain": "The query correctly selects the IDs of high schoolers who exist in both the Friend table (as a student_id) and the Likes table (as a liked_id) using efficient EXISTS subqueries, matching the requested output fields and conditions.",
+  "error": "",
+  "timestamp": "2026-07-24T18:00:01.900131"
+}

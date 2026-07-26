@@ -1,0 +1,97 @@
+{
+  "question_index": 655,
+  "pipeline": "6step",
+  "db_id": "poker_player",
+  "question": "What is the money rank of the poker player with the highest earnings?",
+  "gold_query": "SELECT Money_Rank FROM poker_player ORDER BY Earnings DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.348,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Money_Rank\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"poker_player\", \"column\": \"Money_Rank\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"poker_player\", \"column\": \"Earnings\", \"direction\": \"DESC\"}],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"poker_player\"], \"columns\": [\"Earnings\", \"Money_Rank\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1694,
+        "prompt_tokens": 1471,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 223,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:08:13.936810"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.057,
+      "raw_response": "I need to filter the provided database schema based on the \"Analyzer output\".\nThe goal is to keep only the tables and columns strictly necessary to answer the question: \"What is the money rank of the poker player with the highest earnings?\".\n\nHere's my plan:\n1.  **Identify required tables**: From `Analyzer.entities.tables`, `Analyzer.output_fields_detailed`, `Analyzer.filters`, `Analyzer.group_by`, `Analyzer.order_by`.\n    *   `entities.tables`: `poker_player`\n    *   `output_fields_detailed`: `poker_player.Money_Rank` -> `poker_player`\n    *   `order_by`: `poker_player.Earnings` -> `poker_player`\n    *   No other tables are referenced in filters, group_by.\n    *   So, the only required table is `poker_player`.\n\n2.  **Identify required columns for the `poker_player` table**:\n    *   `expected_output_fields`: `Money_Rank` -> Keep `poker_player.Money_Rank`.\n    *   `order_by`: `Earnings` -> Keep `poker_player.Earnings`.\n    *   Primary Key: `poker_player.Poker_Player_ID` (from `primary_keys:[1,7]`, where 1 refers to `poker_player.Poker_Player_ID`). This must be kept for table integrity, even if not directly used in the query.\n    *   Foreign Key: `poker_player.People_ID` (from `foreign_keys:[2,7]`, where 2 refers to `poker_player.People_ID`). Since the `people` table is not required, this FK column can be dropped from `poker_player` *unless* it's directly used. In this specific case, it's not used, and the `people` table itself is not required, so `People_ID` in `poker_player` can be dropped.\n\n3.  **Check for joins**:\n    *   The `Analyzer.join_hints` is empty.\n    *   The question only involves fetching data related to a poker player's earnings and rank, both of which are in the `poker_player` table.\n    *   No joins are necessary with the `people` table.\n\n4.  **Construct the filtered schema**:\n    *   `db_id`: `poker_player`\n    *   `table_names_original`: Only `poker_player`.\n    *   `column_names_original`:\n        *   `poker_player`: Keep `Poker_Player_ID` (PK), `Money_Rank`, `Earnings`.\n        *   Remove `People_ID`, `Final_Table_Made`, `Best_Finish`.\n    *   `column_types`: Update based on kept columns.\n    *   `foreign_keys`: None, as `people` table is removed.\n    *   `primary_keys`: `Poker_Player_ID` (index 1 in the original schema, but index 0 in the new filtered `poker_player` table if we reindex from 0, or `[0]` if we refer to the table `poker_player`'s PK index). Let's refer to the original `primary_keys` which specifies `1` for `poker_player.Poker_Player_ID`.\n\nLet's refine the column indices for the filtered schema.\nOriginal schema `column_names_original`:\n[0, \"Poker_Player_ID\"] (PK for poker_player)\n[0, \"People_ID\"] (FK for poker_player)\n[0, \"Final_Table_Made\"]\n[0, \"Best_Finish\"]\n[0, \"Money_Rank\"] (needed)\n[0, \"Earnings\"] (needed)\n\nFiltered `poker_player` columns:\n`Poker_Player_ID` (PK, must keep)\n`Money_Rank` (needed for output)\n`Earnings` (needed for order_by)\n\nSo, the new `column_names_original` for `poker_player` will be:\n`poker_player_ID` (index 0 for table 0)\n`Money_Rank` (index 1 for table 0)\n`Earnings` (index 2 for table 0)\n\nAnd the associated types.\n`column_types` original indices:\n1: Poker_Player_ID (number)\n2: People_ID (number)\n3: Final_Table_Made (number)\n4: Best_Finish (number)\n5: Money_Rank (number)\n6: Earnings (number)\n\nFiltered `column_types`:\nnumber (for Poker_Player_ID)\nnumber (for Money_Rank)\nnumber (for Earnings)\n\n`primary_keys`: The original `primary_keys` lists `1, 7`. `1` refers to `poker_player.Poker_Player_ID`. In the filtered schema, `poker_player` is table 0. `poker_player_ID` is the first column, so its index in `column_names_original` will be `[0, \"Poker_Player_ID\"]`. If we re-index, the new PK will be `0` for table `poker_player` (which is table `0` in the new list) and column `0` within that table. The standard format for primary keys in this JSON is a list of column *indices* from the global `column_names_original` list.\n\nLet's reconstruct the global `column_names_original` and `column_types` carefully.\n\nOriginal global `column_names_original`:\n0: [-1,\"*\"]\n1: [0,\"Poker_Player_ID\"] (PK)\n2: [0,\"People_ID\"] (FK)\n3: [0,\"Final_Table_Made\"]\n4: [0,\"Best_Finish\"]\n5: [0,\"Money_Rank\"]\n6: [0,\"Earnings\"]\n7: [1,\"People_ID\"] (PK)\n8: [1,\"Nationality\"]\n9: [1,\"Name\"]\n10: [1,\"Birth_Date\"]\n11: [1,\"Height\"]\n\nWe need to keep:\n`poker_player.Poker_Player_ID` (original index 1)\n`poker_player.Money_Rank` (original index 5)\n`poker_player.Earnings` (original index 6)\n\nNew `column_names_original`:\n`[-1, \"*\"]` (always kept)\n`[0, \"Poker_Player_ID\"]`\n`[0, \"Money_Rank\"]`\n`[0, \"Earnings\"]`\n\nNew `column_types`:\n`text` (for `*`)\n`number` (for `Poker_Player_ID`)\n`number` (for `Money_Rank`)\n`number` (for `Earnings`)\n\nNew `primary_keys`: The PK for `poker_player` is `Poker_Player_ID`. Its original global index was `1`. In the new filtered `column_names_original`, `[0, \"Poker_Player_ID\"]` is at global index `1`. So, `primary_keys: [1]`.\n\nNew `foreign_keys`: `[]` (since `people` table is removed, and `poker_player.People_ID` is not needed).\n\n`table_names_original`: `[\"poker_player\"]`\n\n`column_sample_values`: Only for the kept columns.\nOriginal `column_sample_values`:\n`[]` (for `*`)\n`[]` (for `Poker_Player_ID`)\n`[]` (for `People_ID`)\n`[]` (for `Final_Table_Made`)\n`[]` (for `Best_Finish`)\n`[]` (for `Money_Rank`)\n`[]` (for `Earnings`)\n`[]` (for `People_ID` table `people`)\n`[\"Russia\",\"Bulgaria\"]` (for Nationality)\n`[\"Aleksey Ostapenko\",\"Teodor Salparov\",\"Roman Bragin\",\"Sergey Grankin\"]` (for Name)\n`[\"May 26, 1986\",\"August 16, 1982\",\"April 17, 1987\",\"January 22, 1987\"]` (for Birth_Date)\n`[]` (for Height)\n\nFiltered `column_sample_values`:\n`[]` (for `*`)\n`[]` (for `Poker_Player_ID`)\n`[]` (for `Money_Rank`)\n`[]` (for `Earnings`)\n\nFinal check for consistency:\n- `db_id`: `poker_player` (correct)\n- `table_names_original`: `[\"poker_player\"]` (correct, only `poker_player` is needed)\n- `column_names_original`:\n    - `[-1, \"*\"]` (always present)\n    - `[0, \"Poker_Player_ID\"]` (PK, from `poker_player`)\n    - `[0, \"Money_Rank\"]` (output field, from `poker_player`)\n    - `[0, \"Earnings\"]` (order by field, from `poker_player`)\n    (This looks correct, only minimal columns for `poker_player` plus the universal `*` column)\n- `column_types`:\n    - `text` (for `*`)\n    - `number` (for `Poker_Player_ID`)\n    - `number` (for `Money_Rank`)\n    - `number` (for `Earnings`)\n    (Types correspond to the kept columns)\n- `foreign_keys`: `[]` (Correct, no joins needed, `people` table removed)\n- `primary_keys`: `[1]` (Correct, `Poker_Player_ID` is the PK of `poker_player`. In the new `column_names_original` list, `[0, \"Poker_Player_ID\"]` is at index 1 globally. So `[1]` is correct).\n- `column_sample_values`: Updated to match the kept columns. `[]` `[]` `[]` `[]`\n\nThe schema looks minimal and preserves all necessary information for the query.```json\n{\n  \"db_id\": \"poker_player\",\n  \"table_names_original\": [\n    \"poker_player\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Poker_Player_ID\"\n    ],\n    [\n      0,\n      \"Money_Rank\"\n    ],\n    [\n      0,\n      \"Earnings\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 3355,
+        "prompt_tokens": 831,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2524,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:08:25.012165"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.809,
+      "raw_response": "{ \"steps\": [ \"Step 1: Identify the table involved. Since the query involves retrieving information about poker players, the relevant table is 'poker_player'.\", \"Step 2: No join needed as the query pertains to a single table ('poker_player').\", \"Step 3: Since we need to find the player with the highest earnings, use ORDER BY on 'Earnings' in descending order.\", \"Step 4: Limit the result to the top entry to get the player with the highest earnings.\", \"Step 5: Retrieve the 'Money_Rank' column of the player with the highest earnings, as it is the expected output field.\", \"Step 6: Assemble the final SELECT statement: SELECT Money_Rank FROM poker_player ORDER BY Earnings DESC LIMIT 1;\" ] }",
+      "token_usage": {
+        "total_tokens": 1484,
+        "prompt_tokens": 1309,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 175,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:08:27.837692"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.793,
+      "raw_response": "{\"sql\": \"SELECT Money_Rank FROM poker_player ORDER BY Earnings DESC LIMIT 1;\"}",
+      "token_usage": {
+        "total_tokens": 1834,
+        "prompt_tokens": 1803,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 31,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:08:28.651277"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.306,
+      "raw_response": "{\"sql\": \"SELECT Money_Rank FROM poker_player ORDER BY Earnings DESC LIMIT 1;\", \"notes\": \"The initial SQL already matches the expected output fields by selecting 'Money_Rank' from 'poker_player'. The ORDER BY and LIMIT clause correctly implement the logic to find the player with the highest earnings. No changes were needed.\", \"diagnostics\": [\"Enforced SELECT matches expected output fields.\", \"Confirmed no unnecessary joins.\", \"Validated ORDER BY and LIMIT as per extremum-of-column query requirement.\"]}",
+      "token_usage": {
+        "total_tokens": 1497,
+        "prompt_tokens": 1381,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 116,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:08:30.973642"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.702,
+      "raw_response": "I need to validate the provided SQL \"SELECT Money_Rank FROM poker_player ORDER BY Earnings DESC LIMIT 1;\" against the given schema, question, and analysis. I will follow the 6-step validation checklist.\n\n1.  **SELECT matches expected_output_fields:**\n    *   `expected_output_fields`: `[\"Money_Rank\"]`\n    *   `SQL SELECT`: `SELECT Money_Rank`\n    *   Match: Yes.\n\n2.  **Counts (N/A):**\n    *   No `COUNT` function is used.\n\n3.  **Extremum patterns:**\n    *   Question: \"What is the money rank of the poker player with the highest earnings?\"\n    *   Analysis `intent`: \"MAX_MIN\"\n    *   SQL uses `ORDER BY Earnings DESC LIMIT 1`, which correctly identifies the player with the highest earnings and retrieves their `Money_Rank`.\n    *   Match: Yes.\n\n4.  **No unnecessary joins:**\n    *   `single_table_ok`: `true`\n    *   SQL uses only `poker_player` table.\n    *   Match: Yes.\n\n5.  **Remove ORDER BY unless required:**\n    *   Analysis `order_by`: `[{\"table\": \"poker_player\", \"column\": \"Earnings\", \"direction\": \"DESC\"}]`\n    *   SQL `ORDER BY Earnings DESC LIMIT 1` is necessary for the extremum pattern.\n    *   Match: Yes.\n\n6.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   `Money_Rank` and `Earnings` are in `poker_player` table.\n    *   SQL is complete, single line, no comments.\n    *   Match: Yes.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:**\n    *   `self_join_hint`: `false`\n    *   SQL does not use a self-join.\n    *   Match: Yes.\n\n2.  **Set Operation Validation:**\n    *   `set_operation_type`: `NONE`\n    *   SQL does not use set operations.\n    *   Match: Yes.\n\n3.  **WHERE Condition Validation:**\n    *   `where_condition_type`: `EQUALS` (but no WHERE clause in SQL, which is fine for MAX_MIN with ORDER BY LIMIT)\n    *   `null_handling`: `UNKNOWN`\n    *   No `WHERE` clause to validate in this specific query.\n    *   Match: Yes.\n\n4.  **GROUP BY Validation:**\n    *   No `GROUP BY` in SQL, and no aggregation requiring it in the `SELECT` clause.\n    *   Match: Yes.\n\n5.  **ORDER BY Validation:**\n    *   Analysis `order_by` requires `Earnings DESC`.\n    *   SQL has `ORDER BY Earnings DESC LIMIT 1`.\n    *   Match: Yes.\n\n6.  **DISTINCT Validation:**\n    *   No `DISTINCT` used or needed.\n    *   Match: Yes.\n\nThe SQL appears correct and aligns with all validation checks.```json\n{\"sql\": \"SELECT Money_Rank FROM poker_player ORDER BY Earnings DESC LIMIT 1;\", \"explain\": \"The SQL correctly selects 'Money_Rank' and uses 'ORDER BY Earnings DESC LIMIT 1' to find the player with the highest earnings, matching the expected output fields and extremum pattern.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2004,
+        "prompt_tokens": 1235,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 769,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:08:35.696218"
+    }
+  ],
+  "final_sql": "SELECT Money_Rank FROM poker_player ORDER BY Earnings DESC LIMIT 1;",
+  "explain": "The SQL correctly selects 'Money_Rank' and uses 'ORDER BY Earnings DESC LIMIT 1' to find the player with the highest earnings, matching the expected output fields and extremum pattern.",
+  "error": "",
+  "timestamp": "2026-07-24T15:08:35.697956"
+}

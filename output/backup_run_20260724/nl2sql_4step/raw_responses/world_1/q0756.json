@@ -1,0 +1,69 @@
+{
+  "question_index": 756,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "Which language is the most popular on the Asian continent?",
+  "gold_query": "SELECT T2.Language FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T1.Continent  =  \"Asia\" GROUP BY T2.Language ORDER BY COUNT (*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.143,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Asia\", \"value_type\": \"STRING\"}],\n  \"group_by\": [{\"table\": \"countrylanguage\", \"column\": \"Language\"}],\n  \"order_by\": [{\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"To filter languages spoken in Asian countries\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Language\", \"Continent\"], \"values\": [\"Asia\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1218,
+        "prompt_tokens": 964,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 254,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:37:22.330982"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 20.432,
+      "raw_response": "{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[-1, \"*\"], [0, \"Code\"], [0, \"Continent\"], [1, \"CountryCode\"], [1, \"Language\"], [1, \"Percentage\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\", \"text\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 3]}",
+      "token_usage": {
+        "total_tokens": 5543,
+        "prompt_tokens": 823,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4720,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:37:42.773921"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.396,
+      "raw_response": "{\"sql\": \"SELECT countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.Continent = 'Asia' GROUP BY countrylanguage.Language ORDER BY SUM(countrylanguage.Percentage) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 988,
+        "prompt_tokens": 929,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 59,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:37:44.184633"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.314,
+      "raw_response": "I need to validate the provided SQL against the given criteria and the analysis.\n\nHere's the plan:\n1.  **Check SELECT fields**: Compare `SELECT countrylanguage.Language` with `expected_output_fields: [\"Language\"]`.\n2.  **Check Joins**: Ensure `country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode` is minimal and uses correct PK/FK.\n    *   `country.Code` is PK, `countrylanguage.CountryCode` is FK to `country.Code`. This is correct.\n    *   The join is necessary because the filter `country.Continent = 'Asia'` is on `country` and the selected column `countrylanguage.Language` is on `countrylanguage`.\n3.  **Check WHERE clause**: `WHERE country.Continent = 'Asia'` matches `filters`.\n4.  **Check GROUP BY**: `GROUP BY countrylanguage.Language` matches `group_by`.\n5.  **Check ORDER BY**: The original SQL has `ORDER BY SUM(countrylanguage.Percentage) DESC LIMIT 1`.\n    *   The question \"Which language is the most popular on the Asian continent?\" implies popularity, which is usually measured by the sum of percentages across countries.\n    *   `Analysis.order_by` suggests `countrylanguage.Percentage` without aggregation. However, to find the *most popular* language *on the continent*, summing the percentages across all countries where that language is spoken in Asia makes sense. The existing `ORDER BY SUM(countrylanguage.Percentage) DESC LIMIT 1` correctly identifies the language with the highest *cumulative* percentage in Asia.\n    *   If `order_by` in analysis was strictly followed, it would be `ORDER BY countrylanguage.Percentage DESC`, but that would only pick the language with the highest single percentage in one country, not the most popular overall. The current SQL is likely more aligned with the semantic meaning of \"most popular\".\n    *   Given the problem \"most popular\", `SUM(countrylanguage.Percentage)` is the correct approach to aggregate popularity across the continent for each language. The `Analysis.order_by` might be slightly underspecified or interpreted differently. I will assume the SQL's interpretation is better for \"most popular on the continent\".\n    *   `LIMIT 1` is also correct to get only the top one.\n6.  **Check Column/Table Names**: All names (`country`, `countrylanguage`, `Code`, `CountryCode`, `Continent`, `Language`, `Percentage`) exist in the schema.\n7.  **SQL format**: Complete, one line.\n\nConclusion: The SQL seems correct given the question's semantics for \"most popular on the Asian continent\", even if the `Analysis.order_by` field is slightly different. The `SUM(countrylanguage.Percentage)` is the correct aggregation for \"most popular\" when considering the continent.\n\nNo fixes needed.{\n \"sql\": \"SELECT countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.Continent = 'Asia' GROUP BY countrylanguage.Language ORDER BY SUM(countrylanguage.Percentage) DESC LIMIT 1\",\n \"explain\": \"The SQL correctly selects the language, joins country and countrylanguage tables, filters for Asia, groups by language, and orders by the sum of percentages in descending order to find the most popular language, finally limiting to the top one. All column and table names are valid, and the joins are appropriate for the query.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1493,
+        "prompt_tokens": 745,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 748,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:37:48.509560"
+    }
+  ],
+  "final_sql": "SELECT countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.Continent = 'Asia' GROUP BY countrylanguage.Language ORDER BY SUM(countrylanguage.Percentage) DESC LIMIT 1",
+  "explain": "The SQL correctly selects the language, joins country and countrylanguage tables, filters for Asia, groups by language, and orders by the sum of percentages in descending order to find the most popular language, finally limiting to the top one. All column and table names are valid, and the joins are appropriate for the query.",
+  "error": "",
+  "timestamp": "2026-07-23T23:37:48.511131"
+}

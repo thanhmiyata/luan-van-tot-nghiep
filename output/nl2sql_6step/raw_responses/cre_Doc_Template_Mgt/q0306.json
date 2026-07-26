@@ -1,0 +1,97 @@
+{
+  "question_index": 306,
+  "pipeline": "6step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Count the number of different templates used for documents.",
+  "gold_query": "SELECT count(DISTINCT template_id) FROM Documents",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.051,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Templates\", \"column\": \"Template_ID\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"count\", \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"Join to count templates used in documents\"}],\n  \"entities\": {\"tables\": [\"Templates\", \"Documents\"], \"columns\": [\"Template_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1935,
+        "prompt_tokens": 1716,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 219,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:56:57.033350"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.643,
+      "raw_response": "```json\n{\n  \"db_id\": \"cre_Doc_Template_Mgt\",\n  \"table_names_original\": [\n    \"Templates\",\n    \"Documents\"\n  ],\n  \"column_names_original\": [\n    [0, \"Template_ID\"],\n    [1, \"Document_ID\"],\n    [1, \"Template_ID\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [2, 0]\n  ],\n  \"primary_keys\": [\n    0,\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4455,
+        "prompt_tokens": 906,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3549,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:57:11.697420"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.467,
+      "raw_response": "{ \"steps\": [ { \"step\": \"List minimal tables\", \"action\": \"Use both Templates and Documents tables as both are needed to determine which templates are actually used in documents.\" }, { \"step\": \"If join needed, give PK=FK pairs explicitly\", \"action\": \"Join Templates on Documents using Templates.Template_ID = Documents.Template_ID.\" }, { \"step\": \"Prefer COUNT(*) when counting rows/entities\", \"action\": \"Use COUNT(DISTINCT Templates.Template_ID) to determine the number of different templates used, as the intent is to count unique templates.\" }, { \"step\": \"Add ORDER BY only if question implies ranking/sorting\", \"action\": \"No ORDER BY is required since the question doesn't imply sorting or ranking.\" }, { \"step\": \"Specify needed set ops (UNION/INTERSECT/EXCEPT)\", \"action\": \"No set operations are needed for this query.\" }, { \"step\": \"Preserve per-branch condition scoping\", \"action\": \"No special condition scoping is needed.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1590,
+        "prompt_tokens": 1363,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 227,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:57:15.185439"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.001,
+      "raw_response": "{ \"sql\": \"SELECT COUNT(DISTINCT Documents.Template_ID) AS count FROM Documents JOIN Templates ON Documents.Template_ID = Templates.Template_ID\" }",
+      "token_usage": {
+        "total_tokens": 2013,
+        "prompt_tokens": 1972,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 41,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:57:16.196751"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.143,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT Templates.Template_ID) AS count FROM Documents JOIN Templates ON Documents.Template_ID = Templates.Template_ID\", \"notes\": \"Query properly uses a join to count distinct templates from Documents. Expected output fields and aggregation align with requirements.\", \"diagnostics\": [\"Correct use of COUNT(DISTINCT) due to potential row duplication from join.\", \"Proper join key and SELECT count match expected fields without unnecessary clauses.\"]}",
+      "token_usage": {
+        "total_tokens": 1630,
+        "prompt_tokens": 1529,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 101,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:57:18.362442"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.487,
+      "raw_response": "I need to validate the provided SQL query against the given schema, question, and analysis, applying the 6-step validation checklist.\n\n**1. SELECT matches expected_output_fields exactly (content & order):**\n   - Expected output fields: `[\"count\"]`\n   - SQL SELECT: `COUNT(DISTINCT Templates.Template_ID) AS count`\n   - Matches exactly.\n\n**2. For counts (COUNT(*) vs COUNT(DISTINCT ...)):**\n   - Question: \"Count the number of different templates used for documents.\"\n   - Analysis `output_fields_detailed`: `{\"table\": \"Templates\", \"column\": \"Template_ID\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"count\"}`\n   - The analysis explicitly requires `COUNT_DISTINCT Templates.Template_ID`, which matches the SQL. This is appropriate as the question asks for \"different templates\".\n\n**3. Check extremum patterns:** Not applicable here, as it's a count.\n\n**4. No unnecessary joins; correct PK/FK:**\n   - SQL: `FROM Documents JOIN Templates ON Documents.Template_ID = Templates.Template_ID`\n   - Analysis `single_table_ok`: `false`\n   - Analysis `join_hints`: `[{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"Join to count templates used in documents\"}]`\n   - The join is necessary because we need to count templates *used for documents*. `Documents` table contains the `Template_ID` for documents, and `Templates` table contains `Template_ID` for the templates themselves. The join `Documents.Template_ID = Templates.Template_ID` is correct based on the schema and foreign key `[3,1]` (Templates.Template_ID (1) from Documents.Template_ID (3)).\n\n**5. Remove ORDER BY unless required:**\n   - SQL has no ORDER BY.\n   - Analysis `order_by`: `[]`\n   - Correct.\n\n**6. Every name in ORDER BY is a real column or alias:** Not applicable (no ORDER BY).\n\n**CRITICAL Final Pattern Checks:**\n   - **1. Self-Join Validation:** `self_join_hint: false`, SQL doesn't use self-join. Correct.\n   - **2. Set Operation Validation:** `set_operation_type: NONE`, SQL doesn't use set operations. Correct.\n   - **3. WHERE Condition Validation:** `where_condition_type: NONE`, `null_handling: UNKNOWN`. SQL has no WHERE clause. Correct.\n   - **4. GROUP BY Validation:** `group_by: []`. SQL has no GROUP BY. Correct.\n   - **5. ORDER BY Validation:** `order_by: []`. SQL has no ORDER BY. Correct.\n   - **6. DISTINCT Validation:** SQL uses `COUNT(DISTINCT Templates.Template_ID)`, which is appropriate as per the question and analysis. No unnecessary `GROUP BY` for uniqueness.\n\nThe SQL appears correct and aligns perfectly with the analysis and question. No fixes are needed.```json\n{\"sql\": \"SELECT COUNT(DISTINCT Templates.Template_ID) AS count FROM Documents JOIN Templates ON Documents.Template_ID = Templates.Template_ID\", \"explain\": \"The original SQL query correctly counts the distinct Template_IDs by joining Documents and Templates tables, which aligns with the question 'Count the number of different templates used for documents' and the analysis. No modifications were needed.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2083,
+        "prompt_tokens": 1321,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 762,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:57:21.870101"
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT Templates.Template_ID) AS count FROM Documents JOIN Templates ON Documents.Template_ID = Templates.Template_ID",
+  "explain": "The original SQL query correctly counts the distinct Template_IDs by joining Documents and Templates tables, which aligns with the question 'Count the number of different templates used for documents' and the analysis. No modifications were needed.",
+  "error": "",
+  "timestamp": "2026-07-25T04:57:21.872212"
+}

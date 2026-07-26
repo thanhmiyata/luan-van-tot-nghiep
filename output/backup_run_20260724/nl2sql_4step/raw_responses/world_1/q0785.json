@@ -1,0 +1,69 @@
+{
+  "question_index": 785,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "What are the names of cities in Europe for which English is not the official language?",
+  "gold_query": "SELECT DISTINCT T2.Name FROM country AS T1 JOIN city AS T2 ON T2.CountryCode  =  T1.Code WHERE T1.Continent  =  'Europe' AND T1.Name NOT IN (SELECT T3.Name FROM country AS T3 JOIN countrylanguage AS T4 ON T3.Code  =  T4.CountryCode WHERE T4.IsOfficial  =  'T' AND T4.Language  =  'English')",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.962,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"city\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Europe\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"<>\", \"value\": \"English\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"=\", \"value\": \"F\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"city\", \"to_table\": \"country\", \"reason\": \"country code linking city to country\"},\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"country code linking country to language\"}\n  ],\n  \"entities\": {\"tables\": [\"city\", \"country\", \"countrylanguage\"], \"columns\": [\"Name\", \"Continent\", \"Language\", \"IsOfficial\"], \"values\": [\"Europe\", \"English\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1297,
+        "prompt_tokens": 970,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 327,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:50:00.818205"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 12.989,
+      "raw_response": "```json\n{\n  \"db_id\": \"world_1\",\n  \"table_names_original\": [\n    \"city\",\n    \"country\",\n    \"countrylanguage\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"ID\"],\n    [0, \"Name\"],\n    [0, \"CountryCode\"],\n    [1, \"Code\"],\n    [1, \"Continent\"],\n    [2, \"CountryCode\"],\n    [2, \"Language\"],\n    [2, \"IsOfficial\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [3, 4],\n    [6, 4]\n  ],\n  \"primary_keys\": [\n    1,\n    4,\n    6\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4091,
+        "prompt_tokens": 897,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3194,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:50:13.807800"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.436,
+      "raw_response": "{\"sql\": \"SELECT city.Name FROM city JOIN country ON city.CountryCode = country.Code JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.Continent = 'Europe' AND countrylanguage.Language <> 'English' AND countrylanguage.IsOfficial = 'F'\"}",
+      "token_usage": {
+        "total_tokens": 1129,
+        "prompt_tokens": 1030,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 99,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:50:16.244998"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.275,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, following the 4-step checklist.\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `[\"Name\"]`\n    *   SQL: `SELECT city.Name`\n    *   Match.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT uses DISTINCT when counting entities:**\n    *   Joins:\n        *   `city JOIN country ON city.CountryCode = country.Code`: Correct PK/FK (`city.CountryCode` is FK to `country.Code`).\n        *   `country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode`: Correct PK/FK (`countrylanguage.CountryCode` is FK to `country.Code`).\n    *   All joins are necessary for the filtering conditions (`country.Continent`, `countrylanguage.Language`, `countrylanguage.IsOfficial`).\n    *   No `ORDER BY`.\n    *   No `COUNT` function, so `DISTINCT` check is not applicable.\n    *   This section is good.\n\n3.  **Column/table names exist; SQL is complete and one line:**\n    *   Tables: `city`, `country`, `countrylanguage` exist in schema.\n    *   Columns: `city.Name`, `city.CountryCode`, `country.Code`, `country.Continent`, `countrylanguage.CountryCode`, `countrylanguage.Language`, `countrylanguage.IsOfficial` all exist in schema.\n    *   SQL is complete and on one line.\n    *   `IsOfficial = 'F'` - 'F' is a string literal. The `column_types` for `IsOfficial` is `text`, so this is correct.\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable:**\n    *   No issues found. The SQL matches the requirements.\n\nThe SQL is correct as is.```json\n{\n \"sql\": \"SELECT T1.Name FROM city AS T1 JOIN country AS T2 ON T1.CountryCode = T2.Code JOIN countrylanguage AS T3 ON T2.Code = T3.CountryCode WHERE T2.Continent = 'Europe' AND T3.Language <> 'English' AND T3.IsOfficial = 'F'\",\n \"explain\": \"The original query is correct but can be improved by aliasing tables for brevity and clarity, which is a common practice. The logic for selecting city names in Europe where English is not the official language is accurately translated.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1425,
+        "prompt_tokens": 856,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 569,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:50:19.522586"
+    }
+  ],
+  "final_sql": "SELECT T1.Name FROM city AS T1 JOIN country AS T2 ON T1.CountryCode = T2.Code JOIN countrylanguage AS T3 ON T2.Code = T3.CountryCode WHERE T2.Continent = 'Europe' AND T3.Language <> 'English' AND T3.IsOfficial = 'F'",
+  "explain": "The original query is correct but can be improved by aliasing tables for brevity and clarity, which is a common practice. The logic for selecting city names in Europe where English is not the official language is accurately translated.",
+  "error": "",
+  "timestamp": "2026-07-23T23:50:19.524163"
+}

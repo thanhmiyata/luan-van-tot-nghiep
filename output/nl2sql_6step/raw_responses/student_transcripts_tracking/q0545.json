@@ -1,0 +1,97 @@
+{
+  "question_index": 545,
+  "pipeline": "6step",
+  "db_id": "student_transcripts_tracking",
+  "question": "What are all the course names of the courses which ever have students enrolled in?",
+  "gold_query": "SELECT DISTINCT T1.course_name FROM Courses AS T1 JOIN Student_Enrolment_Courses AS T2 ON T1.course_id  =  T2.course_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.764,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"course_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Courses\", \"column\": \"course_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Courses\", \"to_table\": \"Student_Enrolment_Courses\", \"reason\": \"to check course enrolment\"},\n    {\"from_table\": \"Student_Enrolment_Courses\", \"to_table\": \"Student_Enrolment\", \"reason\": \"to ensure courses with student enrolment\"}\n  ],\n  \"entities\": {\"tables\": [\"Courses\", \"Student_Enrolment_Courses\", \"Student_Enrolment\"], \"columns\": [\"course_name\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2696,
+        "prompt_tokens": 2422,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 274,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:42:42.853719"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.45,
+      "raw_response": "```json\n{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Courses\", \"Student_Enrolment\", \"Student_Enrolment_Courses\"], \"column_names_original\": [\n    [-1, \"*\"],\n    [1, \"course_id\"],\n    [1, \"course_name\"],\n    [7, \"student_enrolment_id\"],\n    [8, \"student_course_id\"],\n    [8, \"course_id\"],\n    [8, \"student_enrolment_id\"]\n], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [\n    [51, 44],\n    [50, 10]\n], \"primary_keys\": [10, 44, 49], \"column_sample_values\": [\n    [],\n    [],\n    [\"ds\", \"math\", \"os\", \"en\"],\n    [],\n    [],\n    [],\n    []\n]}\n```",
+      "token_usage": {
+        "total_tokens": 5666,
+        "prompt_tokens": 1783,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3883,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:42:59.326401"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.032,
+      "raw_response": "{ \"steps\": [ {\"step\": \"Identify required tables for the query. Courses, Student_Enrolment_Courses, and Student_Enrolment are needed to determine which courses have students enrolled.\"}, {\"step\": \"Define the join conditions. Courses will join Student_Enrolment_Courses using course_id, and Student_Enrolment_Courses will join Student_Enrolment using student_enrolment_id.\"}, {\"step\": \"Select course_name from Courses. This field will be part of the final output.\"}, {\"step\": \"No grouping is required since we are not aggregating values, just listing the course names.\"}, {\"step\": \"No additional ORDER BY clause is needed as the question does not imply any ranking or sorting criteria.\"}, {\"step\": \"Implement the join structure: FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id JOIN Student_Enrolment ON Student_Enrolment_Courses.student_enrolment_id = Student_Enrolment.student_enrolment_id.\"} ] }",
+      "token_usage": {
+        "total_tokens": 1713,
+        "prompt_tokens": 1478,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 235,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:02.381809"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.108,
+      "raw_response": "{\"sql\": \"SELECT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id JOIN Student_Enrolment ON Student_Enrolment_Courses.student_enrolment_id = Student_Enrolment.student_enrolment_id\"}",
+      "token_usage": {
+        "total_tokens": 2175,
+        "prompt_tokens": 2101,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 74,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:03.503808"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.567,
+      "raw_response": "{\"sql\": \"SELECT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id WHERE EXISTS (SELECT 1 FROM Student_Enrolment WHERE Student_Enrolment.student_enrolment_id = Student_Enrolment_Courses.student_enrolment_id)\", \"notes\": \"The use of EXISTS ensures that we get course names only for courses which have any student enrolled, aligning with the question intent. The unnecessary second join was eliminated by using the EXISTS pattern, which effectively checks for linked enrolment records.\", \"diagnostics\": [\"Verified SELECT statement matches expected output fields.\", \"Unnecessary join with Student_Enrolment removed; replaced with EXISTS for enrolment check.\", \"ORDER BY and GROUP BY not needed, as the focus is listing distinct course names with enrolment.\"]}",
+      "token_usage": {
+        "total_tokens": 1871,
+        "prompt_tokens": 1693,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 178,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:07.084939"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 8.461,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id WHERE EXISTS (SELECT 1 FROM Student_Enrolment WHERE Student_Enrolment.student_enrolment_id = Student_Enrolment_Courses.student_enrolment_id)\", \"explain\": \"Added DISTINCT to the SELECT clause to return only unique course names, as implied by the question 'What are all the course names'.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3096,
+        "prompt_tokens": 1485,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1611,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:15.569023"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id WHERE EXISTS (SELECT 1 FROM Student_Enrolment WHERE Student_Enrolment.student_enrolment_id = Student_Enrolment_Courses.student_enrolment_id)",
+  "explain": "Added DISTINCT to the SELECT clause to return only unique course names, as implied by the question 'What are all the course names'.",
+  "error": "",
+  "timestamp": "2026-07-25T00:43:15.570981"
+}

@@ -1,0 +1,97 @@
+{
+  "question_index": 671,
+  "pipeline": "6step",
+  "db_id": "poker_player",
+  "question": "What are the names of poker players in descending order of earnings?",
+  "gold_query": "SELECT T1.Name FROM people AS T1 JOIN poker_player AS T2 ON T1.People_ID  =  T2.People_ID ORDER BY T2.Earnings DESC",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.185,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"people\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"poker_player\", \"column\": \"Earnings\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"poker_player\", \"to_table\": \"people\", \"reason\": \"join to get player names\"}],\n  \"entities\": {\"tables\": [\"poker_player\", \"people\"], \"columns\": [\"Name\", \"Earnings\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1713,
+        "prompt_tokens": 1470,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 243,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:16:49.069275"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.893,
+      "raw_response": "Thought: I have analyzed the question, the original schema, and the analyzer output.\n1.  **Identify necessary tables**: The `entities.tables` and `output_fields_detailed`/`order_by` sections indicate `poker_player` and `people` tables are needed.\n2.  **Identify necessary columns**:\n    *   `Name` from `people` (for `expected_output_fields`).\n    *   `Earnings` from `poker_player` (for `order_by`).\n3.  **Identify PK/FK for joins**: The `join_hints` suggest joining `poker_player` and `people`. The `foreign_keys` `[[2,7]]` indicates that `poker_player.People_ID` (original column index 2) links to `people.People_ID` (original column index 7). Therefore, these two columns must be kept for the join.\n4.  **Preserve PKs of included tables**: The `primary_keys` are `[1,7]`. `Poker_Player_ID` (original column index 1) is the PK for `poker_player`, and `People_ID` (original column index 7) is the PK for `people`. We've already decided to keep `People_ID` for the join, so we also need to keep `Poker_Player_ID`.\n\nBased on this, the columns to keep are:\n*   `poker_player.Poker_Player_ID` (original index 1, PK)\n*   `poker_player.People_ID` (original index 2, FK)\n*   `poker_player.Earnings` (original index 6, for `ORDER BY`)\n*   `people.People_ID` (original index 7, PK, FK target)\n*   `people.Name` (original index 9, for `SELECT`)\n\nNow, I will re-index these columns and update the `column_types`, `foreign_keys`, `primary_keys`, and `column_sample_values` accordingly.\n\n**Original column_names_original indices:**\n0: `[-1, \"*\"]`\n1: `[0, \"Poker_Player_ID\"]` (keep)\n2: `[0, \"People_ID\"]` (keep)\n3: `[0, \"Final_Table_Made\"]` (drop)\n4: `[0, \"Best_Finish\"]` (drop)\n5: `[0, \"Money_Rank\"]` (drop)\n6: `[0, \"Earnings\"]` (keep)\n7: `[1, \"People_ID\"]` (keep)\n8: `[1, \"Nationality\"]` (drop)\n9: `[1, \"Name\"]` (keep)\n10: `[1, \"Birth_Date\"]` (drop)\n11: `[1, \"Height\"]` (drop)\n\n**New mapping:**\n`[-1, \"*\"]` (new index 0)\n`[0, \"Poker_Player_ID\"]` (original index 1, new index 1)\n`[0, \"People_ID\"]` (original index 2, new index 2)\n`[0, \"Earnings\"]` (original index 6, new index 3)\n`[1, \"People_ID\"]` (original index 7, new index 4)\n`[1, \"Name\"]` (original index 9, new index 5)\n\n**Update derived fields:**\n*   `column_types`: Based on new column indices.\n*   `foreign_keys`: Original `[[2,7]]` becomes `[[2,4]]`.\n*   `primary_keys`: Original `[1,7]` becomes `[1,4]`.\n*   `column_sample_values`: Keep only values corresponding to new column indices. Only `Name` (original index 9, new index 5) has samples.\n\nThis leads to the final JSON schema.{\"db_id\":\"poker_player\",\"table_names_original\":[\"poker_player\",\"people\"],\"column_names_original\":[[-1,\"*\"],[0,\"Poker_Player_ID\"],[0,\"People_ID\"],[0,\"Earnings\"],[1,\"People_ID\"],[1,\"Name\"]],\"column_types\":[\"text\",\"number\",\"number\",\"number\",\"number\",\"text\"],\"foreign_keys\":[[2,4]],\"primary_keys\":[1,4],\"column_sample_values\":[[],[],[],[],[],[\"Aleksey Ostapenko\",\"Teodor Salparov\",\"Roman Bragin\",\"Sergey Grankin\"]]}",
+      "token_usage": {
+        "total_tokens": 4349,
+        "prompt_tokens": 851,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3498,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:17:03.975316"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.279,
+      "raw_response": "{ \"steps\": [ { \"step\": \"Identify tables needed\", \"explanation\": \"To get the names of poker players and their earnings, we need to use both 'poker_player' and 'people' tables. The 'poker_player' table contains earnings and a foreign key to the 'people' table, which contains the player's name.\" }, { \"step\": \"Join tables\", \"explanation\": \"Join 'poker_player' to 'people' using 'People_ID' as the foreign key. This is necessary to combine earnings with the corresponding player names.\" }, { \"step\": \"Select fields\", \"explanation\": \"Select the 'Name' field from the 'people' table to display player names.\" }, { \"step\": \"Apply ORDER BY\", \"explanation\": \"Order the result by 'Earnings' in descending order to list poker players based on their earnings.\" }, { \"step\": \"Construct query\", \"explanation\": \"Combine selection, join, and ordering into the final SQL query.\", \"query\": \"SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Earnings DESC\" } ] }",
+      "token_usage": {
+        "total_tokens": 1631,
+        "prompt_tokens": 1375,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 256,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:17:10.271878"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 9.113,
+      "raw_response": "{ \"sql\": \"SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Earnings DESC\" }",
+      "token_usage": {
+        "total_tokens": 1988,
+        "prompt_tokens": 1944,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 44,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:17:19.402423"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 12.537,
+      "raw_response": "{\"sql\": \"SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Earnings DESC\", \"notes\": \"The original SQL already aligns with the expected output fields and follows the plan: selecting names from the 'people' table and ordering by earnings from the 'poker_player' table. The join is necessary, ordered correctly, and there are no unnecessary clauses or joins.\", \"diagnostics\": [\"No changes required as the initial query was correct.\", \"Confirmed the join between poker_player and people tables using People_ID is appropriate.\"]}",
+      "token_usage": {
+        "total_tokens": 1666,
+        "prompt_tokens": 1534,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 132,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:17:31.952291"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.085,
+      "raw_response": "The user wants me to act as a Final Validator. I need to go through the 6-step validation checklist and fix any issues in the provided SQL based on the analysis and schema.\n\nHere's the plan:\n1.  **Check SELECT statement:** The `expected_output_fields` is `[\"Name\"]`. The current SQL `SELECT people.Name` matches this exactly.\n2.  **Check COUNT(*) / GROUP BY:** No COUNT(*) is used. No GROUP BY is specified in the analysis, so this is fine.\n3.  **Check extremum patterns:** The question asks for \"descending order of earnings\", which implies ordering, not a single extremum value. The SQL uses `ORDER BY` without `LIMIT 1`, which is correct for this scenario.\n4.  **Check joins:** `single_table_ok` is `false`. The join `poker_player JOIN people ON poker_player.People_ID = people.People_ID` is necessary to get the `Name` from the `people` table based on `People_ID`, and the `Earnings` are in `poker_player`. The join is minimal and on the correct PK/FK (`People_ID`). This is correct.\n5.  **Check ORDER BY:** The `analysis` explicitly states `order_by: [{\"table\": \"poker_player\", \"column\": \"Earnings\", \"direction\": \"DESC\"}]`. The SQL `ORDER BY poker_player.Earnings DESC` matches this. `field_order_critical` is true but refers to the output fields, not the ORDER BY fields themselves.\n6.  **Check names, completeness, single line:** All names (`people`, `Name`, `poker_player`, `Earnings`, `People_ID`) exist in the schema. The SQL is complete, single line, and has no comments.\n\n**Critical Final Pattern Checks:**\n1.  **Self-Join Validation:** `self_join_hint` is `false`. No self-join in SQL. Correct.\n2.  **Set Operation Validation:** `set_operation_type` is `NONE`. No set operation in SQL. Correct.\n3.  **WHERE Condition Validation:** No `WHERE` clause in the SQL or analysis. Correct.\n4.  **GROUP BY Validation:** No `GROUP BY` in SQL or analysis. Correct.\n5.  **ORDER BY Validation:** The analysis requires `ORDER BY poker_player.Earnings DESC`. The SQL includes `ORDER BY poker_player.Earnings DESC`. All columns from the plan are included. Correct.\n6.  **DISTINCT Validation:** No `DISTINCT` or unnecessary `GROUP BY` for uniqueness. Correct.\n\nAll checks pass. The SQL appears to be correct and matches the analysis.{\"sql\": \"SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Earnings DESC\", \"explain\": \"The SQL correctly selects the 'Name' from the 'people' table, joins 'poker_player' and 'people' on 'People_ID' to access earnings and names, and orders the results by 'Earnings' in descending order as required by the question and analysis.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2012,
+        "prompt_tokens": 1320,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 692,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:17:37.051908"
+    }
+  ],
+  "final_sql": "SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Earnings DESC",
+  "explain": "The SQL correctly selects the 'Name' from the 'people' table, joins 'poker_player' and 'people' on 'People_ID' to access earnings and names, and orders the results by 'Earnings' in descending order as required by the question and analysis.",
+  "error": "",
+  "timestamp": "2026-07-24T15:17:37.053623"
+}

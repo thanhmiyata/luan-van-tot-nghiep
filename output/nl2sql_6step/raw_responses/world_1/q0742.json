@@ -1,0 +1,76 @@
+{
+  "question_index": 742,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "Which continent has the most diverse languages?",
+  "gold_query": "SELECT T1.Continent FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode GROUP BY T1.Continent ORDER BY COUNT(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.237,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Continent\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Continent\", \"purpose\": \"OUTPUT|GROUP\"},\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"GROUP|COUNT\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Continent\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": true,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [],\n  \"group_by\": [\n    {\"branch_id\": \"b1\", \"table\": \"country\", \"column\": \"Continent\"}\n  ],\n  \"having\": [\n    {\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"operator\": \"=\", \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"MAX\", \"table\": \"countrylanguage\", \"column\": \"Language\"}}\n  ],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"to find the number of distinct languages per continent\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Continent\", \"Language\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2640,
+        "prompt_tokens": 2193,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 447,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:43:21.576882"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 9.539,
+      "raw_response": "```json\n{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [\"Code\", \"Continent\", \"CountryCode\", \"Language\"]}\n```",
+      "token_usage": {
+        "total_tokens": 3437,
+        "prompt_tokens": 1518,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1919,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:43:31.132519"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.447,
+      "raw_response": "{\n  \"steps\": [\"Select continent and count distinct languages\", \"Join country with countrylanguage on country code\", \"Group by continent\", \"Having clause to filter continent with max distinct languages\"],\n  \"select\": [{\"table\": \"country\", \"column\": \"Continent\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"condition\": \"countrylanguage.CountryCode = country.Code\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"country\", \"column\": \"Continent\"}],\n  \"having\": [{\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"COUNT(DISTINCT countrylanguage.Language) = (SELECT MAX(language_count) FROM (SELECT COUNT(DISTINCT countrylanguage.Language) AS language_count FROM countrylanguage JOIN country ON countrylanguage.CountryCode = country.Code GROUP BY country.Continent) AS language_counts)\"}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": []\n}",
+      "token_usage": {
+        "total_tokens": 1860,
+        "prompt_tokens": 1610,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 250,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:43:33.601518"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.139,
+      "raw_response": "{\"sql\": \"SELECT country.Continent FROM country JOIN countrylanguage ON countrylanguage.CountryCode = country.Code GROUP BY country.Continent HAVING COUNT(DISTINCT countrylanguage.Language) = (SELECT MAX(language_count) FROM (SELECT COUNT(DISTINCT countrylanguage.Language) AS language_count FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Continent) AS language_counts)\"}",
+      "token_usage": {
+        "total_tokens": 1954,
+        "prompt_tokens": 1859,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 95,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:43:34.758677",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      }
+    }
+  ],
+  "final_sql": "SELECT country.Continent FROM country JOIN countrylanguage ON countrylanguage.CountryCode = country.Code GROUP BY country.Continent HAVING COUNT(DISTINCT countrylanguage.Language) = (SELECT MAX(language_count) FROM (SELECT COUNT(DISTINCT countrylanguage.Language) AS language_count FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Continent) AS language_counts)",
+  "explain": "Validator no-op: current SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T17:43:34.765054"
+}

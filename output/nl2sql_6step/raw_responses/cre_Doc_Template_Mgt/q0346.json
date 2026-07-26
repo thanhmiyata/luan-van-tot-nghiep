@@ -1,0 +1,97 @@
+{
+  "question_index": 346,
+  "pipeline": "6step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "What are the codes of template types that are not used for any document?",
+  "gold_query": "SELECT template_type_code FROM Templates EXCEPT SELECT template_type_code FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id  =  T2.template_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.501,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Ref_Template_Types\", \"to_table\": \"Templates\", \"reason\": \"to ensure template types are not used in any documents\"},\n    {\"from_table\": \"Templates\", \"to_table\": \"Documents\", \"reason\": \"to check for document usage of each template\"}\n  ],\n  \"entities\": {\"tables\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"columns\": [\"Template_Type_Code\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1987,
+        "prompt_tokens": 1721,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 266,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:19:32.668742"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.587,
+      "raw_response": "```json\n{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"column_names_original\": [[-1, \"*\"], [0, \"Template_Type_Code\"], [1, \"Template_ID\"], [1, \"Template_Type_Code\"], [2, \"Template_ID\"]], \"column_types\": [\"text\", \"text\", \"number\", \"text\", \"number\"], \"foreign_keys\": [[3, 1], [4, 2]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [\"AD\", \"BK\", \"CV\", \"PP\"], [], [\"PP\", \"BK\", \"PPT\", \"AD\"], []]}\n```",
+      "token_usage": {
+        "total_tokens": 4522,
+        "prompt_tokens": 961,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3561,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:19:47.275979"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.115,
+      "raw_response": "{\n  \"steps\": [\n    \"Join Templates with Documents on Templates.Template_ID = Documents.Template_ID to find all used Template_Type_Codes.\",\n    \"Select Template_Type_Code from Ref_Template_Types.\",\n    \"Use \\\"EXCEPT\\\" to find Template_Type_Codes in Ref_Template_Types that are not in the result from step 1.\"\n  ]\n}",
+      "token_usage": {
+        "total_tokens": 1624,
+        "prompt_tokens": 1459,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 165,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:19:50.409637"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.361,
+      "raw_response": "{\"sql\": \"SELECT Template_Type_Code FROM Ref_Template_Types EXCEPT SELECT DISTINCT t.Template_Type_Code FROM Templates t JOIN Documents d ON t.Template_ID = d.Template_ID\"}",
+      "token_usage": {
+        "total_tokens": 1974,
+        "prompt_tokens": 1927,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 47,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:19:51.788883"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.634,
+      "raw_response": "{\"sql\": \"SELECT Template_Type_Code FROM Ref_Template_Types EXCEPT SELECT DISTINCT t.Template_Type_Code FROM Templates t JOIN Documents d ON t.Template_ID = d.Template_ID\", \"notes\": \"The SQL query is already correctly using EXCEPT to find template type codes from Ref_Template_Types that are not used in any documents by joining Templates and Documents on Template_ID and selecting the Template_Type_Code.\", \"diagnostics\": [\"Initial SQL correctly follows the requirement to find unused template type codes.\", \"No unnecessary joins; correct use of EXCEPT for negation to find differences in template type codes.\", \"The query aligns with the question and plan steps provided.\"]}",
+      "token_usage": {
+        "total_tokens": 1637,
+        "prompt_tokens": 1492,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 145,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:19:54.441433"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.591,
+      "raw_response": "The user wants me to act as a Final Validator for a given SQL query based on a provided question, schema, and analysis. I need to go through a 6-step validation checklist and fix any issues found.\n\nHere's my plan:\n1.  **Check SELECT statement:**\n    *   Expected output: `[\"Template_Type_Code\"]`\n    *   Current SQL: `SELECT Template_Type_Code` (first part) and `SELECT DISTINCT t.Template_Type_Code` (second part).\n    *   The `EXCEPT` operator ensures uniqueness in the final result, so `DISTINCT` in the second part is good, but in the first part, it's not strictly necessary unless `Ref_Template_Types` itself could have duplicate `Template_Type_Code` entries (which is unlikely for a `Ref` table). However, keeping `DISTINCT` in the second part is a good practice to avoid issues if `Templates` table has multiple entries for the same `Template_Type_Code` linked to different documents. The final `EXCEPT` result will be distinct by default.\n\n2.  **Check COUNT(*), GROUP BY, ORDER BY for extremum patterns:**\n    *   No counts.\n    *   No GROUP BY.\n    *   No ORDER BY.\n    *   No extremum. This is fine.\n\n3.  **Check Joins:**\n    *   Current SQL: `JOIN Documents d ON t.Template_ID = d.Template_ID`\n    *   Analysis join hints: `{\"from_table\": \"Ref_Template_Types\", \"to_table\": \"Templates\", \"reason\": \"to ensure template types are not used in any documents\"}, {\"from_table\": \"Templates\", \"to_table\": \"Documents\", \"reason\": \"to check for document usage of each template\"}`\n    *   The `EXCEPT` operator inherently handles the \"not used\" part, effectively acting as a \"left anti-join\" conceptually.\n    *   The second part of the `EXCEPT` query `SELECT DISTINCT t.Template_Type_Code FROM Templates t JOIN Documents d ON t.Template_ID = d.Template_ID` correctly identifies all `Template_Type_Code` values that *are* used in at least one document.\n    *   The first part `SELECT Template_Type_Code FROM Ref_Template_Types` provides all possible template type codes.\n    *   `EXCEPT` then correctly finds codes in the first set that are *not* in the second set. The joins `Templates t JOIN Documents d` are minimal and correct for the subquery's purpose.\n\n4.  **Check Negation:**\n    *   Question: \"not used for any document\"\n    *   SQL: `EXCEPT` is used, which is the correct way to handle negation for \"not in a set\". `NOT IN` with a subquery is also an option, but `EXCEPT` is perfectly valid and often cleaner for this type of set difference.\n\n5.  **Check Names exist, SQL complete, single line, no comments:**\n    *   All table and column names (`Ref_Template_Types`, `Template_Type_Code`, `Templates`, `Template_ID`, `Documents`, `Document_ID`) exist in the schema.\n    *   SQL is complete and executable.\n    *   Single line, no comments.\n\n6.  **Critical Final Pattern Checks:**\n    *   **Self-Join Validation:** `self_join_hint=false`. SQL doesn't use self-join. Correct.\n    *   **Set Operation Validation:** `set_operation_type=NONE` in analysis, but the SQL uses `EXCEPT`. The analysis output for `set_operation_type` seems to be an oversight or a default, as the question *clearly* implies a set difference, which `EXCEPT` performs. Given the question (\"codes that are *not* used\"), `EXCEPT` is the correct set operation here. I will consider the SQL correct for `EXCEPT` despite the `set_operation_type=NONE` in the analysis, as `EXCEPT` is the most appropriate operation.\n    *   **WHERE Condition Validation:** No WHERE conditions in the main query.\n    *   **GROUP BY Validation:** No GROUP BY.\n    *   **ORDER BY Validation:** No ORDER BY.\n    *   **DISTINCT Validation:** `DISTINCT t.Template_Type_Code` is used in the subquery. This is correct to ensure that if a `Template_Type_Code` appears multiple times in `Templates` (e.g., different `Template_ID`s but same type code) and each is used in a document, it's only counted once in the set of \"used\" codes. The `EXCEPT` operator itself handles distinctness of the final result.\n\nThe SQL appears correct and aligns with the intent of the question. No fixes seem necessary.\n\nLet's re-evaluate `set_operation_type: NONE` versus `EXCEPT`. The question \"What are the codes of template types that are not used for any document?\" is a classic set difference problem: (All Template Types) - (Template Types Used in Documents). `EXCEPT` is the perfect operator for this. The `Analysis` might be slightly off by indicating `NONE` for `set_operation_type`, but the SQL correctly implements the required set operation for the question. I will proceed considering the SQL is correct in its use of `EXCEPT`.\n\nThe first `SELECT Template_Type_Code FROM Ref_Template_Types` implicitly assumes distinct values from the reference table, but `EXCEPT` ensures the final result is distinct anyway. So, adding `DISTINCT` to the first part `SELECT DISTINCT Template_Type_Code FROM Ref_Template_Types` would be safer but not strictly necessary for correctness due to `EXCEPT`. Given the prompt \"SELECT matches expected_output_fields exactly (content & order)\", `SELECT Template_Type_Code` is sufficient for the first part to match the output field `Template_Type_Code`.\n\nFinal check of the `SELECT` clause based on `expected_output_fields`: `[\"Template_Type_Code\"]`.\nThe SQL uses `SELECT Template_Type_Code` in the first part and `SELECT DISTINCT t.Template_Type_Code` in the second part. This matches the desired output field.\n\nNo issues found.```json\n{\"sql\": \"SELECT Template_Type_Code FROM Ref_Template_Types EXCEPT SELECT DISTINCT t.Template_Type_Code FROM Templates t JOIN Documents d ON t.Template_ID = d.Template_ID\", \"explain\": \"The SQL correctly uses the EXCEPT operator to find template type codes that exist in Ref_Template_Types but are not present in the set of template type codes associated with any documents, addressing the 'not used for any document' requirement. Joins are minimal and correct for identifying used template types. The SELECT clause matches the expected output fields.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2943,
+        "prompt_tokens": 1437,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1506,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:20:02.052461"
+    }
+  ],
+  "final_sql": "SELECT Template_Type_Code FROM Ref_Template_Types EXCEPT SELECT DISTINCT t.Template_Type_Code FROM Templates t JOIN Documents d ON t.Template_ID = d.Template_ID",
+  "explain": "The SQL correctly uses the EXCEPT operator to find template type codes that exist in Ref_Template_Types but are not present in the set of template type codes associated with any documents, addressing the 'not used for any document' requirement. Joins are minimal and correct for identifying used template types. The SELECT clause matches the expected output fields.",
+  "error": "",
+  "timestamp": "2026-07-25T05:20:02.054224"
+}

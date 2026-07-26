@@ -1,0 +1,97 @@
+{
+  "question_index": 817,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "What are the country codes of the different countries, and what are the languages spoken by the greatest percentage of people for each?",
+  "gold_query": "SELECT LANGUAGE ,  CountryCode ,  max(Percentage) FROM countrylanguage GROUP BY CountryCode",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 6.485,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Code\", \"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"country\", \"column\": \"Code\"}],\n  \"order_by\": [{\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"to associate country codes with spoken languages\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Code\", \"Language\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1716,
+        "prompt_tokens": 1429,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 287,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T01:00:05.917078"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 23.938,
+      "raw_response": "```json\n{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[-1, \"*\"], [0, \"Code\"], [1, \"CountryCode\"], [1, \"Language\"], [1, \"Percentage\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\", \"number\"], \"foreign_keys\": [[2, 1]], \"primary_keys\": [1, 2]}\n```",
+      "token_usage": {
+        "total_tokens": 6032,
+        "prompt_tokens": 913,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5119,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T01:00:29.872599"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.038,
+      "raw_response": "{ \"steps\": [ { \"step\": \"List minimal tables.\", \"details\": \"Tables required: country, countrylanguage\" }, { \"step\": \"Determine if a join is needed.\", \"details\": \"Join needed to associate country codes with spoken languages.\" }, { \"step\": \"Specify the join condition using PK=FK pairs.\", \"details\": \"Join country.Code = countrylanguage.CountryCode\" }, { \"step\": \"Indicate COUNT vs COUNT(DISTINCT) and need for GROUP BY.\", \"details\": \"Use GROUP BY country.Code to ensure correct selection of the language spoken by greatest percentage per country.\" }, { \"step\": \"Add ORDER BY if required by question.\", \"details\": \"Yes, order by countrylanguage.Percentage DESC to get the languages spoken by the greatest percentage.\" }, { \"step\": \"Specify set operations.\", \"details\": \"No set operations needed.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1522,
+        "prompt_tokens": 1326,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 196,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T01:00:32.931631"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.737,
+      "raw_response": "{\"sql\": \"SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE (country.Code, countrylanguage.Percentage) IN (SELECT CountryCode, MAX(Percentage) FROM countrylanguage GROUP BY CountryCode)\"}",
+      "token_usage": {
+        "total_tokens": 1786,
+        "prompt_tokens": 1720,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 66,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T01:00:34.691058"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.376,
+      "raw_response": "{\"sql\": \"SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Percentage = (SELECT MAX(Percentage) FROM countrylanguage cl WHERE cl.CountryCode = country.Code)\", \"notes\": \"Adjusted subquery to correctly find the language with the highest percentage per country while ensuring output fields match the expected ones.\", \"diagnostics\": [\"Adjusted to select only 'Code' and 'Language' as required.\", \"Optimized subquery to avoid unnecessary IN clause.\", \"No need for GROUP BY or ORDER BY, as the question focuses on the greatest percentage per country.\"]}",
+      "token_usage": {
+        "total_tokens": 1614,
+        "prompt_tokens": 1475,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 139,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T01:00:37.089394"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 20.179,
+      "raw_response": "Thought: I need to validate the provided SQL query against the question, schema, and analysis, applying the 6-step checklist and critical pattern checks.\n\n1.  **SELECT matches expected_output_fields:**\n    *   Expected: `[\"Code\", \"Language\"]`\n    *   Current: `country.Code, countrylanguage.Language`\n    *   Matches exactly, including order.\n\n2.  **For counts / GROUP BY:**\n    *   No `COUNT` function is used.\n    *   The analysis lists `group_by: [{\"table\": \"country\", \"column\": \"Code\"}]`. The current SQL uses a correlated subquery `WHERE countrylanguage.Percentage = (SELECT MAX(Percentage) FROM countrylanguage cl WHERE cl.CountryCode = country.Code)`. This pattern correctly finds the maximum percentage *for each country code*, fulfilling the \"per country\" grouping requirement without an explicit `GROUP BY` clause in the outer query. The non-aggregated `SELECT` fields (`country.Code`, `countrylanguage.Language`) are consistent with this approach as they identify the specific row(s) that meet the maximum percentage condition for each country.\n\n3.  **Extremum patterns:**\n    *   The question asks for the \"greatest percentage\". The SQL uses `MAX(Percentage)` within a correlated subquery, which is an appropriate method for finding \"per group\" maximums.\n\n4.  **No unnecessary joins; correct PK/FK:**\n    *   The join `country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode` is necessary to link country codes with language percentages and is correctly based on the foreign key relationship (`country.Code` is PK, `countrylanguage.CountryCode` is FK). `single_table_ok` is `false`, so a join is expected.\n\n5.  **Remove ORDER BY unless required:**\n    *   The analysis `order_by` specifies `[{\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"direction\": \"DESC\"}]`.\n    *   The original SQL does not include an `ORDER BY` clause.\n    *   Since the analysis explicitly requests an `ORDER BY` for the final output, it should be added to the query.\n\n6.  **Names exist; SQL complete, single line, no comments:** All column and table names exist in the schema. The SQL is complete.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:** `self_join_hint` is `false`. The query uses a correlated subquery, not a self-join. This is consistent.\n2.  **Set Operation Validation:** `set_operation_type` is `NONE`. The query does not use set operations. Consistent.\n3.  **WHERE Condition Validation:** `where_condition_type` is `EQUALS`. The `WHERE` clause uses `=` with the subquery result. Consistent.\n4.  **GROUP BY Validation:** As discussed in point 2, the `GROUP BY` concept (\"for each country\") is handled by the correlated subquery's logic, making an explicit `GROUP BY` in the outer `SELECT` unnecessary for the given `SELECT` fields.\n5.  **ORDER BY Validation:** As discussed in point 5, the analysis requires `ORDER BY countrylanguage.Percentage DESC`. This needs to be added.\n6.  **DISTINCT Validation:** No issues here. `GROUP BY` is not used solely for uniqueness.\n\n**Correction:**\nAdd `ORDER BY countrylanguage.Percentage DESC` to the end of the query as specified in the analysis.\n\n**Corrected SQL:**\n`SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Percentage = (SELECT MAX(Percentage) FROM countrylanguage cl WHERE cl.CountryCode = country.Code) ORDER BY countrylanguage.Percentage DESC`\n\n{\"sql\": \"SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Percentage = (SELECT MAX(Percentage) FROM countrylanguage cl WHERE cl.CountryCode = country.Code) ORDER BY countrylanguage.Percentage DESC\", \"explain\": \"Added `ORDER BY countrylanguage.Percentage DESC` to the query as specified by the analysis's `order_by` field, which indicates the desired sorting for the final output.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 5382,
+        "prompt_tokens": 1316,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4066,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T01:00:57.286022"
+    }
+  ],
+  "final_sql": "SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Percentage = (SELECT MAX(Percentage) FROM countrylanguage cl WHERE cl.CountryCode = country.Code) ORDER BY countrylanguage.Percentage DESC",
+  "explain": "Added `ORDER BY countrylanguage.Percentage DESC` to the query as specified by the analysis's `order_by` field, which indicates the desired sorting for the final output.",
+  "error": "",
+  "timestamp": "2026-07-24T01:00:57.287444"
+}

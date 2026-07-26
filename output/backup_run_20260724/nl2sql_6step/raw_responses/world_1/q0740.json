@@ -1,0 +1,97 @@
+{
+  "question_index": 740,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "What is name of the country that speaks the largest number of languages?",
+  "gold_query": "SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode GROUP BY T1.Name ORDER BY COUNT(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.32,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"countrylanguage\", \"column\": \"CountryCode\"}],\n  \"order_by\": [{\"table\": \"countrylanguage\", \"column\": \"COUNT(Language)\", \"direction\": \"DESC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"to find the country with the most languages\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Name\", \"Language\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1678,
+        "prompt_tokens": 1418,
+        "cached_prompt_tokens": 1280,
+        "completion_tokens": 260,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:20:35.030336"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 20.405,
+      "raw_response": "```json\n{\n  \"db_id\": \"world_1\",\n  \"table_names_original\": [\n    \"country\",\n    \"countrylanguage\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Code\"],\n    [0, \"Name\"],\n    [1, \"CountryCode\"],\n    [1, \"Language\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [3, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 5361,
+        "prompt_tokens": 874,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4487,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:20:55.450420"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.19,
+      "raw_response": "{ \"steps\": [ \"Step 1: Identify required tables. We need both 'country' and 'countrylanguage' because we need the country name and the number of languages per country.\", \"Step 2: Establish join condition. Use the foreign key 'CountryCode' from 'countrylanguage' to join with the primary key 'Code' in 'country'.\", \"Step 3: Define aggregation. COUNT the number of 'Language' entries per country code to find how many languages each country has.\", \"Step 4: Apply GROUP BY. We perform a GROUP BY on 'CountryCode' in 'countrylanguage' to calculate the total number of languages spoken per country.\", \"Step 5: Order results. Use ORDER BY on the COUNT(Language) in descending order to get the country with the most languages at the top.\", \"Step 6: Limit output. Select only the country name ('Name' from 'country') for the country with the most languages, using LIMIT 1.\" ] }",
+      "token_usage": {
+        "total_tokens": 1501,
+        "prompt_tokens": 1286,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 215,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:20:59.659983"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.606,
+      "raw_response": "{\"sql\": \"SELECT c.Name FROM country AS c JOIN countrylanguage AS cl ON c.Code = cl.CountryCode GROUP BY c.Name ORDER BY COUNT(cl.Language) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1757,
+        "prompt_tokens": 1708,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 49,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:21:01.285349"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.184,
+      "raw_response": "{\"sql\": \"SELECT c.Name FROM country AS c JOIN countrylanguage AS cl ON c.Code = cl.CountryCode GROUP BY c.Code ORDER BY COUNT(cl.Language) DESC LIMIT 1\", \"notes\": \"The SQL matches expected output by selecting 'Name' and counting languages per country. GROUP BY is corrected to c.Code for proper aggregation without unnecessary groupings.\", \"diagnostics\": [\"SELECT now matches expected output fields with 'Name'.\", \"GROUP BY now correctly uses 'c.Code' for proper aggregation.\", \"COUNT remains standard as there are no requirements for distinct.\", \"ORDER BY remains to get the country with the maximum languages.\"]}",
+      "token_usage": {
+        "total_tokens": 1590,
+        "prompt_tokens": 1449,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 141,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:21:03.489089"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.686,
+      "raw_response": "{\"sql\": \"SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code = T2.CountryCode GROUP BY T1.Code ORDER BY COUNT(T2.Language) DESC LIMIT 1\", \"explain\": \"The SQL query correctly identifies the country with the most languages. It joins `country` and `countrylanguage` tables on their respective country codes, groups by country code to count languages per country, orders by the language count in descending order, and limits to 1 to get the country with the maximum count. Aliases T1 and T2 are used for brevity and clarity.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2494,
+        "prompt_tokens": 1267,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1227,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:21:10.195606"
+    }
+  ],
+  "final_sql": "SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code = T2.CountryCode GROUP BY T1.Code ORDER BY COUNT(T2.Language) DESC LIMIT 1",
+  "explain": "The SQL query correctly identifies the country with the most languages. It joins `country` and `countrylanguage` tables on their respective country codes, groups by country code to count languages per country, orders by the language count in descending order, and limits to 1 to get the country with the maximum count. Aliases T1 and T2 are used for brevity and clarity.",
+  "error": "",
+  "timestamp": "2026-07-24T00:21:10.197925"
+}

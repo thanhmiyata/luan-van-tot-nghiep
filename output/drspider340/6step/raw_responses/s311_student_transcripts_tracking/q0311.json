@@ -1,0 +1,65 @@
+{
+  "question_index": 311,
+  "pipeline": "6step",
+  "db_id": "s311_student_transcripts_tracking",
+  "question": "What is the date and id of the transcript with less than 2 courses listed?",
+  "gold_query": "SELECT T2.transcript_date , T1.transcript_id FROM Transcript_Contents AS T1 JOIN Transcripts AS T2 ON T1.transcript_id = T2.transcript_id GROUP BY T1.transcript_id HAVING count(*) < 2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.674,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"transcript_date\", \"transcript_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"Transcripts\", \"Transcript_Contents\"],\n  \"required_columns\": [\n    {\"table\": \"Transcripts\", \"column\": \"transcript_id\", \"purpose\": \"OUTPUT|JOIN\"},\n    {\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"Transcript_Contents\", \"column\": \"transcript_id\", \"purpose\": \"JOIN|GROUP\"},\n    {\"table\": \"Transcript_Contents\", \"column\": \"student_course_id\", \"purpose\": \"GROUP|FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Transcripts\", \"column\": \"transcript_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"HAVING\", \"branch_ids\": [\"b1\"], \"reason\": \"less than 2 courses requirement\"}\n  ],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"Transcript_Contents\", \"column\": \"transcript_id\"}],\n  \"having\": [{\"branch_id\": \"b1\", \"table\": \"Transcript_Contents\", \"column\": \"student_course_id\", \"agg\": \"COUNT\", \"operator\": \"<\", \"value\": 2}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"Transcripts\", \"to_table\": \"Transcript_Contents\", \"reason\": \"to count courses in each transcript\"}],\n  \"entities\": {\"tables\": [\"Transcripts\", \"Transcript_Contents\"], \"columns\": [\"transcript_id\", \"transcript_date\", \"student_course_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 4010,
+        "prompt_tokens": 3488,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 522,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T21:23:34.579001"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 6.854,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\n1.  **Identify required tables**: From `analysis.required_tables`, the tables are `Transcripts` and `Transcript_Contents`.\n2.  **Identify required columns**:\n    *   From `Transcripts`: `transcript_id` (PK, OUTPUT, JOIN), `transcript_date` (OUTPUT).\n    *   From `Transcript_Contents`: `transcript_id` (FK, JOIN, GROUP), `student_course_id` (PK, GROUP, FILTER).\n3.  **Check FK relationships for connectivity**: The analysis explicitly mentions a join between `Transcripts` and `Transcript_Contents`. The `named_foreign_keys` confirms `Transcript_Contents.transcript_id` (FK) -> `Transcripts.transcript_id` (PK). Both `transcript_id` columns are already included.\n4.  **No bridge tables needed**: The connection is direct between the required tables. The `student_course_id` in `Transcript_Contents` is used for counting within `Transcript_Contents` itself, not for joining to `Student_Enrolment_Courses` to retrieve additional details about the courses, as the question only asks for the count of listed courses on a transcript.\n5.  **Construct the final schema**:\n    *   `table_names_original`: `[\"Transcripts\", \"Transcript_Contents\"]`\n    *   `column_names_original`: Map the identified columns to their `[table_id, column_name]` format using the original schema.\n        *   `Transcripts` has `table_id = 9`.\n        *   `Transcript_Contents` has `table_id = 10`.\n        *   Columns for Transcripts: `[9, \"transcript_id\"]`, `[9, \"transcript_date\"]`\n        *   Columns for Transcript_Contents: `[10, \"transcript_id\"]`, `[10, \"student_course_id\"]`\n\nAll necessary tables, columns, and their connectivity (PK/FK) are preserved.```json\n{\"table_names_original\": [\"Transcripts\", \"Transcript_Contents\"], \"column_names_original\": [[9, \"transcript_id\"], [9, \"transcript_date\"], [10, \"student_course_id\"], [10, \"transcript_id\"]]}\n```",
+      "token_usage": {
+        "total_tokens": 4838,
+        "prompt_tokens": 3434,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1404,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T21:23:41.435644"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.612,
+      "raw_response": "{\"sql\": \"SELECT Transcripts.transcript_date, Transcripts.transcript_id FROM Transcripts JOIN Transcript_Contents ON Transcripts.transcript_id = Transcript_Contents.transcript_id GROUP BY Transcripts.transcript_date, Transcripts.transcript_id HAVING COUNT(Transcript_Contents.student_course_id) < 2\"}",
+      "token_usage": {
+        "total_tokens": 2207,
+        "prompt_tokens": 2132,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 75,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T21:23:43.050015",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/drspider340/database/s311_student_transcripts_tracking/s311_student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": [],
+        "checked_join_conditions": [
+          "Transcripts.transcript_id = Transcript_Contents.transcript_id"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Transcripts.transcript_date, Transcripts.transcript_id FROM Transcripts JOIN Transcript_Contents ON Transcripts.transcript_id = Transcript_Contents.transcript_id GROUP BY Transcripts.transcript_date, Transcripts.transcript_id HAVING COUNT(Transcript_Contents.student_course_id) < 2",
+  "explain": "Validator no-op: Generator SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T21:23:43.057614"
+}

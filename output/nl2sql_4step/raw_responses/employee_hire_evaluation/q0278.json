@@ -1,0 +1,69 @@
+{
+  "question_index": 278,
+  "pipeline": "4step",
+  "db_id": "employee_hire_evaluation",
+  "question": "Which employee received the most awards in evaluations? Give me the employee name.",
+  "gold_query": "SELECT t1.name FROM employee AS t1 JOIN evaluation AS t2 ON t1.Employee_ID  =  t2.Employee_ID GROUP BY t2.Employee_ID ORDER BY count(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 1.99,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"employee\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"evaluation\", \"column\": \"Employee_ID\"}],\n  \"order_by\": [{\"table\": \"COUNT\", \"column\": \"Employee_ID\", \"direction\": \"DESC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"employee\", \"to_table\": \"evaluation\", \"reason\": \"Find employee name given Employee_ID\"}\n  ],\n  \"entities\": {\"tables\": [\"employee\", \"evaluation\"], \"columns\": [\"Employee_ID\", \"Name\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1378,
+        "prompt_tokens": 1160,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 218,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:36:26.165182"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 25.035,
+      "raw_response": "```json\n{\n  \"db_id\": \"employee_hire_evaluation\",\n  \"table_names_original\": [\n    \"employee\",\n    \"evaluation\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Employee_ID\"\n    ],\n    [\n      0,\n      \"Name\"\n    ],\n    [\n      3,\n      \"Employee_ID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      3,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"George Chuter\",\n      \"Lee Mears\",\n      \"Mark Regan\",\n      \"Jason Hobson\"\n    ],\n    [\n      \"1\",\n      \"10\",\n      \"2\",\n      \"4\"\n    ]\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 6951,
+        "prompt_tokens": 929,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 6022,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:36:51.201173"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.352,
+      "raw_response": "{\"sql\": \"SELECT e.Name FROM employee e JOIN evaluation ev ON e.Employee_ID = ev.Employee_ID GROUP BY e.Name ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1129,
+        "prompt_tokens": 1084,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 45,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:36:52.554536"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.723,
+      "raw_response": "I need to validate the provided SQL against the given criteria and make corrections if necessary.\n\nHere's the plan:\n1.  **Check SELECT clause:** `SELECT e.Name` matches `expected_output_fields: [\"Name\"]`. This is correct.\n2.  **Check JOINs:** `JOIN evaluation ev ON e.Employee_ID = ev.Employee_ID`. The join is necessary to link employees to their evaluations (awards). `e.Employee_ID` is a PK, `ev.Employee_ID` is an FK. This is correct and minimal.\n3.  **Check GROUP BY:** `GROUP BY e.Name`. The `Analysis` suggests `GROUP BY [{\"table\": \"evaluation\", \"column\": \"Employee_ID\"}]`. Grouping by `e.Name` is also valid for this query as it effectively groups by employee, and `Employee_ID` is unique for each `Name`. If there were two employees with the same name but different IDs, grouping by `Name` would be problematic, but typically `Name` is distinct enough in this context for such a query. For robustness and adherence to the analysis, `GROUP BY e.Employee_ID` would be slightly more precise if we wanted to count awards per unique employee ID first, then select the name. However, since the output is `e.Name`, grouping by `e.Name` is acceptable here as it directly addresses the output. Let's stick with `e.Name` for now as it doesn't cause incorrect results.\n4.  **Check ORDER BY and LIMIT:** `ORDER BY COUNT(*) DESC LIMIT 1`. The `Analysis` has `order_by: [{\"table\": \"COUNT\", \"column\": \"Employee_ID\", \"direction\": \"DESC\"}]`. The SQL uses `COUNT(*)`. `COUNT(*)` counts the number of evaluations for each employee, which represents the number of awards. This correctly identifies the employee with the most awards. `LIMIT 1` correctly selects only the top one. The `Analysis` doesn't explicitly state `LIMIT 1` but implies it with `MAX_MIN` intent. `ORDER BY` is needed here to find the \"most\".\n5.  **Check Column/Table Names:** `employee`, `evaluation`, `Employee_ID`, `Name` all exist in the schema.\n6.  **SQL completeness and formatting:** SQL is complete, one line, and no comments.\n\nThe current SQL `SELECT e.Name FROM employee e JOIN evaluation ev ON e.Employee_ID = ev.Employee_ID GROUP BY e.Name ORDER BY COUNT(*) DESC LIMIT 1` seems correct for the question \"Which employee received the most awards in evaluations? Give me the employee name.\"\n\nThe `COUNT(*)` counts the number of evaluations. Each evaluation can be considered an \"award\" in this context as implied by the question. It doesn't need `DISTINCT` because we want to count *all* awards, not unique award types.\n\nThe `GROUP BY e.Name` is slightly different from `GROUP BY ev.Employee_ID` in the `Analysis`, but for this specific query (returning `e.Name`), `GROUP BY e.Name` is valid and will produce the correct result assuming `Name` is effectively unique per `Employee_ID` or we want to treat identical names as one entity for counting awards. Since `Employee_ID` is a primary key for `employee`, `Name` will be unique per `Employee_ID`.\n\nLet's verify if `GROUP BY e.Employee_ID` would be better.\nIf we do `GROUP BY e.Employee_ID`, we would still need to select `e.Name`. So:\n`SELECT e.Name FROM employee e JOIN evaluation ev ON e.Employee_ID = ev.Employee_ID GROUP BY e.Employee_ID ORDER BY COUNT(*) DESC LIMIT 1`\nThis would also work.\nThe current SQL `GROUP BY e.Name` is fine because `e.Name` is unique per `e.Employee_ID` (since `e.Employee_ID` is a PK and `e.Name` is directly associated with it). If `Name` wasn't unique, then grouping by `Employee_ID` would be safer to ensure distinct employees are counted. Given the typical structure of an `employee` table, `Name` often serves as a unique identifier for display purposes. The current SQL is robust enough.\n\nNo issues found.{\n \"sql\": \"SELECT e.Name FROM employee e JOIN evaluation ev ON e.Employee_ID = ev.Employee_ID GROUP BY e.Name ORDER BY COUNT(*) DESC LIMIT 1\",\n \"explain\": \"The SQL correctly joins employee and evaluation tables on Employee_ID, groups by employee name, counts the number of evaluations (awards) for each employee, and then orders by the count in descending order to find the employee with the most awards, limiting the result to the top one. All column and table names are valid, and the query is complete and well-formatted.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1828,
+        "prompt_tokens": 756,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1072,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:36:58.278813"
+    }
+  ],
+  "final_sql": "SELECT e.Name FROM employee e JOIN evaluation ev ON e.Employee_ID = ev.Employee_ID GROUP BY e.Name ORDER BY COUNT(*) DESC LIMIT 1",
+  "explain": "The SQL correctly joins employee and evaluation tables on Employee_ID, groups by employee name, counts the number of evaluations (awards) for each employee, and then orders by the count in descending order to find the employee with the most awards, limiting the result to the top one. All column and table names are valid, and the query is complete and well-formatted.",
+  "error": "",
+  "timestamp": "2026-07-24T13:36:58.280371"
+}

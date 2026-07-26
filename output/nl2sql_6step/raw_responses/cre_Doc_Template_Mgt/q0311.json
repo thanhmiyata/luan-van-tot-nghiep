@@ -1,0 +1,97 @@
+{
+  "question_index": 311,
+  "pipeline": "6step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "What is the id and type code for the template used by the most documents?",
+  "gold_query": "SELECT T1.template_id ,  T2.Template_Type_Code FROM Documents AS T1 JOIN Templates AS T2 ON T1.template_id  =  T2.template_id GROUP BY T1.template_id ORDER BY count(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.958,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_ID\", \"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Templates\", \"column\": \"Template_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Templates\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Templates\", \"column\": \"Template_ID\"}],\n  \"order_by\": [{\"table\": \"Documents\", \"column\": \"Template_ID\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"to count the number of documents per template\"}],\n  \"entities\": {\"tables\": [\"Templates\", \"Documents\"], \"columns\": [\"Template_ID\", \"Template_Type_Code\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2017,
+        "prompt_tokens": 1722,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 295,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:00:12.451638"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.083,
+      "raw_response": "```json\n{\n  \"db_id\": \"cre_Doc_Template_Mgt\",\n  \"table_names_original\": [\n    \"Templates\",\n    \"Documents\"\n  ],\n  \"column_names_original\": [\n    [0, \"Template_ID\"],\n    [0, \"Template_Type_Code\"],\n    [1, \"Document_ID\"],\n    [1, \"Template_ID\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [3, 0]\n  ],\n  \"primary_keys\": [\n    0,\n    2\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"PP\",\n      \"BK\",\n      \"PPT\",\n      \"AD\"\n    ],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4907,
+        "prompt_tokens": 994,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3913,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:00:29.552237"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 5.206,
+      "raw_response": "{ \"steps\": [ { \"description\": \"List minimal tables; 'Templates' and 'Documents' are required to determine the Template_ID and Template_Type_Code for the template used by the most documents.\", \"action\": \"FROM\", \"tables\": [\"Templates\", \"Documents\"] }, { \"description\": \"Join on Templates.Template_ID = Documents.Template_ID to associate documents with templates.\", \"action\": \"JOIN\", \"conditions\": [\"Templates.Template_ID = Documents.Template_ID\"] }, { \"description\": \"Aggregate by counting the number of documents for each Template_ID.\", \"action\": \"SELECT\", \"columns\": [\"Templates.Template_ID\", \"Templates.Template_Type_Code\", \"COUNT(*) AS document_count\"], \"group_by\": [\"Templates.Template_ID\", \"Templates.Template_Type_Code\"] }, { \"description\": \"Sort by document count in descending order to find the template used by the most documents.\", \"action\": \"ORDER BY\", \"columns\": [\"document_count DESC\"], \"limit\": 1 } ] }",
+      "token_usage": {
+        "total_tokens": 1675,
+        "prompt_tokens": 1463,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 212,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:00:34.767550"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.467,
+      "raw_response": "{\"sql\": \"SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID, Templates.Template_Type_Code ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 2114,
+        "prompt_tokens": 2059,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 55,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:00:36.252580"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.309,
+      "raw_response": "{\"sql\": \"SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID ORDER BY COUNT(*) DESC LIMIT 1\", \"notes\": \"The SQL has been refined to match the expected output fields and follow the plan precisely. Removed unnecessary GROUP BY on Templates.Template_Type_Code because Template_Type_Code is not needed for aggregation. The join and COUNT(*) approach correctly match the intent to find the template ID and type code used by the most documents, with the necessary ordering and limit applied.\", \"diagnostics\": [\"Corrected GROUP BY clause to include only Template_ID, as Template_Type_Code is not needed for the COUNT aggregation.\", \"Retained ORDER BY COUNT(*) DESC and LIMIT 1 to find the most used template as per the plan.\"]}",
+      "token_usage": {
+        "total_tokens": 1807,
+        "prompt_tokens": 1632,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 175,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:00:40.577916"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.444,
+      "raw_response": "I need to perform a 6-step validation based on the provided SQL, Question, Schema, and Analysis.\n\nHere's the plan:\n1.  **SELECT clause:**\n    *   Expected output fields: `Template_ID`, `Template_Type_Code`.\n    *   Current SQL: `SELECT Templates.Template_ID, Templates.Template_Type_Code`. Matches.\n    *   Check `COUNT(*)` usage: The query asks for \"template used by the most documents,\" which implies counting documents per template. `COUNT(*)` is used in `ORDER BY COUNT(*) DESC LIMIT 1`, which is appropriate for finding the most frequent template.\n\n2.  **GROUP BY clause:**\n    *   Analysis `group_by`: `[{\"table\": \"Templates\", \"column\": \"Template_ID\"}]`.\n    *   Current SQL: `GROUP BY Templates.Template_ID`. Matches.\n    *   This is consistent with the non-aggregated SELECT fields (`Templates.Template_ID`, `Templates.Template_Type_Code`) since `Templates.Template_Type_Code` is functionally dependent on `Templates.Template_ID` (assuming `Template_ID` is the primary key for `Templates`).\n\n3.  **Joins:**\n    *   Analysis `single_table_ok`: `false`.\n    *   Analysis `join_hints`: `[{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"to count the number of documents per template\"}]`.\n    *   Current SQL: `JOIN Documents ON Templates.Template_ID = Documents.Template_ID`. This is correct for linking Templates to Documents to count document usage. PK/FK `foreign_keys\":[[4,1]]` means `Documents.Template_ID` (4) is a FK to `Templates.Template_ID` (1). The join condition `Templates.Template_ID = Documents.Template_ID` is correct.\n\n4.  **ORDER BY clause:**\n    *   Question: \"most documents\" implies sorting by count in descending order and taking the top one.\n    *   Analysis `order_by`: `[{\"table\": \"Documents\", \"column\": \"Template_ID\", \"direction\": \"DESC\"}]` (This refers to ordering by count of documents for each Template_ID).\n    *   Current SQL: `ORDER BY COUNT(*) DESC LIMIT 1`. This is correct for finding the template with the most documents. `COUNT(*)` is used directly.\n\n5.  **LIMIT clause:**\n    *   Question: \"What is the id and type code *for the template* (singular)\" implies `LIMIT 1`.\n    *   Current SQL: `LIMIT 1`. Matches.\n\n6.  **Critical Final Pattern Checks:**\n    *   **Self-Join:** `self_join_hint`: `false`. SQL doesn't use self-join. Correct.\n    *   **Set Operation:** `set_operation_type`: `NONE`. SQL doesn't use set operations. Correct.\n    *   **WHERE Condition:** `where_condition_type`: `EQUALS`, `null_handling`: `UNKNOWN`. No WHERE clause in the SQL, which is fine.\n    *   **GROUP BY Validation:** `GROUP BY Templates.Template_ID` is appropriate for aggregating per template, and `Template_ID` is likely a PK. Consistent.\n    *   **ORDER BY Validation:** `ORDER BY COUNT(*) DESC` is present and correctly ordered to find the maximum.\n    *   **DISTINCT Validation:** No `DISTINCT` used, and `GROUP BY` is used for aggregation, not just uniqueness. Correct.\n\nAll checks seem to pass. The SQL looks correct and matches the analysis and question requirements.```json\n{\"sql\": \"SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID ORDER BY COUNT(*) DESC LIMIT 1\", \"explain\": \"The SQL correctly selects the template ID and type code. It joins `Templates` and `Documents` to count document usage per template. The `GROUP BY Templates.Template_ID` aggregates documents for each template, and `ORDER BY COUNT(*) DESC LIMIT 1` correctly identifies the template used by the most documents.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2381,
+        "prompt_tokens": 1444,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 937,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:00:46.040399"
+    }
+  ],
+  "final_sql": "SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID ORDER BY COUNT(*) DESC LIMIT 1",
+  "explain": "The SQL correctly selects the template ID and type code. It joins `Templates` and `Documents` to count document usage per template. The `GROUP BY Templates.Template_ID` aggregates documents for each template, and `ORDER BY COUNT(*) DESC LIMIT 1` correctly identifies the template used by the most documents.",
+  "error": "",
+  "timestamp": "2026-07-25T05:00:46.042016"
+}

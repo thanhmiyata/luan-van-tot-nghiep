@@ -1,0 +1,97 @@
+{
+  "question_index": 932,
+  "pipeline": "6step",
+  "db_id": "dog_kennels",
+  "question": "Which professionals have done at least two treatments? List the professional's id, role, and first name.",
+  "gold_query": "SELECT T1.professional_id ,  T1.role_code ,  T1.first_name FROM Professionals AS T1 JOIN Treatments AS T2 ON T1.professional_id  =  T2.professional_id GROUP BY T1.professional_id HAVING count(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.401,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"professional_id\", \"role_code\", \"first_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Professionals\", \"column\": \"professional_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Professionals\", \"column\": \"role_code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"Professionals\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 2}\n  ],\n  \"filters\": [\n    {\"table\": \"Treatments\", \"column\": \"professional_id\", \"operator\": \">= 2\", \"value\": \"2\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [{\"table\": \"Treatments\", \"column\": \"professional_id\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Treatments\", \"to_table\": \"Professionals\", \"reason\": \"to correlate treatments with professionals\"}],\n  \"entities\": {\"tables\": [\"Treatments\", \"Professionals\"], \"columns\": [\"professional_id\", \"role_code\", \"first_name\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2877,
+        "prompt_tokens": 2522,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 355,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:27:01.309518"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 10.043,
+      "raw_response": "{\"db_id\": \"dog_kennels\", \"table_names_original\": [\"Professionals\", \"Treatments\"], \"column_names_original\": [[0, \"professional_id\"], [0, \"role_code\"], [0, \"first_name\"], [1, \"treatment_id\"], [1, \"professional_id\"]], \"column_types\": [\"number\", \"text\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 0]], \"primary_keys\": [0, 3], \"column_sample_values\": [[], [\"Employee\", \"Veterenarian\"], [\"Taryn\", \"Jayson\", \"Olaf\", \"Vernice\"], [], []]}",
+      "token_usage": {
+        "total_tokens": 4343,
+        "prompt_tokens": 2038,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2305,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:27:11.372143"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.557,
+      "raw_response": "{ \"steps\": [ { \"action\": \"List minimal tables; state \\\"no join needed\\\" if single_table_ok.\", \"tables\": [\"Treatments\", \"Professionals\"], \"join_needed\": true }, { \"action\": \"If joining, MUST use the provided `foreign_keys` mappings.\", \"pk_fk_pairs\": [\"Treatments.professional_id = Professionals.professional_id\"] }, { \"action\": \"For pure counts, prefer COUNT(*) unless distinct entities required.\", \"count\": \"COUNT(*)\", \"distinct_needed\": false }, { \"action\": \"If counting, plan GROUP BY on entity's id.\", \"group_by\": [\"Treatments.professional_id\"] }, { \"action\": \"Add ORDER BY only if question specifies ranking.\", \"order_by\": [], \"order_needed\": false }, { \"action\": \"Specify set operations as per query complexity; none required for this query.\", \"set_operations\": \"none\" }, { \"action\": \"Preserve condition scoping for either/or logic; use simple WHERE clauses as conditions are specific.\", \"where_condition\": \"GROUP BY Treatments.professional_id HAVING COUNT(*) >= 2\" } ] }",
+      "token_usage": {
+        "total_tokens": 1788,
+        "prompt_tokens": 1543,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 245,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:27:14.951062"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.365,
+      "raw_response": "{ \"sql\": \"SELECT Professionals.professional_id, Professionals.role_code, Professionals.first_name FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id, Professionals.role_code, Professionals.first_name HAVING COUNT(*) >= 2\" }",
+      "token_usage": {
+        "total_tokens": 2234,
+        "prompt_tokens": 2168,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 66,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:27:16.327219"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.182,
+      "raw_response": "{\"sql\": \"SELECT Professionals.professional_id, Professionals.role_code, Professionals.first_name FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id HAVING COUNT(*) >= 2\", \"notes\": \"Removed redundant GROUP BY columns to align with the professional_id only for counting purposes, as role_code and first_name are not aggregates or affecting the HAVING clause condition.\", \"diagnostics\": [\"Join between Professionals and Treatments corrected using foreign_keys mapping.\", \"COUNT(*) is appropriate as distinct count is unnecessary.\", \"GROUP BY minimized to only include professional_id, as other fields do not require aggregation to fulfill the query's intent.\"]}",
+      "token_usage": {
+        "total_tokens": 1896,
+        "prompt_tokens": 1750,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 146,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:27:18.527547"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.261,
+      "raw_response": "I need to perform a 6-step validation on the given SQL query against the provided schema and analysis.\n\n**Validation Checklist & Fixes:**\n\n1.  **SELECT matches expected_output_fields (content & order):**\n    *   SQL: `SELECT Professionals.professional_id, Professionals.role_code, Professionals.first_name`\n    *   Expected: `[\"professional_id\", \"role_code\", \"first_name\"]`\n    *   Match: Yes.\n\n2.  **For counts (COUNT(*), GROUP BY minimal, consistent):**\n    *   SQL uses `COUNT(*)` which is good.\n    *   SQL `GROUP BY Professionals.professional_id` is consistent with the non-aggregated SELECT fields and the column used in the `HAVING` clause for counting. The analysis also indicates `group_by: [{\"table\": \"Treatments\", \"column\": \"professional_id\"}]`, which is the same logical column (PK) from Professionals.\n\n3.  **Extremum patterns:**\n    *   Not applicable here, as it's a counting question, not earliest/latest.\n\n4.  **No unnecessary joins; correct PK/FK:**\n    *   SQL: `JOIN Treatments ON Professionals.professional_id = Treatments.professional_id`\n    *   The join is necessary to count treatments per professional.\n    *   PK/FK: `Professionals.professional_id` is PK, `Treatments.professional_id` is FK, the join condition is correct.\n    *   `single_table_ok` is false, so the join is expected.\n\n5.  **Remove ORDER BY unless required:**\n    *   The analysis `order_by: []` indicates no ordering is required.\n    *   The current SQL does not have an `ORDER BY` clause, which is correct.\n\n6.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   All table and column names (`Professionals`, `Treatments`, `professional_id`, `role_code`, `first_name`) exist in the schema.\n    *   SQL is complete, single line, and has no comments.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:**\n    *   `self_join_hint`: `false`.\n    *   SQL does not use a self-join. Correct.\n\n2.  **Set Operation Validation:**\n    *   `set_operation_type`: `NONE`.\n    *   SQL does not use set operations. Correct.\n\n3.  **WHERE Condition Validation:**\n    *   `where_condition_type`: `RANGE`.\n    *   `null_handling`: `UNKNOWN`.\n    *   The `HAVING COUNT(*) >= 2` is a filtering condition on aggregated results, not a WHERE condition on raw rows. It correctly applies the \"at least two treatments\" logic.\n\n4.  **GROUP BY Validation:**\n    *   Analysis `group_by`: `[{\"table\": \"Treatments\", \"column\": \"professional_id\"}]`\n    *   SQL `GROUP BY Professionals.professional_id`. This groups by the primary key of the Professionals table, which is appropriate for aggregating per professional. The `professional_id` in `Treatments` is the foreign key linking to `Professionals`. This is correct.\n\n5.  **ORDER BY Validation:**\n    *   Analysis `order_by`: `[]`.\n    *   SQL does not have `ORDER BY`. Correct.\n\n6.  **DISTINCT Validation:**\n    *   The SQL uses `COUNT(*)` and `GROUP BY` for aggregation, which is appropriate for the question \"Which professionals have done at least two treatments?\". `DISTINCT` is not relevant here for the main count.\n\nNo issues found. The SQL is already correct according to the validation steps.{\"sql\": \"SELECT Professionals.professional_id, Professionals.role_code, Professionals.first_name FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id HAVING COUNT(*) >= 2\", \"explain\": \"The SQL query correctly selects the requested fields, joins Professionals and Treatments tables on professional_id to count treatments, groups by professional_id, and filters using HAVING COUNT(*) >= 2 as required by the question and analysis.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2467,
+        "prompt_tokens": 1525,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 942,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:27:23.806510"
+    }
+  ],
+  "final_sql": "SELECT Professionals.professional_id, Professionals.role_code, Professionals.first_name FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id HAVING COUNT(*) >= 2",
+  "explain": "The SQL query correctly selects the requested fields, joins Professionals and Treatments tables on professional_id to count treatments, groups by professional_id, and filters using HAVING COUNT(*) >= 2 as required by the question and analysis.",
+  "error": "",
+  "timestamp": "2026-07-25T03:27:23.808506"
+}

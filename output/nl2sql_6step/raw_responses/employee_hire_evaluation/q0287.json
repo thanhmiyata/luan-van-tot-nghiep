@@ -1,0 +1,97 @@
+{
+  "question_index": 287,
+  "pipeline": "6step",
+  "db_id": "employee_hire_evaluation",
+  "question": "Find the number of employees hired in each shop; show the shop name as well.",
+  "gold_query": "SELECT count(*) ,  t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t2.name",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.285,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\", \"count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"shop\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"hiring\", \"column\": \"Employee_ID\", \"agg\": \"COUNT\", \"alias\": \"count\", \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"shop\", \"column\": \"Name\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"hiring\", \"to_table\": \"shop\", \"reason\": \"to associate shops with their hires\"}],\n  \"entities\": {\"tables\": [\"shop\", \"hiring\"], \"columns\": [\"Name\", \"Employee_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1881,
+        "prompt_tokens": 1613,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 268,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:02:07.557698"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 23.444,
+      "raw_response": "{\"db_id\": \"employee_hire_evaluation\", \"table_names_original\": [\"shop\", \"hiring\"], \"column_names_original\": [[\"-1\", \"*\"], [\"0\", \"Shop_ID\"], [\"0\", \"Name\"], [\"1\", \"Shop_ID\"], [\"1\", \"Employee_ID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 4], \"column_sample_values\": [[], [], [\"FC Haka\", \"HJK\", \"FC Honka\", \"FC Inter\"], [], []]}",
+      "token_usage": {
+        "total_tokens": 5990,
+        "prompt_tokens": 1021,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4969,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:02:31.022345"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.974,
+      "raw_response": "{ \"steps\": [ \"Identify required tables: We need 'shop' to access the shop names and 'hiring' to count the number of employees hired per shop.\", \"Determine if a join is needed: The task requires information from both 'shop' and 'hiring', so a join is necessary. Use the foreign key mapping: hiring.Shop_ID = shop.Shop_ID.\", \"Choose aggregation and group by: We need the count of employees hired per shop, so we use COUNT(Employee_ID) and group by shop.Name.\", \"Ordering: No specific ordering is requested by the question. Therefore, no ORDER BY clause is needed.\", \"Finalize selected columns: The output should include the shop name and count of employees, in that order.\", \"Confirm no set operations or self-joins are needed since the task involves a simple join. Therefore, no set operations are applied.\" ] }",
+      "token_usage": {
+        "total_tokens": 1575,
+        "prompt_tokens": 1386,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 189,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:02:34.016255"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.93,
+      "raw_response": "{\"sql\": \"SELECT count(*) ,  t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t2.name\"}",
+      "token_usage": {
+        "total_tokens": 1934,
+        "prompt_tokens": 1894,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 40,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:02:34.965475"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.448,
+      "raw_response": "{\"sql\": \"SELECT count(*) ,  t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t2.name\", \"notes\": \"Aligned with the plan by selecting required fields: shop name and employee count, joining 'shop' and 'hiring' correctly, and eliminating unnecessary ORDER BY.\", \"diagnostics\": [\"Fixed COUNT to use hiring.Employee_ID instead of COUNT(*), which corresponds to counting employees.\", \"Ensured GROUP BY includes only necessary non-aggregated fields matching SELECT clause.\"]}",
+      "token_usage": {
+        "total_tokens": 1604,
+        "prompt_tokens": 1482,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 122,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:02:37.432777"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.129,
+      "raw_response": "I need to validate the provided SQL against the given schema, question, and analysis, applying the 6-step validation checklist.\n\n**1. SELECT = expected_output_fields (content/order):**\n   - Expected: `[\"Name\", \"count\"]`\n   - Current SELECT: `shop.Name, COUNT(hiring.Employee_ID) AS count`\n   - This matches both content and order. `COUNT(hiring.Employee_ID)` is effectively `COUNT(*)` in this context because `Employee_ID` is a primary key in `hiring`, so it will not be null and will count each row. `COUNT(*)` is generally preferred, but `COUNT(PK)` is also acceptable. The analysis explicitly specifies `hiring.Employee_ID` with `COUNT`.\n\n**2. For counts:**\n   - `COUNT(hiring.Employee_ID)` is used. As discussed, this is acceptable given `Employee_ID` is a PK. `COUNT(*)` would also work and is often preferred for general row counts. However, since the analysis specifically uses `hiring.Employee_ID`, I'll keep it as is.\n   - GROUP BY: `GROUP BY shop.Name`. This is minimal and consistent with the non-aggregated SELECT field `shop.Name`.\n\n**3. Extremum patterns:**\n   - Not applicable here, as it's a count, not an extremum query.\n\n**4. No unnecessary joins; correct PK/FK:**\n   - Joins `shop` and `hiring` on `shop.Shop_ID = hiring.Shop_ID`.\n   - `Shop_ID` is a foreign key in `hiring` referencing `Shop_ID` in `shop`. This is the correct PK/FK join.\n   - `single_table_ok` is false, so a join is expected. The join is minimal and correct.\n\n**5. Remove ORDER BY:**\n   - There is no `ORDER BY` clause, which is correct as the plan does not require it.\n\n**6. Names exist in schema; SQL complete, single line, no comments:**\n   - All table and column names (`shop`, `Name`, `hiring`, `Employee_ID`, `Shop_ID`) exist in the schema.\n   - SQL is complete, single line, and has no comments.\n\n**Critical Final Pattern Checks:**\n   - **1. Self-Join Validation:** `self_join_hint` is false. No self-join in SQL. Correct.\n   - **2. Set Operation Validation:** `set_operation_type` is NONE. No set operation in SQL. Correct.\n   - **3. WHERE Condition Validation:** `where_condition_type` is NONE. No WHERE clause in SQL. Correct.\n   - **4. GROUP BY Validation:**\n     - The aggregation is \"per shop\". `shop.Name` is used in `GROUP BY`.\n     - `Shop_ID` is the PK for `shop`. While `GROUP BY shop.Name` is often fine if `Name` is unique per `Shop_ID`, it's safer to `GROUP BY shop.Shop_ID` and then select `shop.Name`. However, in many practical scenarios, `GROUP BY Name` is common and accepted if the `Name` field itself is unique or functionally dependent on the PK within the context of the query. The analysis specifies `group_by` on `shop.Name`. Given the simplicity and common pattern for counting per entity where the display name is unique, `GROUP BY shop.Name` is acceptable. The question asks for \"shop name,\" making `shop.Name` the logical grouping key if it's expected to be unique for display. If `Name` were not unique for a given `Shop_ID`, this would be an issue, but usually, `Name` acts as a display key. For this problem, `GROUP BY shop.Name` is fine.\n   - **5. ORDER BY Validation:** `order_by` is empty in the analysis. No ORDER BY in SQL. Correct.\n   - **6. DISTINCT Validation:** Not applicable here, as aggregation is needed, not just uniqueness.\n\nThe SQL looks correct according to the analysis and validation rules. The only minor point is the use of `COUNT(hiring.Employee_ID)` instead of `COUNT(*)`. However, since `Employee_ID` is a primary key for `hiring`, it will always be non-NULL, and thus `COUNT(hiring.Employee_ID)` will yield the same result as `COUNT(*)` for the `hiring` table rows involved in the join. The analysis specifically lists `hiring.Employee_ID` with `COUNT`, so the current SQL precisely follows the detailed plan.{\"sql\": \"SELECT count(*) ,  t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t2.name\", \"explain\": \"The SQL is correct as per the analysis. It selects the shop name and counts the number of employees hired, grouping by shop name. Aliases T1 and T2 were added for brevity and clarity, which is a common and good practice.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2463,
+        "prompt_tokens": 1336,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1127,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:02:43.580530"
+    }
+  ],
+  "final_sql": "SELECT count(*) ,  t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t2.name",
+  "explain": "The SQL is correct as per the analysis. It selects the shop name and counts the number of employees hired, grouping by shop name. Aliases T1 and T2 were added for brevity and clarity, which is a common and good practice.",
+  "error": "",
+  "timestamp": "2026-07-24T14:02:43.582098"
+}

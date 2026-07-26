@@ -1,0 +1,69 @@
+{
+  "question_index": 535,
+  "pipeline": "4step",
+  "db_id": "student_transcripts_tracking",
+  "question": "Who is enrolled in a Bachelor degree program? List the first name, middle name, last name.",
+  "gold_query": "SELECT DISTINCT T1.first_name ,  T1.middle_name ,  T1.last_name FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id  =  T2.student_id JOIN Degree_Programs AS T3 ON T2.degree_program_id  =  T3.degree_program_id WHERE T3.degree_summary_name  =  'Bachelor'",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.7,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"first_name\", \"middle_name\", \"last_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Students\", \"column\": \"middle_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 2}\n  ],\n  \"filters\": [{\"table\": \"Degree_Programs\", \"column\": \"degree_summary_name\", \"operator\": \"=\", \"value\": \"Bachelor\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Students\", \"to_table\": \"Student_Enrolment\", \"reason\": \"to link students to enrollments\"},\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Degree_Programs\", \"reason\": \"to filter by bachelor's degree program\"}\n  ],\n  \"entities\": {\"tables\": [\"Students\", \"Student_Enrolment\", \"Degree_Programs\"], \"columns\": [\"first_name\", \"middle_name\", \"last_name\", \"degree_summary_name\"], \"values\": [\"Bachelor\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2342,
+        "prompt_tokens": 1992,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 350,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:01:23.207325"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.343,
+      "raw_response": "{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Degree_Programs\", \"Students\", \"Student_Enrolment\"], \"column_names_original\": [[-1, \"*\"], [0, \"degree_program_id\"], [0, \"degree_summary_name\"], [1, \"student_id\"], [1, \"first_name\"], [1, \"middle_name\"], [1, \"last_name\"], [2, \"student_enrolment_id\"], [2, \"degree_program_id\"], [2, \"student_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"text\", \"text\", \"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[9, 3], [8, 1]], \"primary_keys\": [1, 3, 7], \"column_sample_values\": []}",
+      "token_usage": {
+        "total_tokens": 5481,
+        "prompt_tokens": 1836,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3645,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:01:39.552518"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.774,
+      "raw_response": "{\"sql\": \"SELECT Students.first_name, Students.middle_name, Students.last_name FROM Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id JOIN Degree_Programs ON Student_Enrolment.degree_program_id = Degree_Programs.degree_program_id WHERE Degree_Programs.degree_summary_name = 'Bachelor'\"}",
+      "token_usage": {
+        "total_tokens": 1541,
+        "prompt_tokens": 1462,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 79,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:01:41.328528"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.346,
+      "raw_response": "I need to carefully validate the provided SQL against the given checklist.\n\n**Checklist:**\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `first_name`, `middle_name`, `last_name`\n    *   SQL: `Students.first_name, Students.middle_name, Students.last_name`\n    *   Matches.\n    *   `COUNT(*)` preference: Not applicable here as we are selecting individual columns, not counting.\n    *   `COUNT(DISTINCT pk)`: Not applicable.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows.**\n    *   **Joins:**\n        *   `Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id`: Correct PK/FK (`student_id` is PK in `Students` and FK in `Student_Enrolment`). This join is necessary to link `Students` to their `Student_Enrolment`.\n        *   `JOIN Degree_Programs ON Student_Enrolment.degree_program_id = Degree_Programs.degree_program_id`: Correct PK/FK (`degree_program_id` is PK in `Degree_Programs` and FK in `Student_Enrolment`). This join is necessary to filter by `Degree_Programs.degree_summary_name`.\n        *   All joins seem minimal and necessary for the filter and output.\n    *   **ORDER BY:** No `ORDER BY` clause in the SQL, and the `Analysis` confirms no `order_by` is expected. This is correct.\n\n3.  **Every name in ORDER BY is a real column or an alias defined in SELECT; ordering by count uses ORDER BY count(*) directly.**\n    *   Not applicable as there is no `ORDER BY`.\n\n4.  **Negation questions use NOT IN/EXCEPT, not != on joined rows; \"X and Y\" on the same column uses INTERSECT.**\n    *   Not applicable; this is a positive filter `WHERE Degree_Programs.degree_summary_name = 'Bachelor'`.\n\n5.  **Names exist in schema; SQL complete, one line.**\n    *   **Table Names:** `Students`, `Student_Enrolment`, `Degree_Programs` exist in `table_names_original`.\n    *   **Column Names:**\n        *   `first_name`, `middle_name`, `last_name` exist in `Students` (id 1).\n        *   `student_id` exists in `Students` (id 1) and `Student_Enrolment` (id 2).\n        *   `degree_program_id` exists in `Degree_Programs` (id 0) and `Student_Enrolment` (id 2).\n        *   `degree_summary_name` exists in `Degree_Programs` (id 0).\n    *   All names are valid.\n    *   SQL is complete and one line.\n    *   Text literal `'Bachelor'` matches `column_sample_values` for `degree_summary_name`.\n\nThe SQL appears to be correct and adheres to all validation rules. No fixes are needed.{\"sql\": \"SELECT Students.first_name, Students.middle_name, Students.last_name FROM Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id JOIN Degree_Programs ON Student_Enrolment.degree_program_id = Degree_Programs.degree_program_id WHERE Degree_Programs.degree_summary_name = 'Bachelor'\", \"explain\": \"The SQL query correctly selects the requested student name fields and uses necessary joins to filter students enrolled in a 'Bachelor' degree program as specified by the question and schema.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1957,
+        "prompt_tokens": 1117,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 840,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:01:45.677497"
+    }
+  ],
+  "final_sql": "SELECT Students.first_name, Students.middle_name, Students.last_name FROM Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id JOIN Degree_Programs ON Student_Enrolment.degree_program_id = Degree_Programs.degree_program_id WHERE Degree_Programs.degree_summary_name = 'Bachelor'",
+  "explain": "The SQL query correctly selects the requested student name fields and uses necessary joins to filter students enrolled in a 'Bachelor' degree program as specified by the question and schema.",
+  "error": "",
+  "timestamp": "2026-07-25T00:01:45.679720"
+}

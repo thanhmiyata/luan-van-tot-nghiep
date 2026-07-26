@@ -1,0 +1,69 @@
+{
+  "question_index": 534,
+  "pipeline": "4step",
+  "db_id": "student_transcripts_tracking",
+  "question": "What are the first, middle, and last names, along with the ids, of all students who enrolled in 2 degree programs in one semester?",
+  "gold_query": "SELECT T1.first_name ,  T1.middle_name ,  T1.last_name ,  T1.student_id FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id  =  T2.student_id GROUP BY T1.student_id HAVING count(*)  =  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 5.735,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"first_name\", \"middle_name\", \"last_name\", \"student_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Students\", \"column\": \"middle_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 2},\n    {\"table\": \"Students\", \"column\": \"student_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 3}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Students\", \"reason\": \"to get student names from their IDs\"},\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Degree_Programs\", \"reason\": \"to count number of programs a student enrolled in a semester\"},\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Semesters\", \"reason\": \"to ensure the counting is within the same semester\"}\n  ],\n  \"entities\": {\"tables\": [\"Students\", \"Student_Enrolment\", \"Degree_Programs\", \"Semesters\"], \"columns\": [\"student_id\", \"first_name\", \"middle_name\", \"last_name\", \"semester_id\", \"degree_program_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2404,
+        "prompt_tokens": 2002,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 402,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:00:42.944743"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 13.963,
+      "raw_response": "```json\n{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Degree_Programs\", \"Semesters\", \"Students\", \"Student_Enrolment\"], \"column_names_original\": [[-1, \"*\"], [3, \"degree_program_id\"], [5, \"semester_id\"], [6, \"student_id\"], [6, \"first_name\"], [6, \"middle_name\"], [6, \"last_name\"], [7, \"student_enrolment_id\"], [7, \"degree_program_id\"], [7, \"semester_id\"], [7, \"student_id\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\", \"text\", \"text\", \"text\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[47, 32], [46, 28], [45, 18]], \"primary_keys\": [18, 28, 32, 44], \"column_sample_values\": []}\n```",
+      "token_usage": {
+        "total_tokens": 5038,
+        "prompt_tokens": 1900,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3138,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:00:56.909025"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.22,
+      "raw_response": "{\"sql\": \"SELECT Students.first_name, Students.middle_name, Students.last_name, Students.student_id FROM Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id JOIN (SELECT student_id, semester_id FROM Student_Enrolment GROUP BY student_id, semester_id HAVING COUNT(DISTINCT degree_program_id) = 2) AS EnrolledTwice ON Students.student_id = EnrolledTwice.student_id AND Student_Enrolment.semester_id = EnrolledTwice.semester_id\"}",
+      "token_usage": {
+        "total_tokens": 1652,
+        "prompt_tokens": 1532,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 120,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:00:59.131075"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 20.366,
+      "raw_response": "```json\n{\n  \"sql\": \"SELECT T1.first_name, T1.middle_name, T1.last_name, T1.student_id FROM Students AS T1 JOIN (SELECT DISTINCT student_id FROM Student_Enrolment GROUP BY student_id, semester_id HAVING COUNT(DISTINCT degree_program_id) = 2) AS T2 ON T1.student_id = T2.student_id\",\n  \"explain\": \"Removed the redundant join to `Student_Enrolment` in the main query and added `DISTINCT student_id` within the subquery to ensure unique student IDs. This simplifies the query and prevents duplicate output rows for students who meet the criteria across multiple semesters or have multiple enrolment entries in a qualifying semester.\",\n  \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 5360,
+        "prompt_tokens": 1237,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4123,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:01:19.498559"
+    }
+  ],
+  "final_sql": "SELECT T1.first_name, T1.middle_name, T1.last_name, T1.student_id FROM Students AS T1 JOIN (SELECT DISTINCT student_id FROM Student_Enrolment GROUP BY student_id, semester_id HAVING COUNT(DISTINCT degree_program_id) = 2) AS T2 ON T1.student_id = T2.student_id",
+  "explain": "Removed the redundant join to `Student_Enrolment` in the main query and added `DISTINCT student_id` within the subquery to ensure unique student IDs. This simplifies the query and prevents duplicate output rows for students who meet the criteria across multiple semesters or have multiple enrolment entries in a qualifying semester.",
+  "error": "",
+  "timestamp": "2026-07-25T00:01:19.500344"
+}

@@ -1,0 +1,97 @@
+{
+  "question_index": 485,
+  "pipeline": "6step",
+  "db_id": "wta_1",
+  "question": "How many different winners both participated in the WTA Championships and were left handed?",
+  "gold_query": "SELECT count(DISTINCT winner_name) FROM matches WHERE tourney_name  =  'WTA Championships' AND winner_hand  =  'L'",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.005,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"number_of_different_winners\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"matches\", \"column\": \"winner_id\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"number_of_different_winners\", \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"matches\", \"column\": \"tourney_name\", \"operator\": \"=\", \"value\": \"WTA Championships\", \"value_type\": \"STRING\"},\n    {\"table\": \"players\", \"column\": \"hand\", \"operator\": \"=\", \"value\": \"L\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"matches\", \"to_table\": \"players\", \"reason\": \"to ensure winners are left-handed\"}],\n  \"entities\": {\"tables\": [\"matches\", \"players\"], \"columns\": [\"winner_id\", \"tourney_name\", \"hand\"], \"values\": [\"WTA Championships\", \"L\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"INTERSECT\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2412,
+        "prompt_tokens": 2097,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 315,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T23:22:29.029534"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 20.26,
+      "raw_response": "```json\n{\n  \"db_id\": \"wta_1\",\n  \"table_names_original\": [\n    \"players\",\n    \"matches\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"player_id\"],\n    [0, \"hand\"],\n    [1, \"tourney_name\"],\n    [1, \"winner_id\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [32, 1]\n  ],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"R\",\n      \"L\",\n      \"U\",\n      \"\"\n    ],\n    [\n      \"WTA Championships\",\n      \"Auckland\",\n      \"Brisbane\",\n      \"Hobart\"\n    ],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 6258,
+        "prompt_tokens": 1376,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4882,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T23:22:49.307529"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.771,
+      "raw_response": "{ \"steps\": [ \"1. Identify minimal tables: The tables 'matches' and 'players' are needed to determine participants and their handedness.\", \"2. Determine if a join is needed: A join is needed between 'matches' and 'players' to connect winner IDs to their handedness. Use the PK=FK pair where 'matches.winner_id' joins to 'players.player_id'.\", \"3. Choose the appropriate COUNT method: Use COUNT(DISTINCT winner_id) because we must count unique winners.\", \"4. Filter for relevant conditions: Apply a WHERE clause to filter 'matches' for 'tourney_name' = 'WTA Championships' and 'players' for 'hand' = 'L'.\", \"5. No GROUP BY needed: Since we are counting distinct winners, no additional grouping is necessary.\", \"6. No ORDER BY or set operations needed: The query only needs to count distinct winners, not order them or perform set operations.\" ] }",
+      "token_usage": {
+        "total_tokens": 1712,
+        "prompt_tokens": 1501,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 211,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T23:22:53.101250"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.232,
+      "raw_response": "{ \"sql\": \"SELECT COUNT(DISTINCT matches.winner_id) AS number_of_different_winners FROM matches JOIN players ON matches.winner_id = players.player_id WHERE matches.tourney_name = 'WTA Championships' AND players.hand = 'L'\" }",
+      "token_usage": {
+        "total_tokens": 2166,
+        "prompt_tokens": 2101,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 65,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T23:22:54.356924"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.792,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT matches.winner_id) AS number_of_different_winners FROM matches JOIN players ON matches.winner_id = players.player_id WHERE matches.tourney_name = 'WTA Championships' AND players.hand = 'L'\", \"notes\": \"The query correctly counts distinct winners who participated in the WTA Championships and were left-handed, as required. The SELECT, JOIN, and WHERE conditions align with the expected output fields and the plan. The use of COUNT(DISTINCT) is appropriate as the join might duplicate winner IDs.\", \"diagnostics\": [\"SELECT criteria met with correct alias and order.\", \"Appropriate join is used to filter based on 'hand' in the players table.\", \"COUNT(DISTINCT) properly used to handle possible duplicates from the join.\", \"All filters correctly applied in the WHERE clause.\", \"GROUP BY not needed as intended, matches plan.\"]}",
+      "token_usage": {
+        "total_tokens": 1877,
+        "prompt_tokens": 1682,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 195,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T23:22:57.174341"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.802,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT matches.winner_id) AS number_of_different_winners FROM matches JOIN players ON matches.winner_id = players.player_id WHERE matches.tourney_name = 'WTA Championships' AND players.hand = 'L'\", \"explain\": \"The SQL correctly identifies the number of distinct winners by joining matches and players tables. It filters for matches from 'WTA Championships' and players who are 'L'eft-handed. The SELECT clause uses COUNT(DISTINCT winner_id) as required by the question 'how many different winners'. All column and table names are correct and match the schema. No unnecessary joins or ORDER BY clauses. The use of JOIN with AND logically achieves the 'INTERSECT' intent for filtering, which is appropriate for this query.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2980,
+        "prompt_tokens": 1481,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1499,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T23:23:04.987217"
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT matches.winner_id) AS number_of_different_winners FROM matches JOIN players ON matches.winner_id = players.player_id WHERE matches.tourney_name = 'WTA Championships' AND players.hand = 'L'",
+  "explain": "The SQL correctly identifies the number of distinct winners by joining matches and players tables. It filters for matches from 'WTA Championships' and players who are 'L'eft-handed. The SELECT clause uses COUNT(DISTINCT winner_id) as required by the question 'how many different winners'. All column and table names are correct and match the schema. No unnecessary joins or ORDER BY clauses. The use of JOIN with AND logically achieves the 'INTERSECT' intent for filtering, which is appropriate for this query.",
+  "error": "",
+  "timestamp": "2026-07-24T23:23:04.989234"
+}

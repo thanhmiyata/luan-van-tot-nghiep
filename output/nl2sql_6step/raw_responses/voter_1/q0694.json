@@ -1,0 +1,97 @@
+{
+  "question_index": 694,
+  "pipeline": "6step",
+  "db_id": "voter_1",
+  "question": "What are the contestant numbers and names of the contestants who had at least two votes?",
+  "gold_query": "SELECT T1.contestant_number , T1.contestant_name FROM contestants AS T1 JOIN votes AS T2 ON T1.contestant_number  =  T2.contestant_number GROUP BY T1.contestant_number HAVING count(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.056,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"contestant_number\", \"contestant_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"CONTESTANTS\", \"column\": \"contestant_number\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"CONTESTANTS\", \"column\": \"contestant_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"CONTESTANTS\", \"column\": \"contestant_number\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"VOTES\", \"to_table\": \"CONTESTANTS\", \"reason\": \"connect votes with contestants\"}],\n  \"entities\": {\"tables\": [\"CONTESTANTS\", \"VOTES\"], \"columns\": [\"contestant_number\", \"contestant_name\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1726,
+        "prompt_tokens": 1440,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 286,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:55:51.175596"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.333,
+      "raw_response": "```json\n{\"db_id\":\"voter_1\",\"table_names_original\":[\"CONTESTANTS\",\"VOTES\"],\"column_names_original\":[[-1,\"*\"],[0,\"contestant_number\"],[0,\"contestant_name\"],[1,\"vote_id\"],[1,\"contestant_number\"]],\"column_types\":[\"text\",\"number\",\"text\",\"number\",\"number\"],\"foreign_keys\":[[4,1]],\"primary_keys\":[1,3],\"column_sample_values\":[[],[],[],[],[]]}\n```",
+      "token_usage": {
+        "total_tokens": 4499,
+        "prompt_tokens": 866,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3633,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:56:07.529514"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.022,
+      "raw_response": "{ \"steps\": [ {\"step\": \"Identify minimal tables\", \"details\": \"The query involves contestants and their votes, so we need the CONTESTANTS and VOTES tables.\"}, {\"step\": \"Determine if a join is needed\", \"details\": \"A join is needed because we need to associate votes with contestants. Use the foreign key relationship: VOTES.contestant_number = CONTESTANTS.contestant_number.\"}, {\"step\": \"Count votes per contestant\", \"details\": \"Use COUNT(*) to count the number of votes each contestant received, grouping by contestant_number.\"}, {\"step\": \"Filter contestants with at least two votes\", \"details\": \"Apply HAVING COUNT(*) >= 2 to get only those contestants who have two or more votes.\"}, {\"step\": \"Select the required fields in the correct order\", \"details\": \"Select contestant_number and contestant_name from the CONTESTANTS table.\"} ] }",
+      "token_usage": {
+        "total_tokens": 1616,
+        "prompt_tokens": 1415,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 201,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:56:10.574016"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.235,
+      "raw_response": "{\"sql\": \"SELECT CONTESTANTS.contestant_number, CONTESTANTS.contestant_name FROM CONTESTANTS JOIN VOTES ON VOTES.contestant_number = CONTESTANTS.contestant_number GROUP BY CONTESTANTS.contestant_number, CONTESTANTS.contestant_name HAVING COUNT(*) >= 2\"}",
+      "token_usage": {
+        "total_tokens": 2014,
+        "prompt_tokens": 1934,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 80,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:56:11.825145"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.793,
+      "raw_response": "{\"sql\": \"SELECT CONTESTANTS.contestant_number, CONTESTANTS.contestant_name FROM CONTESTANTS JOIN VOTES ON VOTES.contestant_number = CONTESTANTS.contestant_number GROUP BY CONTESTANTS.contestant_number HAVING COUNT(*) >= 2\", \"notes\": \"The SQL query was already properly aligned with the expected output fields, using the join between CONTESTANTS and VOTES appropriately to count the votes per contestant. Unnecessary elements were removed, ensuring the SQL matches the question intent and plan.\", \"diagnostics\": [\"SELECT order/aliases match expected_output_fields.\", \"Joins are necessary and correct.\", \"COUNT(*) used correctly to count votes.\", \"No extraneous GROUP BY columns.\", \"No ORDER BY needed per question and plan.\"]}",
+      "token_usage": {
+        "total_tokens": 1732,
+        "prompt_tokens": 1560,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 172,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:56:14.631717"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.309,
+      "raw_response": "The user wants me to act as a Final Validator for the given SQL query. I need to go through a 6-step checklist and ensure the SQL matches the expected output fields, uses correct aggregation (COUNT(*)), has minimal and correct joins, removes unnecessary ORDER BY, and that all names exist in the schema. I also need to check for specific patterns like self-joins, set operations, WHERE conditions, GROUP BY, ORDER BY, and DISTINCT.\n\nHere's my validation process:\n\n1.  **SELECT = expected_output_fields (content/order):**\n    *   Expected: `[\"contestant_number\", \"contestant_name\"]`\n    *   SQL: `SELECT CONTESTANTS.contestant_number, CONTESTANTS.contestant_name`\n    *   Matches exactly in content and order. (OK)\n\n2.  **For counts (COUNT(*)):**\n    *   SQL uses `COUNT(*)`. The question is \"at least two votes\", so counting all votes per contestant is correct. (OK)\n    *   `GROUP BY CONTESTANTS.contestant_number` is consistent with the non-aggregated SELECT fields (`contestant_number`, `contestant_name` where `contestant_number` is likely a PK, making `contestant_name` functionally dependent). The analysis also confirms `GROUP BY CONTESTANTS.contestant_number`. (OK)\n\n3.  **Extremum patterns:** Not applicable here, no earliest/latest.\n\n4.  **No unnecessary joins; correct PK/FK:**\n    *   SQL: `JOIN VOTES ON VOTES.contestant_number = CONTESTANTS.contestant_number`\n    *   The join is necessary to count votes for contestants. `VOTES.contestant_number` (FK) joins to `CONTESTANTS.contestant_number` (PK). (OK)\n    *   `single_table_ok` is `false`, confirming the join is expected. (OK)\n\n5.  **Remove ORDER BY unless required:**\n    *   SQL has no `ORDER BY`. (OK)\n    *   Analysis also shows no `order_by`. (OK)\n\n6.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   `CONTESTANTS`, `VOTES`, `contestant_number`, `contestant_name` all exist in the schema.\n    *   SQL is complete, single line, and no comments. (OK)\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:** `self_join_hint` is `false`. SQL does not use self-join. (OK)\n2.  **Set Operation Validation:** `set_operation_type` is `NONE`. SQL does not use set operations. (OK)\n3.  **WHERE Condition Validation:** `where_condition_type` is `NONE`. SQL uses `HAVING COUNT(*) >= 2`, which is correct for filtering groups based on aggregate. (OK)\n4.  **GROUP BY Validation:**\n    *   Aggregating per contestant, `GROUP BY CONTESTANTS.contestant_number` uses the PK for grouping. (OK)\n    *   `SELECT` includes `contestant_number` and `contestant_name`, and `contestant_name` is functionally dependent on `contestant_number`, so this is fine. (OK)\n5.  **ORDER BY Validation:** `order_by` is empty in analysis. SQL has no `ORDER BY`. (OK)\n6.  **DISTINCT Validation:** No `DISTINCT` used. `GROUP BY` is used for aggregation, not just uniqueness. (OK)\n\nAll checks pass. The SQL is correct as is.```json\n{\"sql\": \"SELECT T1.contestant_number, T1.contestant_name FROM CONTESTANTS AS T1 JOIN VOTES AS T2 ON T2.contestant_number = T1.contestant_number GROUP BY T1.contestant_number HAVING COUNT(*) >= 2\", \"explain\": \"The original SQL query is correct. Added table aliases for brevity and clarity, which is a best practice. The SELECT clause matches the expected output fields and order. The JOIN is necessary to link contestants with their votes for counting. GROUP BY is correctly applied to count votes per contestant, and HAVING filters for contestants with at least two votes. No ORDER BY is needed as per the analysis.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2362,
+        "prompt_tokens": 1395,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 967,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:56:19.964064"
+    }
+  ],
+  "final_sql": "SELECT T1.contestant_number, T1.contestant_name FROM CONTESTANTS AS T1 JOIN VOTES AS T2 ON T2.contestant_number = T1.contestant_number GROUP BY T1.contestant_number HAVING COUNT(*) >= 2",
+  "explain": "The original SQL query is correct. Added table aliases for brevity and clarity, which is a best practice. The SELECT clause matches the expected output fields and order. The JOIN is necessary to link contestants with their votes for counting. GROUP BY is correctly applied to count votes per contestant, and HAVING filters for contestants with at least two votes. No ORDER BY is needed as per the analysis.",
+  "error": "",
+  "timestamp": "2026-07-24T03:56:19.965500"
+}

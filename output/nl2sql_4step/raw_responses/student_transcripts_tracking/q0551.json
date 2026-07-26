@@ -1,0 +1,69 @@
+{
+  "question_index": 551,
+  "pipeline": "4step",
+  "db_id": "student_transcripts_tracking",
+  "question": "Show the date and id of the transcript with at least 2 course results.",
+  "gold_query": "SELECT T2.transcript_date ,  T1.transcript_id FROM Transcript_Contents AS T1 JOIN Transcripts AS T2 ON T1.transcript_id  =  T2.transcript_id GROUP BY T1.transcript_id HAVING count(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.731,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"transcript_date\", \"transcript_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Transcripts\", \"column\": \"transcript_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [{\"table\": \"Transcript_Contents\", \"column\": \"transcript_id\", \"operator\": \">=\", \"value\": \"2\", \"value_type\": \"NUMBER\"}],\n  \"group_by\": [{\"table\": \"Transcript_Contents\", \"column\": \"transcript_id\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Transcripts\", \"to_table\": \"Transcript_Contents\", \"reason\": \"Count course results in Transcript_Contents related to Transcripts\"}],\n  \"entities\": {\"tables\": [\"Transcripts\", \"Transcript_Contents\"], \"columns\": [\"transcript_date\", \"transcript_id\"], \"values\": [\"2\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2280,
+        "prompt_tokens": 1988,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 292,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:08:45.802796"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 24.347,
+      "raw_response": "```json\n{\n  \"db_id\": \"student_transcripts_tracking\",\n  \"table_names_original\": [\n    \"Transcripts\",\n    \"Transcript_Contents\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [9, \"transcript_id\"],\n    [9, \"transcript_date\"],\n    [10, \"student_course_id\"],\n    [10, \"transcript_id\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"time\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [4, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 7069,
+        "prompt_tokens": 1762,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5307,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:09:10.153181"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.53,
+      "raw_response": "{\"sql\": \"SELECT Transcripts.transcript_date, Transcripts.transcript_id FROM Transcripts JOIN Transcript_Contents ON Transcripts.transcript_id = Transcript_Contents.transcript_id GROUP BY Transcripts.transcript_id, Transcripts.transcript_date HAVING COUNT(*) >= 2\"}",
+      "token_usage": {
+        "total_tokens": 1367,
+        "prompt_tokens": 1299,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 68,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:09:11.685202"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.612,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\n\n**Validation Steps:**\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `transcript_date`, `transcript_id`\n    *   SQL: `Transcripts.transcript_date`, `Transcripts.transcript_id`\n    *   Matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   **Joins:** `Transcripts JOIN Transcript_Contents ON Transcripts.transcript_id = Transcript_Contents.transcript_id`. This join is necessary to count course results (from `Transcript_Contents`) per transcript (from `Transcripts`). The join condition `Transcripts.transcript_id = Transcript_Contents.transcript_id` is correct based on the foreign key `[[4,1]]` which means `Transcript_Contents.transcript_id` (index 4) references `Transcripts.transcript_id` (index 1).\n    *   **COUNT(*):** The query uses `COUNT(*)`, which is preferred.\n    *   **ORDER BY:** There is no `ORDER BY` clause, which is correct as the question doesn't ask for ordering.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available:**\n    *   No text literals are used as filters; the filter is a numerical comparison (`>= 2`). This is fine.\n\n4.  **Column/table names exist; SQL is complete and one line:**\n    *   `Transcripts`, `Transcript_Contents`, `transcript_date`, `transcript_id` all exist in the schema.\n    *   The SQL is complete and one line.\n\n**Potential Issue/Refinement:**\n\nThe `GROUP BY` clause has `Transcripts.transcript_id, Transcripts.transcript_date`. While functionally correct here because `transcript_date` is dependent on `transcript_id` (as `transcript_id` is the PK of `Transcripts`), grouping by `Transcripts.transcript_id` alone would be sufficient for the `COUNT(*)` per transcript, and then `transcript_date` can be selected because it's functionally dependent on `transcript_id`. However, in most SQL dialects, if you select a non-aggregated column, it must either be in the `GROUP BY` clause or be functionally dependent on the `GROUP BY` columns. Since `transcript_id` is likely the primary key of `Transcripts`, `transcript_date` is functionally dependent on it. The current `GROUP BY` is explicit and safe.\n\nThe `HAVING COUNT(*) >= 2` correctly implements \"at least 2 course results\".\n\nThe current SQL query appears to be correct and fully compliant with the requirements. No fixes are needed.{\n \"sql\": \"SELECT T1.transcript_date, T1.transcript_id FROM Transcripts AS T1 JOIN Transcript_Contents AS T2 ON T1.transcript_id = T2.transcript_id GROUP BY T1.transcript_id, T1.transcript_date HAVING COUNT(*) >= 2\",\n \"explain\": \"The query is correct. Added table aliases for brevity and clarity.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1620,
+        "prompt_tokens": 910,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 710,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:09:15.299289"
+    }
+  ],
+  "final_sql": "SELECT T1.transcript_date, T1.transcript_id FROM Transcripts AS T1 JOIN Transcript_Contents AS T2 ON T1.transcript_id = T2.transcript_id GROUP BY T1.transcript_id, T1.transcript_date HAVING COUNT(*) >= 2",
+  "explain": "The query is correct. Added table aliases for brevity and clarity.",
+  "error": "",
+  "timestamp": "2026-07-25T00:09:15.300339"
+}

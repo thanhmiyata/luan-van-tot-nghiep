@@ -1,0 +1,69 @@
+{
+  "question_index": 908,
+  "pipeline": "4step",
+  "db_id": "network_1",
+  "question": "Show the names of students who have at least 2 likes.",
+  "gold_query": "SELECT T2.name FROM Likes AS T1 JOIN Highschooler AS T2 ON T1.student_id  =  T2.id GROUP BY T1.student_id HAVING count(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.051,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Highschooler\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\n      \"table\": \"Likes\", \n      \"column\": \"liked_id\", \n      \"operator\": \"COUNT\", \n      \"value\": \"2\", \n      \"value_type\": \"NUMBER\"\n    }\n  ],\n  \"group_by\": [{\"table\": \"Likes\", \"column\": \"student_id\"}],\n  \"join_hints\": [\n    {\"from_table\": \"Likes\", \"to_table\": \"Highschooler\", \"reason\": \"Match student_id to ID for names\"}\n  ],\n  \"entities\": {\"tables\": [\"Highschooler\", \"Likes\"], \"columns\": [\"name\", \"student_id\"], \"values\": [\"2\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1192,
+        "prompt_tokens": 944,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 248,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:03:56.825796"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.658,
+      "raw_response": "{\"db_id\": \"network_1\", \"table_names_original\": [\"Highschooler\", \"Likes\"], \"column_names_original\": [[-1, \"*\"], [0, \"ID\"], [0, \"name\"], [1, \"student_id\"], [1, \"liked_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[3, 1], [4, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [\"Jordan\", \"Gabriel\", \"Tiffany\", \"Cassandra\"], [], []]}",
+      "token_usage": {
+        "total_tokens": 3948,
+        "prompt_tokens": 714,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3234,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:04:11.486469"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.246,
+      "raw_response": "{\"sql\": \"SELECT Highschooler.name FROM Highschooler JOIN Likes ON Highschooler.ID = Likes.student_id GROUP BY Highschooler.name HAVING COUNT(*) >= 2\"}",
+      "token_usage": {
+        "total_tokens": 1148,
+        "prompt_tokens": 1098,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 50,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:04:12.733830"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 10.497,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, ensuring it meets all the specified criteria.\n\nHere's the plan:\n1.  **Check SELECT clause:**\n    *   `SELECT Highschooler.name` matches `expected_output_fields: [\"name\"]`.\n    *   No `COUNT(DISTINCT...)` needed here as the `HAVING COUNT(*)` is counting likes per student, not distinct entities in the `SELECT`.\n2.  **Check Joins:**\n    *   `JOIN Likes ON Highschooler.ID = Likes.student_id` is correct. `Highschooler.ID` is the PK of `Highschooler`, and `Likes.student_id` is an FK referencing `Highschooler.ID`. This join is necessary to link students to their likes.\n3.  **Check WHERE/GROUP BY/HAVING:**\n    *   `GROUP BY Highschooler.name` is used. The analysis suggests `group_by: [{\"table\": \"Likes\", \"column\": \"student_id\"}]`. While `GROUP BY Highschooler.name` will work if names are unique for IDs, it's generally safer and more precise to group by the ID when counting related entities, and then select the name. However, since the question asks for names and names are typically unique for IDs in such schemas, `GROUP BY Highschooler.name` is functionally equivalent to `GROUP BY Highschooler.ID` if `Highschooler.name` is unique per `Highschooler.ID`. Let's assume `name` is unique per `ID` for simplicity, as per standard database design. If it's not, we'd need `GROUP BY Highschooler.ID, Highschooler.name`. Given the problem context, grouping by name should be acceptable.\n    *   `HAVING COUNT(*) >= 2` matches the filter `operator: \"COUNT\", value: \"2\"`. This correctly identifies students with at least 2 likes.\n4.  **Check Column/Table Names:**\n    *   `Highschooler`, `name`, `ID`, `Likes`, `student_id` all exist in the schema.\n5.  **Check Completeness and Formatting:**\n    *   SQL is complete and one line.\n\nThe current SQL: `SELECT Highschooler.name FROM Highschooler JOIN Likes ON Highschooler.ID = Likes.student_id GROUP BY Highschooler.name HAVING COUNT(*) >= 2`\n\nLet's re-evaluate the `GROUP BY`.\nThe intent is to count likes *per student*.\n`Highschooler.name` is the desired output.\n`Highschooler.ID` is the primary key and the foreign key in `Likes.student_id`.\nGrouping by `Highschooler.ID` would be the most robust way to count likes per student, and then `Highschooler.name` can be selected because it's functionally dependent on `Highschooler.ID`.\nIf `Highschooler.name` is *not* unique (e.g., two different students have the same name), then `GROUP BY Highschooler.name` would incorrectly merge their likes.\nThe schema does not explicitly state that `name` is unique.\nTherefore, it's safer to `GROUP BY Highschooler.ID` and also include `Highschooler.name` in the `GROUP BY` clause if `name` is not functionally dependent on `ID` or just `GROUP BY Highschooler.ID` and select `Highschooler.name` which implicitly works in many SQL dialects where non-aggregated columns in SELECT must be in GROUP BY or functionally dependent on a column in GROUP BY.\nHowever, if we strictly adhere to standard SQL, all non-aggregated columns in the SELECT list must be in the GROUP BY clause.\nSo, if `GROUP BY Highschooler.ID` is used, then `Highschooler.name` must also be in the `GROUP BY`.\n\nLet's consider the initial query `GROUP BY Highschooler.name`.\nThis is valid if `Highschooler.name` is unique for each student. If it's not, then two different students with the same name would have their likes combined, which is incorrect.\nThe analysis has `group_by: [{\"table\": \"Likes\", \"column\": \"student_id\"}]`. This implies grouping by the student ID.\nTo achieve this while selecting the name, the most robust approach is:\n`SELECT T1.name FROM Highschooler AS T1 JOIN Likes AS T2 ON T1.ID = T2.student_id GROUP BY T1.ID, T1.name HAVING COUNT(*) >= 2`\nThis ensures correct counting even if names are not unique, and correctly selects the name.\n\nHowever, many SQL engines, when grouping by a primary key, allow selecting other columns from that table without explicitly including them in the `GROUP BY` because they are functionally dependent on the primary key. But to be universally correct, it's safer to include both `ID` and `name` in `GROUP BY`.\n\nLet's compare the provided SQL with the analysis:\n*   `expected_output_fields: [\"name\"]` -> `SELECT Highschooler.name` - Matches.\n*   `group_by: [{\"table\": \"Likes\", \"column\": \"student_id\"}]` - This is semantically equivalent to grouping by `Highschooler.ID` because `Likes.student_id` references `Highschooler.ID`. The current SQL groups by `Highschooler.name`.\n\nIf the intent is to strictly follow `group_by` in the analysis, we should group by `Highschooler.ID` (since `Likes.student_id` is an FK to `Highschooler.ID`).\nThen, to select `Highschooler.name`, it should either be unique for each `ID` (implicitly allowed by some DBs) or explicitly added to `GROUP BY`.\nLet's consider the most standard SQL approach.\n`SELECT H.name FROM Highschooler AS H JOIN Likes AS L ON H.ID = L.student_id GROUP BY H.ID, H.name HAVING COUNT(*) >= 2`\nThis ensures correctness regardless of name uniqueness and explicitly covers all non-aggregated selected columns in the `GROUP BY`.\n\nThe initial SQL: `SELECT Highschooler.name FROM Highschooler JOIN Likes ON Highschooler.ID = Likes.student_id GROUP BY Highschooler.name HAVING COUNT(*) >= 2`\nExplain why it might be problematic: If two students have the same name but different IDs, `GROUP BY Highschooler.name` would merge their likes, leading to an incorrect count for *each* of those students. The count would represent the *total* likes for all students sharing that name, not for an individual student.\n\nTherefore, the `GROUP BY` clause should be fixed to reflect grouping by the individual student, which is best achieved via their ID.\n\nCorrected SQL: `SELECT T1.name FROM Highschooler AS T1 JOIN Likes AS T2 ON T1.ID = T2.student_id GROUP BY T1.ID, T1.name HAVING COUNT(T2.liked_id) >= 2`\n\nLet's refine the `COUNT`. `COUNT(*)` counts rows. `COUNT(T2.liked_id)` counts non-NULL `liked_id` values. In `Likes`, `liked_id` is an FK, so it's likely never NULL. `COUNT(*)` is usually preferred for counting rows in a group.\nSo, `COUNT(*)` is fine.\n\nThe critical change is `GROUP BY T1.ID, T1.name`.\n\nFinal check for aliases: the original SQL didn't use aliases. The corrected one uses them for clarity, which is fine. The original validation request implies minimal changes, so I'll stick to not using aliases unless strictly necessary or if the original already used them.\n\nOriginal: `SELECT Highschooler.name FROM Highschooler JOIN Likes ON Highschooler.ID = Likes.student_id GROUP BY Highschooler.name HAVING COUNT(*) >= 2`\n\nCorrected `GROUP BY` without aliases for minimal change:\n`SELECT Highschooler.name FROM Highschooler JOIN Likes ON Highschooler.ID = Likes.student_id GROUP BY Highschooler.ID, Highschooler.name HAVING COUNT(*) >= 2`\n\nThis is the most robust and standard SQL compliant fix.\n\nExplain: The original query used `GROUP BY Highschooler.name`. If multiple students share the same name, this would incorrectly aggregate their likes. To count likes for each individual student, the grouping should be done by the student's unique ID. Including `Highschooler.name` in the `GROUP BY` clause alongside `Highschooler.ID` ensures all non-aggregated `SELECT` columns are properly handled according to standard SQL, and avoids issues if names are not unique.\n\nAll other parts of the query (SELECT, JOIN, HAVING) are correct based on the schema and question.\nThe `expected_output_fields` is `[\"name\"]`, which is in the `SELECT`.\nThe join is correct.\nThe `HAVING` condition correctly implements \"at least 2 likes\".\nNo needless ORDER BY.\nColumn/table names exist.\nSQL is complete and one line.\n\nTherefore, the primary issue is the `GROUP BY` clause.```json\n{\n  \"sql\": \"SELECT Highschooler.name FROM Highschooler JOIN Likes ON Highschooler.ID = Likes.student_id GROUP BY Highschooler.ID, Highschooler.name HAVING COUNT(*) >= 2\",\n  \"explain\": \"The original query used `GROUP BY Highschooler.name`. If multiple students share the same name, this would incorrectly aggregate their likes for all students with that name. To count likes for each individual student, the grouping should be done by the student's unique ID (`Highschooler.ID`). Including `Highschooler.name` in the `GROUP BY` clause alongside `Highschooler.ID` ensures correctness and adheres to standard SQL by including all non-aggregated SELECT columns in the GROUP BY clause.\",\n  \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 2979,
+        "prompt_tokens": 767,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2212,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:04:23.232304"
+    }
+  ],
+  "final_sql": "SELECT Highschooler.name FROM Highschooler JOIN Likes ON Highschooler.ID = Likes.student_id GROUP BY Highschooler.ID, Highschooler.name HAVING COUNT(*) >= 2",
+  "explain": "The original query used `GROUP BY Highschooler.name`. If multiple students share the same name, this would incorrectly aggregate their likes for all students with that name. To count likes for each individual student, the grouping should be done by the student's unique ID (`Highschooler.ID`). Including `Highschooler.name` in the `GROUP BY` clause alongside `Highschooler.ID` ensures correctness and adheres to standard SQL by including all non-aggregated SELECT columns in the GROUP BY clause.",
+  "error": "",
+  "timestamp": "2026-07-24T18:04:23.233734"
+}

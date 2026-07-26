@@ -1,7 +1,31 @@
-# Project Memory - Last Updated: 2026-04-16
+# Project Memory - Last Updated: 2026-07-26
 
 ## Trạng thái hiện tại
 
+- **Số liệu khóa (Spider 1.0 dev, 1034 câu, official eval)**: 6-step **EX=84.9% / EM=73.6%**; 4-step **EX=84.9% / EM=57.4%**. Per-DB trong `output/nl2sql_{4,6}step/benchmark_progress.json` (6-step đã sync weighted EM=73.6%).
+
+- **2026-07-25 (publish/ sync)**: Dựng lại `publish/` (~11MB) để public GitHub: code 4/6-step + runners + eval scripts (không SQLite), `data/{dev,tables,questions}.json`, Spider `per_db` gold/predict + `benchmark_progress.json`, Dr.Spider-340 JSON + predict/summary (không `database/`), README/LICENSE. Loại: raw_responses, bak, MEMORY, paper, `.env`.
+
+- **2026-07-25 (Dr.Spider-340 full)**: Xong cả 4-step + 6-step trên **340/340** (`output/drspider340/`, script `scripts/smoke_test_drspider30.py --all`, seed raw từ smoke-30). EX (`exec_eval`): **4-step 268/340 = 78.8%** (DB 76.7 / NLQ 79.4 / SQL 79.0); **6-step 262/340 = 77.1%** (DB 71.7 / NLQ 78.9 / SQL 77.0). Official parser: 4-step EX~82.9/EM~61.4; 6-step EX~81.4/EM~60.0. Trên subset này 4-step nhỉnh hơn 6-step (~+1.7 EX). So leaderboard post-EX Dr.Spider (Picard ~65.9, Codex ~64.4): số tuyệt đối cao hơn nhưng chỉ là diagnostic subset 20×17, không claim full leaderboard.
+
+- **2026-07-25 (Dr.Spider smoke-30)**: Sample stratified **30/340** (seed `42`). Artifacts: `output/smoke_drspider30/`. Pilot EX: 4-step 93.3%; 6-step 86.7%.
+
+- **2026-07-25 (Dr.Spider-340)**: Đã tạo tập chẩn đoán tái lập gồm **340 mẫu hậu nhiễu = 20 mẫu × 17 loại perturbation**, seed `42`, với **340 Spider-dev q_id khác nhau** và phân tầng theo độ khó Spider (`easy=73`, `medium=150`, `hard=58`, `extra=59`). Hai artifact căn hàng bằng `sample_id`: `experiments/round2/drspider/drspider_340_questions.json` (không chứa SQL) và `drspider_340_gold_sql.json`; script tái tạo: `sample_drspider.py`. Nguồn được khóa tại commit `c64694a...`, SHA-256 archive `d0f47e...`; 70 SQLite được tham chiếu đã lưu tại `data/drspider/`. Đã xác minh 340/340 câu và gold khớp nguồn, 340/340 gold SQL lập được query plan trên đúng DB, và chạy lại cho byte-identical output.
+
+- **2026-07-25 (tối)**: Xong `world_1` (120) — DB cuối (0 failed cả hai). Full Spider 1.0 dev 20/20 DB hoàn tất; số liệu khóa xem mục đầu.
+
+- **2026-07-25 (tối)**: Sửa `normalize_sql_for_spider` — chỉ strip `) AS alias` khi alias không được tham chiếu outer (`_strip_unreferenced_as_aliases`). Rebuild 6-step `car_1` predict từ raw + official eval: **EX=78.3 / EM=30.4** (trước rebuild alias-broken: 75.0/34.8; EX↑ nhờ q107/141/142; EM↓ vì giữ alias làm lệch exact-match). Backup predict cũ: `output/nl2sql_6step/per_db/car_1_before_alias_fix/`. Siết Refiner/Validator 6-step: skip LLM khi constraint report `valid=true`; `select_audited_result` bỏ rewrite khi previous đã valid; NO-OP RULE trong `tasks.yaml`. 4-step Validator cũng có guard tương tự.
+
+- **2026-07-25 (chiều)**: Ghi đè benchmark 4-step `car_1` bằng prompt mới (smoke→official): **EX=79.3 / EM=42.4** (cũ 56.5/32.6). 6-step `car_1` chạy lại (trước fix alias): **EX=75.0 / EM=34.8**. Backup cũ: `output/backup_car1_4step_before_prompt_new/`. Tích lũy lúc đó ~86.4/58.4 (4-step), ~86.4/60.0 (6-step).
+
+- **2026-07-25**: Xong `cre_Doc_Template_Mgt` + `real_estate_properties`. cre 83.3/56.0 vs 88.1/53.6; real_estate 50/25 vs 50/50.
+
+- **2026-07-25**: Xong `dog_kennels` (82): 4-step 81.7/58.5 (2 failed validator-error); 6-step 81.7/56.1. `flight_2` 88.7/71.3 vs 87.5/71.3. `student_transcripts` 78.2/47.4 vs 75.6/47.4.
+
+- **2026-07-24 (đêm)**: Xong `wta_1` (62). 4-step EX=88.7/EM=74.2; 6-step EX=82.3/EM=64.5.
+
+- **2026-07-24 (vòng thực nghiệm round-2, prompt v3)**: Sau phân tích lỗi world_1/car_1/tvshow, đã sửa: (1) `rebuild_filtered_schema` — build lại schema lọc deterministic trong code (fix bug LLM sinh index/FK hỏng); (2) fallback khi Validator trả SQL rỗng; (3) value grounding — `column_sample_values` (4 giá trị mẫu/cột text) truyền vào mọi agent; (4) bộ rule prompt v3 trong `agents.yaml`+`tasks.yaml` cả 2 pipeline: COUNT(*) mặc định, cấm ORDER BY theo alias bịa, phủ định → NOT IN/EXCEPT (cấm `!=` trên join), "X and Y" cùng cột → INTERSECT, cấm bịa literal placeholder, condition scoping "either X or Y <cond>", output fields không chứa cột sort/filter, ORDER BY mặc định ASC. 4-step Question Analyzer đã đổi sang GPT-4o (đồng nhất backbone với 6-step). Backup chạy cũ: `output/backup_run_20260724/`. Runner: `run_complete_nl2sql_pipeline.py --pipeline {4step,6step} --next/--status/--run-db/--aggregate`. LƯU Ý: kết quả cũ trong paper (85.6/77.8) không tái lập được; số liệu paper lấy từ vòng chạy trung thực này.
+- **2026-07-23**: Tạo thư mục `publish/` sẵn sàng đẩy GitHub (code 4/6-step + eval Spider + output full đã dọn, không kèm `.env`/bak/MEMORY/paper). Dùng `publish/` làm **repo root riêng** (`cd publish && git init`), không commit từ repo cha (parent `.gitignore` đang ignore mọi `data/`).
 - **Mới (bài hội nghị Việt)**: `report/conference-ready-12_vi.md` đã đồng bộ mixed-model với `src/nl2sql_6step/.../agents.yaml` (GPT-4o: Analyzer/Planner/Generator/Refiner; Gemini 2.5 Flash: Schema/Validator), nêu trung thực baseline 4 bước (Claude Sonnet 4 cho Question Analyzer), và sửa Bảng 2 (dòng căn cột `| :--- | :--- |`, bỏ hàng “Lý do” trùng lặp).
 - **Vừa hoàn thành**: Tích hợp và đánh giá thành công **DeepSeek-R1 (Reasoner)** vào Pipeline 6 bước.
 - **Kết quả tổng hợp**: Toàn bộ kết quả thực nghiệm và kế hoạch nộp bài được hợp nhất tại `ReadMe.md`.

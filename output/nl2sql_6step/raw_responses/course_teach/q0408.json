@@ -1,0 +1,97 @@
+{
+  "question_index": 408,
+  "pipeline": "6step",
+  "db_id": "course_teach",
+  "question": "What are the names of the teachers who teach at least two courses?",
+  "gold_query": "SELECT T2.Name FROM course_arrange AS T1 JOIN teacher AS T2 ON T1.Teacher_ID  =  T2.Teacher_ID GROUP BY T2.Name HAVING COUNT(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.928,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"teacher\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"teacher\", \"column\": \"Name\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"teacher\", \"to_table\": \"course_arrange\", \"reason\": \"link teachers to the courses they teach\"}],\n  \"entities\": {\"tables\": [\"teacher\", \"course_arrange\"], \"columns\": [\"Name\", \"Teacher_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1710,
+        "prompt_tokens": 1476,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 234,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:58:56.321050"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.983,
+      "raw_response": "```json\n{\"db_id\": \"course_teach\", \"table_names_original\": [\"teacher\", \"course_arrange\"], \"column_names_original\": [[-1, \"*\"], [0, \"Teacher_ID\"], [0, \"Name\"], [1, \"Course_ID\"], [1, \"Teacher_ID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [\"Joseph Huts\", \"Gustaaf Deloor\", \"Vicente Carretero\", \"John Deloor\"], [], []]}\n```",
+      "token_usage": {
+        "total_tokens": 4918,
+        "prompt_tokens": 838,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4080,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:59:14.319156"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.117,
+      "raw_response": "{ \"steps\": [ \"1. List minimal tables: Teacher and Course_arrange are needed.\", \"2. Join needed: Use PK=FK pair (course_arrange.Teacher_ID = teacher.Teacher_ID).\", \"3. Use COUNT(*) to determine the teachers teaching at least two courses, requiring GROUP BY teacher.Teacher_ID.\", \"4. No ORDER BY clause is needed as question does not imply sorting.\", \"5. Employ AND operations to filter teachers who teach two or more courses.\", \"6. Select the teacher Name from teacher table after ensuring they appear in the join result more than once.\" ] }",
+      "token_usage": {
+        "total_tokens": 1493,
+        "prompt_tokens": 1357,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 136,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:59:16.491103"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.943,
+      "raw_response": "{ \"sql\": \"SELECT Name FROM teacher JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID GROUP BY Name HAVING COUNT(*) >= 2\" }",
+      "token_usage": {
+        "total_tokens": 1860,
+        "prompt_tokens": 1812,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 48,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:59:17.451253"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.421,
+      "raw_response": "{\"sql\": \"SELECT teacher.Name FROM teacher JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID GROUP BY teacher.Name HAVING COUNT(*) >= 2\", \"notes\": \"The query selects the teacher names who teach at least two courses. The join condition is correct, linking 'teacher' and 'course_arrange' tables on 'Teacher_ID'. COUNT(*) is used appropriately without DISTINCT as there are no row duplications from the join. The SELECT matches the expected output field 'Name'.\", \"diagnostics\": [\"Ensured COUNT(*) is used without DISTINCT as duplicates do not occur due to join.\", \"Corrected grouping by teacher.Name instead of additional fields.\", \"Maintained JOIN as needed to link the teacher to their respective course arrangements.\"]}",
+      "token_usage": {
+        "total_tokens": 1574,
+        "prompt_tokens": 1406,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 168,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:59:19.892946"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.044,
+      "raw_response": "The user wants me to act as a Final Validator for a given SQL query based on the provided question, schema, and analysis.\nI need to go through the 6-step validation checklist and make any necessary fixes to the SQL.\n\nHere's the plan:\n1.  **SELECT clause validation:**\n    *   Expected output fields: `[\"Name\"]`\n    *   Current SELECT: `teacher.Name`\n    *   Matches exactly. No change needed.\n2.  **COUNT(*) and GROUP BY validation:**\n    *   The query counts courses per teacher. `COUNT(*)` is appropriate for counting rows/records related to a teacher (courses in `course_arrange`).\n    *   GROUP BY: `teacher.Name`. The analysis specifies `group_by: [{\"table\": \"teacher\", \"column\": \"Name\"}]`. This is consistent with the non-aggregated SELECT field `teacher.Name`.\n    *   `HAVING COUNT(*) >= 2` correctly filters teachers who teach at least two courses.\n    *   No change needed.\n3.  **Extremum patterns:** Not applicable here, as it's not about min/max/earliest/latest.\n4.  **Joins validation:**\n    *   `JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID`\n    *   The join links `teacher` and `course_arrange` using `Teacher_ID` (PK/FK).\n    *   Analysis `single_table_ok: false` and `join_hints` confirm the join is necessary.\n    *   The join is minimal and correct. No change needed.\n5.  **ORDER BY validation:**\n    *   The analysis `order_by: []` indicates no ordering is required.\n    *   The current SQL has no `ORDER BY`.\n    *   No change needed.\n6.  **Names exist, SQL complete, single line, no comments:**\n    *   All table and column names (`teacher`, `course_arrange`, `Name`, `Teacher_ID`) exist in the schema.\n    *   SQL is complete and executable.\n    *   It's a single line and has no comments.\n    *   No change needed.\n\n**CRITICAL Final Pattern Checks:**\n1.  **Self-Join Validation:** `self_join_hint: false`. SQL does not use self-join. Correct.\n2.  **Set Operation Validation:** `set_operation_type: \"NONE\"`. SQL does not use set operations. Correct.\n3.  **WHERE Condition Validation:** `where_condition_type: \"NONE\"`. SQL does not have a WHERE clause, but a HAVING clause is used for aggregation filtering. No specific WHERE pattern to validate here. Correct.\n4.  **GROUP BY Validation:** `GROUP BY teacher.Name`. The analysis `group_by: [{\"table\": \"teacher\", \"column\": \"Name\"}]` indicates grouping by the display column `Name`. Given the question \"What are the names of the teachers...\", grouping by `Name` is appropriate for this output. If the question implicitly meant unique teachers by ID, then `GROUP BY teacher.Teacher_ID` would be more robust, but for displaying names, grouping by name is fine. The schema shows `Teacher_ID` as the primary key of the `teacher` table. Let's consider if `GROUP BY teacher.Teacher_ID` would be better.\n    *   If two teachers have the same `Name` but different `Teacher_ID`s, `GROUP BY teacher.Name` would combine them into one group, potentially misrepresenting the count.\n    *   However, typically `Name` is unique enough for display purposes in many schemas, or if not, the user is expecting counts per unique name string.\n    *   The analysis explicitly states `group_by: [{\"table\": \"teacher\", \"column\": \"Name\"}]`. I should follow the analysis.\n    *   The `SELECT` clause only asks for `Name`, so `GROUP BY teacher.Name` is consistent with the selection.\n    *   Therefore, `GROUP BY teacher.Name` is acceptable here based on the analysis. No change needed.\n5.  **ORDER BY Validation:** `order_by: []`. SQL has no `ORDER BY`. Correct.\n6.  **DISTINCT Validation:** SQL uses `GROUP BY` for aggregation (`COUNT(*)`), not just for uniqueness. Correct.\n\nThe SQL appears correct and consistent with the analysis and schema.{\"sql\": \"SELECT teacher.Name FROM teacher JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID GROUP BY teacher.Name HAVING COUNT(*) >= 2\", \"explain\": \"The SQL query correctly identifies teacher names by joining 'teacher' and 'course_arrange' tables on 'Teacher_ID', groups the results by 'teacher.Name', and filters for teachers who teach at least two courses using 'HAVING COUNT(*) >= 2', matching the expected output and analysis.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2381,
+        "prompt_tokens": 1301,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1080,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:59:25.954067"
+    }
+  ],
+  "final_sql": "SELECT teacher.Name FROM teacher JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID GROUP BY teacher.Name HAVING COUNT(*) >= 2",
+  "explain": "The SQL query correctly identifies teacher names by joining 'teacher' and 'course_arrange' tables on 'Teacher_ID', groups the results by 'teacher.Name', and filters for teachers who teach at least two courses using 'HAVING COUNT(*) >= 2', matching the expected output and analysis.",
+  "error": "",
+  "timestamp": "2026-07-24T12:59:25.956032"
+}

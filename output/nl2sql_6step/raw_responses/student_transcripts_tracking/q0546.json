@@ -1,0 +1,97 @@
+{
+  "question_index": 546,
+  "pipeline": "6step",
+  "db_id": "student_transcripts_tracking",
+  "question": "What are the names of all courses that have some students enrolled?",
+  "gold_query": "SELECT DISTINCT T1.course_name FROM Courses AS T1 JOIN Student_Enrolment_Courses AS T2 ON T1.course_id  =  T2.course_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.094,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"course_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Courses\", \"column\": \"course_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Courses\", \"to_table\": \"Student_Enrolment_Courses\", \"reason\": \"Courses with enrolled students\"}],\n  \"entities\": {\"tables\": [\"Courses\", \"Student_Enrolment_Courses\"], \"columns\": [\"course_name\", \"course_id\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2649,
+        "prompt_tokens": 2419,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 230,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:19.680429"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 5.166,
+      "raw_response": "{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Courses\", \"Student_Enrolment_Courses\"], \"column_names_original\": [[-1, \"*\"], [0, \"course_id\"], [0, \"course_name\"], [1, \"student_course_id\"], [1, \"course_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [\"ds\", \"math\", \"os\", \"en\"], [], []]}",
+      "token_usage": {
+        "total_tokens": 2736,
+        "prompt_tokens": 1742,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 994,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:24.867887"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.265,
+      "raw_response": "{ \"steps\": [ \"Identify the minimal set of tables needed: We need information about courses and their enrollment, so both `Courses` and `Student_Enrolment_Courses` tables are required.\", \"Join the necessary tables: Join `Courses` and `Student_Enrolment_Courses` using the foreign key `course_id` which is a key in both tables (Courses.course_id = Student_Enrolment_Courses.course_id).\", \"Select the required output fields: `course_name` from the `Courses` table.\", \"Use COUNT(*) to ensure courses have students enrolled: The requirement is to find courses with student enrollments, so we utilize the presence of rows in `Student_Enrolment_Courses` table after the join. Since each course enrollment corresponds to an entry, simply ensuring this joins will work.\", \"The SQL equivalent: SELECT course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id GROUP BY Courses.course_name;\" ] }",
+      "token_usage": {
+        "total_tokens": 1621,
+        "prompt_tokens": 1399,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 222,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:28.152254"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.28,
+      "raw_response": "{\"sql\": \"SELECT course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id GROUP BY Courses.course_name\"}",
+      "token_usage": {
+        "total_tokens": 2058,
+        "prompt_tokens": 2010,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 48,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:29.451527"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.297,
+      "raw_response": "{\"sql\": \"SELECT course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id;\", \"notes\": \"Removed unnecessary GROUP BY since the join ensures courses have students enrolled. The select field matches the expected output fields exactly.\", \"diagnostics\": [\"Ensured query aligns with the expected output of course names having enrolled students.\", \"Confirmed correct join condition using the foreign key of course_id.\"]}",
+      "token_usage": {
+        "total_tokens": 1681,
+        "prompt_tokens": 1576,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 105,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:32.768062"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 9.11,
+      "raw_response": "The user wants me to act as a Final Validator for a given SQL query based on the provided question, schema, and analysis. I need to go through a 6-step validation checklist and several critical final pattern checks. If issues are found, I must fix the SQL and provide a brief explanation. If unfixable, I must surface an error.\n\nHere's my thought process for validation:\n\n1.  **Analyze the Inputs:**\n    *   **SQL:** `SELECT course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id;`\n    *   **Question:** \"What are the names of all courses that have some students enrolled?\"\n    *   **Schema:** `Courses (course_id PK, course_name), Student_Enrolment_Courses (student_course_id PK, course_id FK to Courses)`\n    *   **Analysis:**\n        *   `expected_output_fields`: `[\"course_name\"]`\n        *   `field_order_critical`: `true`\n        *   `single_table_ok`: `false` (implies a join is needed)\n        *   `output_fields_detailed`: `[{\"table\": \"Courses\", \"column\": \"course_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}]`\n        *   `filters`: `[]` (The \"some students enrolled\" implicitly means there's at least one entry in `Student_Enrolment_Courses` for that course, which a `JOIN` naturally handles, acting as an `INNER JOIN` filter)\n        *   `group_by`: `[]`\n        *   `order_by`: `[]`\n        *   `join_hints`: `[{\"from_table\": \"Courses\", \"to_table\": \"Student_Enrolment_Courses\", \"reason\": \"Courses with enrolled students\"}]`\n\n2.  **Apply 6-step Validation Checklist:**\n\n    *   **SELECT = expected_output_fields (content/order):**\n        *   SQL: `SELECT course_name`\n        *   Expected: `[\"course_name\"]`\n        *   Match: Yes. The `SELECT` clause matches perfectly.\n        *   *Counts/Extremum:* Not applicable here as it's a simple list.\n\n    *   **No unnecessary joins; correct PK/FK:**\n        *   SQL uses `JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id`.\n        *   The question asks for courses \"that have some students enrolled,\" which implies needing to check the `Student_Enrolment_Courses` table. An `INNER JOIN` (which `JOIN` defaults to) correctly filters for courses that exist in both tables, effectively meaning courses with enrollments.\n        *   The join condition `Courses.course_id = Student_Enrolment_Courses.course_id` is on the correct PK/FK (`course_id`).\n        *   `single_table_ok` is `false`, confirming a join is needed.\n        *   Match: Yes, the join is necessary and correct.\n\n    *   **Remove ORDER BY unless required:**\n        *   SQL: No `ORDER BY`.\n        *   Analysis `order_by`: `[]`.\n        *   Match: Yes, no unnecessary `ORDER BY`.\n\n    *   **Every name in ORDER BY is a real column/alias:** Not applicable, no `ORDER BY`.\n\n    *   **Negation questions:** Not applicable, not a negation question.\n\n    *   **Names exist in schema; SQL complete, single line, no comments:**\n        *   `course_name` exists in `Courses`.\n        *   `Courses`, `Student_Enrolment_Courses` tables exist.\n        *   `course_id` exists in both.\n        *   SQL is complete and single-line.\n        *   Match: Yes.\n\n3.  **Apply CRITICAL Final Pattern Checks:**\n\n    *   **1. Self-Join Validation:**\n        *   Analysis `self_join_hint`: `false`.\n        *   SQL does not use a self-join.\n        *   Match: Correct.\n\n    *   **2. Set Operation Validation:**\n        *   Analysis `set_operation_type`: `NONE`.\n        *   SQL does not use set operations.\n        *   Match: Correct.\n\n    *   **3. WHERE Condition Validation:**\n        *   Analysis `where_condition_type`: `NONE`. `null_handling`: `UNKNOWN`.\n        *   SQL does not have a `WHERE` clause. The filtering for \"students enrolled\" is implicitly handled by the `INNER JOIN`.\n        *   Match: Correct.\n\n    *   **4. GROUP BY Validation:**\n        *   Analysis `group_by`: `[]`.\n        *   SQL does not use `GROUP BY`.\n        *   Match: Correct.\n\n    *   **5. ORDER BY Validation:**\n        *   Analysis `order_by`: `[]`.\n        *   SQL does not use `ORDER BY`.\n        *   Match: Correct.\n\n    *   **6. DISTINCT Validation:**\n        *   The current SQL returns `course_name`. If a course has multiple students enrolled, its `course_name` would appear multiple times in the result of the `JOIN`. The question asks for \"names of all courses\", which usually implies unique names.\n        *   The analysis `expected_output_fields` and `output_fields_detailed` do not explicitly state `DISTINCT`. However, for \"names of all courses\", `DISTINCT` is often implied to avoid duplicate course names if a course has multiple student enrollments.\n        *   Let's consider the phrase \"What are the names of all courses that have some students enrolled?\". If Course A has Student 1 and Student 2, the join will produce two rows for Course A. Without `DISTINCT`, \"Course A\" would appear twice. This is generally not the desired behavior when listing \"names of all courses\". Adding `DISTINCT` would be more accurate for the common interpretation of such a question.\n\n    *   **Fix for DISTINCT:** The query should select `DISTINCT course_name` to ensure each course name appears only once, as per the typical understanding of \"names of all courses\".\n\n4.  **Construct the corrected SQL and explanation.**\n    *   Original SQL: `SELECT course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id;`\n    *   Corrected SQL: `SELECT DISTINCT T1.course_name FROM Courses AS T1 JOIN Student_Enrolment_Courses AS T2 ON T1.course_id = T2.course_id;`\n    *   Explanation: Added `DISTINCT` to `course_name` to ensure each course name is listed only once, even if a course has multiple student enrollments. Also added table aliases for clarity and adherence to common SQL practices.\n\nLet's re-verify the table aliases. The original SQL did not use aliases. While adding them is good practice, the validation checklist doesn't explicitly require them unless there's ambiguity. However, `SELECT DISTINCT T1.course_name` is safer. Let's stick to adding aliases for robustness.\n\nOne final check on the `DISTINCT` requirement: The analysis does not specify `DISTINCT` but rather `agg: NONE`. However, \"names of all courses\" without any aggregation typically implies unique names. A simple `JOIN` without `DISTINCT` would return a course name multiple times if that course has multiple student enrollments, which is usually not what's intended when listing \"names of courses\". Therefore, `DISTINCT` is a necessary addition for correctness in this context.{\n\"sql\": \"SELECT DISTINCT T1.course_name FROM Courses AS T1 JOIN Student_Enrolment_Courses AS T2 ON T1.course_id = T2.course_id;\",\n\"explain\": \"Added DISTINCT to course_name to ensure each course name appears only once, as is typically implied by 'names of all courses'. Also added table aliases for clarity.\",\n\"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3176,
+        "prompt_tokens": 1362,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1814,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:43:41.890293"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT T1.course_name FROM Courses AS T1 JOIN Student_Enrolment_Courses AS T2 ON T1.course_id = T2.course_id;",
+  "explain": "Added DISTINCT to course_name to ensure each course name appears only once, as is typically implied by 'names of all courses'. Also added table aliases for clarity.",
+  "error": "",
+  "timestamp": "2026-07-25T00:43:41.892076"
+}

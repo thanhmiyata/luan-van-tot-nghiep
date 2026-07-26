@@ -1,0 +1,76 @@
+{
+  "question_index": 759,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "What languages are only used by a single country with a republic government?",
+  "gold_query": "SELECT T2.Language FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T1.GovernmentForm  =  \"Republic\" GROUP BY T2.Language HAVING COUNT(*)  =  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 6.104,
+      "raw_response": "```json\n{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"FILTER|JOIN\"},\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"FILTER|JOIN\"},\n    {\"table\": \"country\", \"column\": \"GovernmentForm\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": true,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"country\", \"column\": \"GovernmentForm\", \"operator\": \"=\", \"value\": \"Republic\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"Republic\", \"table\": \"country\", \"column\": \"GovernmentForm\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter countries with government form 'Republic' and languages used by only one country.\"}\n  ],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\"}],\n  \"having\": [{\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"agg\": \"COUNT_DISTINCT\", \"operator\": \"=\", \"value\": 1}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"Match language usage with country government form.\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Language\", \"GovernmentForm\", \"CountryCode\"], \"values\": [\"Republic\"]},\n  \"confidence\": 0.95\n}\n```",
+      "token_usage": {
+        "total_tokens": 2921,
+        "prompt_tokens": 2294,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 627,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:48:34.190877"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 5.1,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\n1.  **Identify Required Tables:** The `analysis.required_tables` explicitly lists `country` and `countrylanguage`.\n2.  **Identify Required Columns:**\n    *   From `analysis.expected_output_fields`: `countrylanguage.Language`\n    *   From `analysis.filters`: `country.GovernmentForm`\n    *   From `analysis.group_by`: `countrylanguage.Language` (already captured)\n    *   From `analysis.having`: `countrylanguage.CountryCode` (for `COUNT_DISTINCT`)\n    *   For the join between `countrylanguage` and `country` (indicated by `join_hints` and the use of `CountryCode` and `Code` in `having` and implicit filtering):\n        *   `countrylanguage.CountryCode` (FK)\n        *   `country.Code` (PK)\n3.  **Construct the Filtered Schema:**\n    *   `table_names_original`: `country`, `countrylanguage`\n    *   `column_names_original`:\n        *   For `country`: `Code` (PK, for join), `GovernmentForm` (for filter)\n        *   For `countrylanguage`: `CountryCode` (FK, for join and having), `Language` (for output and group by)\n\nI will now format this into the required JSON structure.```json\n{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[\"country\", \"Code\"], [\"country\", \"GovernmentForm\"], [\"countrylanguage\", \"CountryCode\"], [\"countrylanguage\", \"Language\"]]}\n```",
+      "token_usage": {
+        "total_tokens": 2817,
+        "prompt_tokens": 1740,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1077,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:48:39.306719"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.131,
+      "raw_response": "{\n  \"steps\": [\"Filter countries with 'Republic' government form\", \"Join on CountryCode=Code\", \"Group by Language\", \"Count distinct CountryCode\", \"Filter languages used by only one country\"],\n  \"select\": [{\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"condition\": \"countrylanguage.CountryCode = country.Code\"}],\n  \"predicates\": [{\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"country.GovernmentForm = 'Republic'\"}],\n  \"group_by\": [{\"table\": \"countrylanguage\", \"column\": \"Language\"}],\n  \"having\": [{\"branch_id\": \"b1\", \"expression\": \"COUNT(DISTINCT countrylanguage.CountryCode) = 1\"}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": []\n}",
+      "token_usage": {
+        "total_tokens": 2036,
+        "prompt_tokens": 1801,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 235,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:48:41.454144"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.001,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT countrylanguage.Language FROM countrylanguage JOIN country ON countrylanguage.CountryCode = country.Code WHERE country.GovernmentForm = 'Republic' GROUP BY countrylanguage.Language HAVING COUNT(DISTINCT countrylanguage.CountryCode) = 1\"}",
+      "token_usage": {
+        "total_tokens": 2098,
+        "prompt_tokens": 2035,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 63,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:48:42.472706",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      }
+    }
+  ],
+  "final_sql": "SELECT DISTINCT countrylanguage.Language FROM countrylanguage JOIN country ON countrylanguage.CountryCode = country.Code WHERE country.GovernmentForm = 'Republic' GROUP BY countrylanguage.Language HAVING COUNT(DISTINCT countrylanguage.CountryCode) = 1",
+  "explain": "Validator no-op: current SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T17:48:42.479357"
+}

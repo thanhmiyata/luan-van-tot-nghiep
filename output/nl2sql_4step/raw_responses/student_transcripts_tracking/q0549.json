@@ -1,0 +1,69 @@
+{
+  "question_index": 549,
+  "pipeline": "4step",
+  "db_id": "student_transcripts_tracking",
+  "question": "Find the last name of the students who currently live in the state of North Carolina but have not registered in any degree program.",
+  "gold_query": "SELECT T1.last_name FROM Students AS T1 JOIN Addresses AS T2 ON T1.current_address_id  =  T2.address_id WHERE T2.state_province_county  =  'NorthCarolina' EXCEPT SELECT DISTINCT T3.last_name FROM Students AS T3 JOIN Student_Enrolment AS T4 ON T3.student_id  =  T4.student_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.764,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"last_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Addresses\", \"column\": \"state_province_county\", \"operator\": \"=\", \"value\": \"North Carolina\", \"value_type\": \"STRING\"},\n    {\"table\": \"Students\", \"column\": \"current_address_id\", \"operator\": \"IN\", \"value\": \"(subquery from Addresses)\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Students\", \"to_table\": \"Addresses\", \"reason\": \"Students filtered based on current address state\"},\n    {\"from_table\": \"Students\", \"to_table\": \"Student_Enrolment\", \"reason\": \"Finding students not registered in any degree program\"}\n  ],\n  \"entities\": {\"tables\": [\"Students\", \"Addresses\", \"Student_Enrolment\"], \"columns\": [\"last_name\", \"state_province_county\", \"current_address_id\", \"degree_program_id\"], \"values\": [\"North Carolina\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2316,
+        "prompt_tokens": 1997,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 319,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:07:36.878838"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 28.199,
+      "raw_response": "{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Addresses\", \"Degree_Programs\", \"Students\", \"Student_Enrolment\"], \"column_names_original\": [[-1, \"*\"], [0, \"address_id\"], [0, \"state_province_county\"], [1, \"degree_program_id\"], [2, \"student_id\"], [2, \"current_address_id\"], [2, \"last_name\"], [3, \"student_enrolment_id\"], [3, \"degree_program_id\"], [3, \"student_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\", \"number\", \"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[5, 1], [9, 4], [8, 3]], \"primary_keys\": [1, 3, 4, 7], \"column_sample_values\": [[], [], [\"Virginia\", \"Kentucky\", \"Kansas\", \"Washington\"], [\"Master\", \"Bachelor\", \"PHD\"], [], [], [\"Ward\", \"Balistreri\", \"Gleichner\", \"Carroll\"], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 8319,
+        "prompt_tokens": 1801,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 6518,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:08:05.079844"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.125,
+      "raw_response": "{\"sql\": \"SELECT Students.last_name FROM Students WHERE Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'North Carolina') AND Students.student_id NOT IN (SELECT student_id FROM Student_Enrolment)\"}",
+      "token_usage": {
+        "total_tokens": 1498,
+        "prompt_tokens": 1436,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 62,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:08:07.206344"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.15,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, following the 4-step checklist.\n\n**Checklist:**\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"last_name\"]`\n    *   SQL `SELECT`: `Students.last_name`\n    *   **MATCH.**\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   No `ORDER BY` in the SQL, which is correct as not requested.\n    *   The joins/subqueries are:\n        *   `Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'North Carolina')`: This correctly uses `current_address_id` (FK in Students) and `address_id` (PK in Addresses) to filter students by address state. This is a correct way to filter.\n        *   `Students.student_id NOT IN (SELECT student_id FROM Student_Enrolment)`: This correctly uses `student_id` (PK in Students and FK in Student_Enrolment) to exclude students who are enrolled.\n    *   The subqueries are appropriate for the filtering logic required. No explicit joins are used in the main query, but the `IN` and `NOT IN` clauses effectively link the tables.\n    *   No `COUNT(*)` is used, nor is it needed as the request is to list `last_name`.\n    *   **MATCH.**\n\n3.  **Text literals match real values from `column_sample_values`; column/table names exist; SQL is complete and one line:**\n    *   Text literal: `'North Carolina'`. The `column_sample_values` for `state_province_county` are `[\"Virginia\",\"Kentucky\",\"Kansas\",\"Washington\"]`. While `'North Carolina'` is not in the *sample values*, it's a plausible value for a state/province/county. The prompt asks for \"exact casing/spelling when available\", meaning if it *were* in samples, it'd need to match. Since it's not, we assume it's a valid, real value not present in *these specific* samples.\n    *   Table names: `Students`, `Addresses`, `Student_Enrolment` - all exist.\n    *   Column names: `last_name`, `current_address_id`, `address_id`, `state_province_county`, `student_id` - all exist.\n    *   SQL is complete and one line.\n    *   **MATCH.**\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable:**\n    *   No issues found. The SQL looks correct and directly addresses the question based on the schema and analysis.\n\nTherefore, the SQL is valid as is.```json\n{\n  \"sql\": \"SELECT Students.last_name FROM Students WHERE Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'North Carolina') AND Students.student_id NOT IN (SELECT student_id FROM Student_Enrolment)\",\n  \"explain\": \"The SQL query correctly selects the last names of students by filtering for their current address being in 'North Carolina' and excluding students who appear in the Student_Enrolment table, fulfilling all conditions in the question and matching the expected output fields and filtering logic.\",\n  \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1829,
+        "prompt_tokens": 1059,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 770,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:08:11.357817"
+    }
+  ],
+  "final_sql": "SELECT Students.last_name FROM Students WHERE Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'North Carolina') AND Students.student_id NOT IN (SELECT student_id FROM Student_Enrolment)",
+  "explain": "The SQL query correctly selects the last names of students by filtering for their current address being in 'North Carolina' and excluding students who appear in the Student_Enrolment table, fulfilling all conditions in the question and matching the expected output fields and filtering logic.",
+  "error": "",
+  "timestamp": "2026-07-25T00:08:11.359211"
+}

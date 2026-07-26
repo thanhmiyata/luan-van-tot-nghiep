@@ -1,0 +1,69 @@
+{
+  "question_index": 401,
+  "pipeline": "4step",
+  "db_id": "course_teach",
+  "question": "Show names of teachers and the courses they are arranged to teach in ascending alphabetical order of the teacher's name.",
+  "gold_query": "SELECT T3.Name ,  T2.Course FROM course_arrange AS T1 JOIN course AS T2 ON T1.Course_ID  =  T2.Course_ID JOIN teacher AS T3 ON T1.Teacher_ID  =  T3.Teacher_ID ORDER BY T3.Name",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.849,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\", \"Course\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"teacher\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"course\", \"column\": \"Course\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"teacher\", \"column\": \"Name\", \"direction\": \"ASC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"course_arrange\", \"to_table\": \"teacher\", \"reason\": \"teacher assignment\"},\n    {\"from_table\": \"course_arrange\", \"to_table\": \"course\", \"reason\": \"course assignment\"}\n  ],\n  \"entities\": {\"tables\": [\"teacher\", \"course\", \"course_arrange\"], \"columns\": [\"Name\", \"Course\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1296,
+        "prompt_tokens": 1033,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 263,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:41:04.108542"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 10.931,
+      "raw_response": "```json\n{\n  \"db_id\": \"course_teach\",\n  \"table_names_original\": [\n    \"course\",\n    \"teacher\",\n    \"course_arrange\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Course_ID\"\n    ],\n    [\n      0,\n      \"Course\"\n    ],\n    [\n      1,\n      \"Teacher_ID\"\n    ],\n    [\n      1,\n      \"Name\"\n    ],\n    [\n      2,\n      \"Course_ID\"\n    ],\n    [\n      2,\n      \"Teacher_ID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      6,\n      3\n    ],\n    [\n      5,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Language Arts\",\n      \"Math\",\n      \"Science\",\n      \"History\"\n    ],\n    [],\n    [\n      \"Joseph Huts\",\n      \"Gustaaf Deloor\",\n      \"Vicente Carretero\",\n      \"John Deloor\"\n    ],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 3206,
+        "prompt_tokens": 832,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2374,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:41:15.040499"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.115,
+      "raw_response": "{\"sql\": \"SELECT t.Name, c.Course FROM teacher t JOIN course_arrange ca ON t.Teacher_ID = ca.Teacher_ID JOIN course c ON ca.Course_ID = c.Course_ID ORDER BY t.Name ASC\"}",
+      "token_usage": {
+        "total_tokens": 1232,
+        "prompt_tokens": 1176,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 56,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:41:16.157817"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.396,
+      "raw_response": "I need to validate the provided SQL query against the given criteria and the analysis.\n\nHere's the checklist:\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"Name\", \"Course\"]`\n    *   `SQL SELECT`: `SELECT t.Name, c.Course`\n    *   Matches in content and order. (Pass)\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   **ORDER BY:** The question explicitly asks for \"ascending alphabetical order of the teacher's name,\" and the analysis `order_by` also includes `{\"table\": \"teacher\", \"column\": \"Name\", \"direction\": \"ASC\"}`. The SQL has `ORDER BY t.Name ASC`. This is needed. (Pass)\n    *   **Joins:**\n        *   `teacher t JOIN course_arrange ca ON t.Teacher_ID = ca.Teacher_ID`: `Teacher_ID` (teacher) is a PK, `Teacher_ID` (course_arrange) is an FK. Correct.\n        *   `course_arrange ca JOIN course c ON ca.Course_ID = c.Course_ID`: `Course_ID` (course_arrange) is an FK, `Course_ID` (course) is a PK. Correct.\n        *   The joins are necessary to link teachers to courses via the `course_arrange` table. (Pass)\n    *   **COUNT(*):** Not applicable here as it's a `SELECT` statement, not a `COUNT`.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available:**\n    *   No text literals are used in the `WHERE` clause. Not applicable.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   **Table names:** `teacher`, `course_arrange`, `course` exist in the schema.\n    *   **Column names:** `Name` (teacher), `Course` (course), `Teacher_ID` (teacher, course_arrange), `Course_ID` (course, course_arrange) all exist in the schema.\n    *   **SQL complete and one line:** Yes, the provided SQL is a complete, valid SQL statement and is on one line. (Pass)\n\nAll checks pass. No corrections are needed.{\"sql\": \"SELECT t.Name, c.Course FROM teacher AS t JOIN course_arrange AS ca ON t.Teacher_ID = ca.Teacher_ID JOIN course AS c ON ca.Course_ID = c.Course_ID ORDER BY t.Name ASC\", \"explain\": \"The SQL query correctly selects the teacher's name and course, joins the necessary tables (teacher, course_arrange, course) using appropriate foreign and primary keys, and orders the results by teacher name in ascending order as requested by the question. All column and table names are valid according to the schema.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1523,
+        "prompt_tokens": 857,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 666,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:41:20.555356"
+    }
+  ],
+  "final_sql": "SELECT t.Name, c.Course FROM teacher AS t JOIN course_arrange AS ca ON t.Teacher_ID = ca.Teacher_ID JOIN course AS c ON ca.Course_ID = c.Course_ID ORDER BY t.Name ASC",
+  "explain": "The SQL query correctly selects the teacher's name and course, joins the necessary tables (teacher, course_arrange, course) using appropriate foreign and primary keys, and orders the results by teacher name in ascending order as requested by the question. All column and table names are valid according to the schema.",
+  "error": "",
+  "timestamp": "2026-07-24T12:41:20.557538"
+}

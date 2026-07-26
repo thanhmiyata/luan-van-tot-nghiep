@@ -1,0 +1,69 @@
+{
+  "question_index": 1033,
+  "pipeline": "4step",
+  "db_id": "real_estate_properties",
+  "question": "What are the names of properties that are either houses or apartments with more than 1 room?",
+  "gold_query": "SELECT property_name FROM Properties WHERE property_type_code  =  \"House\" UNION SELECT property_name FROM Properties WHERE property_type_code  =  \"Apartment\" AND room_count  >  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 1.94,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"property_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Properties\", \"column\": \"property_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Properties\", \"column\": \"room_count\", \"operator\": \">\", \"value\": \"1\", \"value_type\": \"NUMBER\"},\n    {\"table\": \"Ref_Property_Types\", \"column\": \"property_type_description\", \"operator\": \"IN\", \"value\": [\"House\", \"Apartment\"], \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Properties\", \"to_table\": \"Ref_Property_Types\", \"reason\": \"to filter property types as either houses or apartments\"}],\n  \"entities\": {\"tables\": [\"Properties\", \"Ref_Property_Types\"], \"columns\": [\"property_name\", \"room_count\", \"property_type_description\"], \"values\": [\"House\", \"Apartment\", \"1\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1916,
+        "prompt_tokens": 1635,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 281,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:39:14.803726"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.977,
+      "raw_response": "{\"db_id\": \"real_estate_properties\", \"table_names_original\": [\"Ref_Property_Types\", \"Properties\"], \"column_names_original\": [[-1, \"*\"], [0, \"property_type_code\"], [0, \"property_type_description\"], [1, \"property_id\"], [1, \"property_type_code\"], [1, \"property_name\"], [1, \"room_count\"]], \"column_types\": [\"text\", \"text\", \"number\", \"text\", \"text\", \"number\"], \"foreign_keys\": [[3, 0]], \"primary_keys\": [0, 2], \"column_sample_values\": [[], [\"Apartment\", \"Field\", \"House\", \"Other\"], [\"House, Bungalow, etc.\", \"Apartment, Flat, Condo, etc.\", \"Field, Meadow.\", \"Other, to be determined.\"], [], [\"House\", \"Other\", \"Field\", \"Apartment\"], [\"park\", \"the cole\", \"prism\", \"riverside\"], []]}",
+      "token_usage": {
+        "total_tokens": 4082,
+        "prompt_tokens": 1318,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2764,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:39:26.782115"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.307,
+      "raw_response": "{\"sql\": \"SELECT P.property_name FROM Properties P JOIN Ref_Property_Types R ON P.property_type_code = R.property_type_code WHERE P.room_count > 1 AND R.property_type_description IN ('House', 'Apartment')\"}",
+      "token_usage": {
+        "total_tokens": 1419,
+        "prompt_tokens": 1361,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 58,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:39:28.090548"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.783,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, ensuring it meets all the specified criteria.\n\nHere's the plan:\n1.  **Check SELECT clause:** Does `SELECT P.property_name` match `expected_output_fields: [\"property_name\"]`? Yes, it does.\n2.  **Check Joins:**\n    *   `JOIN Ref_Property_Types R ON P.property_type_code = R.property_type_code`: Is this join necessary? Yes, because the filter `R.property_type_description IN ('House', 'Apartment')` requires `Ref_Property_Types`.\n    *   Are PK/FK correct? `Ref_Property_Types.property_type_code` (PK: `property_type_code` in `Ref_Property_Types` is not explicitly a PK, but it's a FK target) and `Properties.property_type_code` (FK `[4,1]` means `Properties.property_type_code` refers to `Ref_Property_Types.property_type_code`). The join condition `P.property_type_code = R.property_type_code` is correct.\n    *   Does the join duplicate rows for `Properties.property_name`? No, because `property_type_code` is a one-to-many relationship where one property type can have many properties, but one property has only one type. So, a simple `JOIN` is fine; `COUNT(DISTINCT ...)` is not needed here if we were counting, but we are just selecting names.\n3.  **Check WHERE clause:**\n    *   `P.room_count > 1`: Matches `filters: [{\"table\": \"Properties\", \"column\": \"room_count\", \"operator\": \">\", \"value\": \"1\"}]`. Correct.\n    *   `R.property_type_description IN ('House', 'Apartment')`: Matches `filters: [{\"table\": \"Ref_Property_Types\", \"column\": \"property_type_description\", \"operator\": \"IN\", \"value\": [\"House\", \"Apartment\"]}]`. Correct.\n    *   Are the literal values `('House', 'Apartment')` correct? They are present in `column_sample_values` for `Ref_Property_Types.property_type_description`. Correct casing and spelling.\n4.  **Check ORDER BY:** No `ORDER BY` clause in the SQL. `order_by: []` in analysis. Correct.\n5.  **Check column/table names:** All names (`Properties`, `P`, `Ref_Property_Types`, `R`, `property_name`, `property_type_code`, `room_count`, `property_type_description`) exist in the schema.\n6.  **SQL completeness and formatting:** The SQL is complete, one line, and no comments.\n\nThe SQL appears to be correct and aligns perfectly with the analysis and schema.```json\n{\n  \"sql\": \"SELECT P.property_name FROM Properties AS P JOIN Ref_Property_Types AS R ON P.property_type_code = R.property_type_code WHERE P.room_count > 1 AND R.property_type_description IN ('House', 'Apartment')\",\n  \"explain\": \"The SQL query accurately selects property names based on the conditions: more than 1 room and property type being either 'House' or 'Apartment'. The join is necessary and correct for filtering by property type description. All column and table names exist, and the literal values match sample values. No issues found.\",\n  \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1785,
+        "prompt_tokens": 993,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 792,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:39:31.875509"
+    }
+  ],
+  "final_sql": "SELECT P.property_name FROM Properties AS P JOIN Ref_Property_Types AS R ON P.property_type_code = R.property_type_code WHERE P.room_count > 1 AND R.property_type_description IN ('House', 'Apartment')",
+  "explain": "The SQL query accurately selects property names based on the conditions: more than 1 room and property type being either 'House' or 'Apartment'. The join is necessary and correct for filtering by property type description. All column and table names exist, and the literal values match sample values. No issues found.",
+  "error": "",
+  "timestamp": "2026-07-25T05:39:31.877096"
+}

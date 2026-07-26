@@ -1,0 +1,97 @@
+{
+  "question_index": 129,
+  "pipeline": "6step",
+  "db_id": "car_1",
+  "question": "Which countries in europe have at least 3 car manufacturers?",
+  "gold_query": "SELECT T1.CountryName FROM COUNTRIES AS T1 JOIN CONTINENTS AS T2 ON T1.Continent  =  T2.ContId JOIN CAR_MAKERS AS T3 ON T1.CountryId  =  T3.Country WHERE T2.Continent  =  'europe' GROUP BY T1.CountryName HAVING count(*)  >=  3;",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.529,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"CountryName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"continents\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Europe\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [\n    {\"table\": \"countries\", \"column\": \"CountryName\"}\n  ],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"countries\", \"to_table\": \"continents\", \"reason\": \"filter by Continent\"},\n    {\"from_table\": \"car_makers\", \"to_table\": \"countries\", \"reason\": \"count car makers per country\"}\n  ],\n  \"entities\": {\"tables\": [\"countries\", \"continents\", \"car_makers\"], \"columns\": [\"CountryName\", \"Continent\", \"Country\"], \"values\": [\"Europe\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1731,
+        "prompt_tokens": 1419,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 312,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:24:22.782208"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.734,
+      "raw_response": "```json\n{\n  \"db_id\": \"car_1\",\n  \"table_names_original\": [\n    \"continents\",\n    \"countries\",\n    \"car_makers\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"ContId\"],\n    [0, \"Continent\"],\n    [1, \"CountryId\"],\n    [1, \"CountryName\"],\n    [1, \"Continent\"],\n    [2, \"Id\"],\n    [2, \"Country\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [5, 1],\n    [7, 3]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    6\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4814,
+        "prompt_tokens": 925,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3889,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:24:40.537500"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.207,
+      "raw_response": "{\n  \"steps\": [\n    {\n      \"operation\": \"join\",\n      \"tables\": [\"countries\", \"continents\"],\n      \"condition\": \"countries.Continent = continents.ContId\",\n      \"reason\": \"To filter countries that are in Europe\"\n    },\n    {\n      \"operation\": \"filter\",\n      \"table\": \"continents\",\n      \"condition\": \"continents.Continent = 'Europe'\",\n      \"reason\": \"To select only European countries\"\n    },\n    {\n      \"operation\": \"join\",\n      \"tables\": [\"countries\", \"car_makers\"],\n      \"condition\": \"countries.CountryId = car_makers.Country\",\n      \"reason\": \"To count car makers per country\"\n    },\n    {\n      \"operation\": \"group_by\",\n      \"table\": \"countries\",\n      \"column\": \"countries.CountryName\",\n      \"reason\": \"To group by country name\"\n    },\n    {\n      \"operation\": \"having\",\n      \"condition\": \"COUNT(car_makers.Id) >= 3\",\n      \"reason\": \"To filter countries having at least 3 car manufacturers\"\n    }\n  ]\n}",
+      "token_usage": {
+        "total_tokens": 1608,
+        "prompt_tokens": 1364,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 244,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:24:44.767592"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.22,
+      "raw_response": "{\"sql\": \"SELECT countries.CountryName FROM countries JOIN continents ON countries.Continent = continents.ContId JOIN car_makers ON countries.CountryId = car_makers.Country WHERE continents.Continent = 'Europe' GROUP BY countries.CountryName HAVING COUNT(car_makers.Id) >= 3\"}",
+      "token_usage": {
+        "total_tokens": 1848,
+        "prompt_tokens": 1774,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 74,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:24:46.007017"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.001,
+      "raw_response": "{\"sql\": \"SELECT countries.CountryName FROM countries JOIN continents ON countries.Continent = continents.ContId JOIN car_makers ON countries.CountryId = car_makers.Country WHERE continents.Continent = 'Europe' GROUP BY countries.CountryName HAVING COUNT(DISTINCT car_makers.Id) >= 3\", \"notes\": \"Ensured SELECT statement matches expected output. Changed COUNT to COUNT(DISTINCT) to adhere to desired cardinality of car manufacturers per country.\", \"diagnostics\": [\"Aligned SELECT statement with expected output fields.\", \"Swapped COUNT to COUNT(DISTINCT) to accurately count car manufacturers.\", \"Verified joins and grouping match analysis and plan expectations.\"]}",
+      "token_usage": {
+        "total_tokens": 1687,
+        "prompt_tokens": 1538,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 149,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:24:48.031453"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.279,
+      "raw_response": "{\"sql\": \"SELECT T1.CountryName FROM countries AS T1 JOIN continents AS T2 ON T1.Continent = T2.ContId JOIN car_makers AS T3 ON T1.CountryId = T3.Country WHERE T2.Continent = 'Europe' GROUP BY T1.CountryName HAVING COUNT(DISTINCT T3.Id) >= 3\", \"explain\": \"The SQL is correct as per the schema, question, and analysis. All joins are necessary and on correct PK/FKs. SELECT matches expected output. COUNT(DISTINCT) is correctly used. GROUP BY is appropriate. No unnecessary ORDER BY. Aliases were added for brevity and clarity.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2360,
+        "prompt_tokens": 1358,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1002,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:24:54.330323"
+    }
+  ],
+  "final_sql": "SELECT T1.CountryName FROM countries AS T1 JOIN continents AS T2 ON T1.Continent = T2.ContId JOIN car_makers AS T3 ON T1.CountryId = T3.Country WHERE T2.Continent = 'Europe' GROUP BY T1.CountryName HAVING COUNT(DISTINCT T3.Id) >= 3",
+  "explain": "The SQL is correct as per the schema, question, and analysis. All joins are necessary and on correct PK/FKs. SELECT matches expected output. COUNT(DISTINCT) is correctly used. GROUP BY is appropriate. No unnecessary ORDER BY. Aliases were added for brevity and clarity.",
+  "error": "",
+  "timestamp": "2026-07-24T02:24:54.332004"
+}

@@ -1,0 +1,97 @@
+{
+  "question_index": 854,
+  "pipeline": "6step",
+  "db_id": "orchestra",
+  "question": "List the names of orchestras that have no performance.",
+  "gold_query": "SELECT Orchestra FROM orchestra WHERE Orchestra_ID NOT IN (SELECT Orchestra_ID FROM performance)",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.413,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Orchestra\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"orchestra\", \"column\": \"Orchestra\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"performance\", \"column\": \"Orchestra_ID\", \"operator\": \"SQL_NULL\", \"value\": null, \"value_type\": \"OTHER\"},\n    {\"table\": \"orchestra\", \"column\": \"Orchestra_ID\", \"operator\": \"EQUALS\", \"value\": \"performance.Orchestra_ID\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"orchestra\", \"to_table\": \"performance\", \"reason\": \"to check performances\"}],\n  \"entities\": {\"tables\": [\"orchestra\", \"performance\"], \"columns\": [\"Orchestra\", \"Orchestra_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"SQL_NULL\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1965,
+        "prompt_tokens": 1665,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 300,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:43:54.245150"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 22.884,
+      "raw_response": "```json\n{\n  \"db_id\": \"orchestra\",\n  \"table_names_original\": [\n    \"orchestra\",\n    \"performance\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [1, \"Orchestra_ID\"],\n    [1, \"Orchestra\"],\n    [2, \"Orchestra_ID\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [3, 1]\n  ],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"London Symphony Orchestra\",\n      \"Columbia Symphony Orchestra\",\n      \"Royal Concertgebouw Orchestra\",\n      \"Royal Danish Orchestra\"\n    ],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 6252,
+        "prompt_tokens": 1105,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5147,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:44:17.146949"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 1.655,
+      "raw_response": "{ \"steps\": [ { \"action\": \"SELECT\", \"columns\": [\"orchestra.Orchestra\"], \"from\": \"orchestra\", \"join\": { \"table\": \"performance\", \"type\": \"LEFT\", \"on\": \"orchestra.Orchestra_ID = performance.Orchestra_ID\" }, \"where\": \"performance.Orchestra_ID IS NULL\", \"orderby\": [] } ] }",
+      "token_usage": {
+        "total_tokens": 1502,
+        "prompt_tokens": 1413,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 89,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:44:18.819761"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.078,
+      "raw_response": "{\"sql\": \"SELECT orchestra.Orchestra FROM orchestra LEFT JOIN performance ON orchestra.Orchestra_ID = performance.Orchestra_ID WHERE performance.Orchestra_ID IS NULL\"}",
+      "token_usage": {
+        "total_tokens": 1859,
+        "prompt_tokens": 1817,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 42,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:44:19.916194"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.771,
+      "raw_response": "{\"sql\": \"SELECT orchestra.Orchestra FROM orchestra LEFT JOIN performance ON orchestra.Orchestra_ID = performance.Orchestra_ID WHERE performance.Orchestra_ID IS NULL\", \"notes\": \"The initial SQL already fulfills the requirement of listing orchestras with no performances. The join and filter conditions are correct.\", \"diagnostics\": [\"The SELECT clause correctly fetches the 'Orchestra' name.\", \"JOIN conditions are properly established to check for orchestras without performances.\", \"The LEFT JOIN and IS NULL condition appropriately identify orchestras lacking an associated record in the performance table.\"]}",
+      "token_usage": {
+        "total_tokens": 1531,
+        "prompt_tokens": 1407,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 124,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:44:21.705999"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.483,
+      "raw_response": "I need to validate the provided SQL against the given analysis and schema, applying the 6-step validation checklist.\n\n**Validation Steps:**\n\n1.  **SELECT = expected_output_fields (content/order):**\n    *   Expected: `[\"Orchestra\"]`\n    *   Current: `SELECT orchestra.Orchestra`\n    *   Matches.\n\n2.  **Counts, GROUP BY, Extremum patterns:**\n    *   No counts or extremum patterns.\n    *   No GROUP BY. This is fine.\n\n3.  **No unnecessary joins; correct PK/FK:**\n    *   SQL: `FROM orchestra LEFT JOIN performance ON orchestra.Orchestra_ID = performance.Orchestra_ID`\n    *   Schema FK: `[[4,1]]` -> `performance.Orchestra_ID` references `orchestra.Orchestra_ID`.\n    *   The join is necessary to filter based on `performance` table. The join condition `orchestra.Orchestra_ID = performance.Orchestra_ID` is correct.\n    *   `LEFT JOIN` with `WHERE performance.Orchestra_ID IS NULL` is a standard pattern to find rows in `orchestra` that have no matching rows in `performance`, which aligns with the question \"List the names of orchestras that have no performance.\"\n\n4.  **Remove ORDER BY:**\n    *   No ORDER BY in the current SQL. Matches analysis.\n\n5.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   `orchestra`, `performance`, `Orchestra_ID`, `Orchestra` all exist.\n    *   SQL is complete, single line, no comments.\n\n6.  **Critical Final Pattern Checks:**\n    *   **Self-Join Validation:** `self_join_hint=false`. SQL doesn't use self-join. Correct.\n    *   **Set Operation Validation:** `set_operation_type=NONE`. SQL doesn't use set operations. Correct.\n    *   **WHERE Condition Validation:**\n        *   Analysis `filters`: `{\"table\": \"performance\", \"column\": \"Orchestra_ID\", \"operator\": \"SQL_NULL\", \"value\": null, \"value_type\": \"OTHER\"}` and `null_handling=SQL_NULL`.\n        *   SQL: `WHERE performance.Orchestra_ID IS NULL`. This matches the analysis.\n    *   **GROUP BY Validation:** No GROUP BY in analysis or SQL. Correct.\n    *   **ORDER BY Validation:** No ORDER BY in analysis or SQL. Correct.\n    *   **DISTINCT Validation:** Not applicable.\n\nThe SQL appears to be correct and aligns perfectly with the analysis and schema. No fixes are needed.{\"sql\": \"SELECT orchestra.Orchestra FROM orchestra LEFT JOIN performance ON orchestra.Orchestra_ID = performance.Orchestra_ID WHERE performance.Orchestra_ID IS NULL\", \"explain\": \"The SQL is correct and aligns with the analysis. It uses a LEFT JOIN and checks for NULL in the right table's join column to find orchestras with no performances.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2065,
+        "prompt_tokens": 1377,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 688,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:44:25.206165"
+    }
+  ],
+  "final_sql": "SELECT orchestra.Orchestra FROM orchestra LEFT JOIN performance ON orchestra.Orchestra_ID = performance.Orchestra_ID WHERE performance.Orchestra_ID IS NULL",
+  "explain": "The SQL is correct and aligns with the analysis. It uses a LEFT JOIN and checks for NULL in the right table's join column to find orchestras with no performances.",
+  "error": "",
+  "timestamp": "2026-07-24T14:44:25.208089"
+}

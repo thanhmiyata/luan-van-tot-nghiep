@@ -1,0 +1,69 @@
+{
+  "question_index": 410,
+  "pipeline": "4step",
+  "db_id": "course_teach",
+  "question": "What are the names of the teachers whose courses have not been arranged?",
+  "gold_query": "SELECT Name FROM teacher WHERE Teacher_id NOT IN (SELECT Teacher_id FROM course_arrange)",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.156,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"teacher\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"course_arrange\", \"column\": \"Teacher_ID\", \"operator\": \"IS\", \"value\": \"NULL\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"teacher\", \"to_table\": \"course_arrange\", \"reason\": \"to match teachers with their courses arrangements\"}],\n  \"entities\": {\"tables\": [\"teacher\", \"course_arrange\"], \"columns\": [\"Name\", \"Teacher_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1251,
+        "prompt_tokens": 1025,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 226,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:44:40.493030"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.654,
+      "raw_response": "```json\n{\n  \"db_id\": \"course_teach\",\n  \"table_names_original\": [\n    \"teacher\",\n    \"course_arrange\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Teacher_ID\"\n    ],\n    [\n      0,\n      \"Name\"\n    ],\n    [\n      1,\n      \"Course_ID\"\n    ],\n    [\n      1,\n      \"Teacher_ID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": []\n}\n```",
+      "token_usage": {
+        "total_tokens": 5135,
+        "prompt_tokens": 786,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4349,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:44:58.148083"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.27,
+      "raw_response": "{\"sql\": \"SELECT teacher.Name FROM teacher LEFT JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID WHERE course_arrange.Course_ID IS NULL\"}",
+      "token_usage": {
+        "total_tokens": 1250,
+        "prompt_tokens": 1097,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 153,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:45:00.419174"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.601,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\n\n1.  **SELECT matches expected_output_fields:**\n    *   Expected: `[\"Name\"]`\n    *   Actual: `teacher.Name`\n    *   Matches.\n\n2.  **Joins and ORDER BY:**\n    *   The query uses `LEFT JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID`.\n    *   The `WHERE course_arrange.Course_ID IS NULL` condition, combined with a `LEFT JOIN`, correctly identifies teachers who do not have any entries in `course_arrange`, or whose `course_arrange` entries have a `NULL` `Course_ID`. The question \"What are the names of the teachers whose courses have not been arranged?\" strongly implies finding teachers with *no* corresponding arrangement. A `LEFT JOIN` and `IS NULL` on the right table's column (specifically `Course_ID` which is a PK in `course_arrange` or at least a column that would be present if an arrangement existed) correctly achieves this.\n    *   No `ORDER BY` is present, which is correct as the analysis does not specify one.\n    *   The join condition `teacher.Teacher_ID = course_arrange.Teacher_ID` uses the foreign key relationship (`[4,1]` means column 4 `course_arrange.Teacher_ID` is FK to column 1 `teacher.Teacher_ID`). This is correct.\n\n3.  **Names exist; SQL complete and one line:**\n    *   `teacher`, `Teacher_ID`, `Name`, `course_arrange`, `Course_ID` all exist in the schema.\n    *   The SQL is complete and on one line.\n\n4.  **Fix issues and return corrected SQL plus brief explain:**\n    *   No issues found. The SQL perfectly aligns with the requirements.\n\nThe SQL `SELECT teacher.Name FROM teacher LEFT JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID WHERE course_arrange.Course_ID IS NULL` correctly retrieves the names of teachers who do not have any course arrangements. The `LEFT JOIN` ensures all teachers are included, and `WHERE course_arrange.Course_ID IS NULL` filters for those teachers who have no matching `course_arrange` entries (because for non-matches, all columns from `course_arrange` would be `NULL`, including `Course_ID`).{\"sql\": \"SELECT teacher.Name FROM teacher LEFT JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID WHERE course_arrange.Course_ID IS NULL\", \"explain\": \"The SQL correctly uses a LEFT JOIN to include all teachers and then filters for those whose course arrangements are NULL, indicating no courses have been arranged for them. All column and table names are valid and the output fields match the expected fields.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1386,
+        "prompt_tokens": 764,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 622,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T12:45:04.021820"
+    }
+  ],
+  "final_sql": "SELECT teacher.Name FROM teacher LEFT JOIN course_arrange ON teacher.Teacher_ID = course_arrange.Teacher_ID WHERE course_arrange.Course_ID IS NULL",
+  "explain": "The SQL correctly uses a LEFT JOIN to include all teachers and then filters for those whose course arrangements are NULL, indicating no courses have been arranged for them. All column and table names are valid and the output fields match the expected fields.",
+  "error": "",
+  "timestamp": "2026-07-24T12:45:04.023345"
+}

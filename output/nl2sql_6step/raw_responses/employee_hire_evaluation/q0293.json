@@ -1,0 +1,97 @@
+{
+  "question_index": 293,
+  "pipeline": "6step",
+  "db_id": "employee_hire_evaluation",
+  "question": "Which district has both stores with less than 3000 products and stores with more than 10000 products?",
+  "gold_query": "SELECT district FROM shop WHERE Number_products  <  3000 INTERSECT SELECT district FROM shop WHERE Number_products  >  10000",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.29,
+      "raw_response": "{\n  \"intent\": \"BOOLEAN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"District\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"shop\", \"column\": \"District\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"shop\", \"column\": \"Number_products\", \"operator\": \"<\", \"value\": \"3000\", \"value_type\": \"NUMBER\"},\n    {\"table\": \"shop\", \"column\": \"Number_products\", \"operator\": \">\", \"value\": \"10000\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [\n    {\"table\": \"shop\", \"column\": \"District\"}\n  ],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"shop\"], \"columns\": [\"District\", \"Number_products\"], \"values\": [\"3000\", \"10000\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"INTERSECT\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1900,
+        "prompt_tokens": 1618,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 282,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:05:54.985855"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.193,
+      "raw_response": "{\"db_id\": \"employee_hire_evaluation\", \"table_names_original\": [\"shop\"], \"column_names_original\": [[-1, \"*\"], [0, \"Shop_ID\"], [0, \"District\"], [0, \"Number_products\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\"], \"foreign_keys\": [], \"primary_keys\": [1], \"column_sample_values\": [[], [], [\"Tehtaan kenttä\", \"Finnair Stadium\", \"Tapiolan Urheilupuisto\", \"Veritas Stadion\"], []]}",
+      "token_usage": {
+        "total_tokens": 3859,
+        "prompt_tokens": 1048,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2811,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:06:09.195944"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.155,
+      "raw_response": "{ \"steps\": [ { \"action\": \"List minimal tables\", \"result\": \"No join needed as single_table_ok is true and all necessary columns are in the 'shop' table.\" }, { \"action\": \"Specify set operation\", \"result\": \"Use INTERSECT as set_operation_type=INTERSECT to find districts with both conditions.\" }, { \"action\": \"Formulate first SELECT for INTERSECT\", \"result\": \"SELECT District FROM shop WHERE Number_products < 3000 GROUP BY District\" }, { \"action\": \"Formulate second SELECT for INTERSECT\", \"result\": \"SELECT District FROM shop WHERE Number_products > 10000 GROUP BY District\" }, { \"action\": \"Combine SELECT statements with INTERSECT\", \"result\": \"SELECT District FROM shop WHERE Number_products < 3000 GROUP BY District INTERSECT SELECT District FROM shop WHERE Number_products > 10000 GROUP BY District\" } ] }",
+      "token_usage": {
+        "total_tokens": 1593,
+        "prompt_tokens": 1389,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 204,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:06:12.368498"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.371,
+      "raw_response": "{\"sql\": \"SELECT District FROM shop WHERE Number_products < 3000 GROUP BY District INTERSECT SELECT District FROM shop WHERE Number_products > 10000 GROUP BY District\"}",
+      "token_usage": {
+        "total_tokens": 1951,
+        "prompt_tokens": 1904,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 47,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:06:13.757795"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.338,
+      "raw_response": "{\"sql\": \"SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000\", \"notes\": \"Removed unnecessary GROUP BY as there are no aggregations involved, align with expected output field.\", \"diagnostics\": [\"Adjusted the SQL to match expected output fields exactly.\", \"Unnecessary GROUP BY clauses were removed as they are not required for the INTERSECT operation.\"]}",
+      "token_usage": {
+        "total_tokens": 1599,
+        "prompt_tokens": 1499,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 100,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:06:15.115594"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.324,
+      "raw_response": "The user wants me to act as a Final Validator for a given SQL query based on a provided schema, question, and analysis. I need to go through a 6-step validation checklist and return a JSON object with the corrected SQL and a brief explanation, or an error if unfixable.\n\nHere's my validation process:\n\n1.  **SELECT = expected_output_fields (content/order):**\n    *   Expected output fields: `[\"District\"]`\n    *   Current SQL SELECT: `SELECT District`\n    *   Matches.\n\n2.  **Counts / GROUP BY:**\n    *   No `COUNT(*)` or other aggregations in the SELECT.\n    *   The question asks for districts that have *both* types of stores, implying uniqueness of districts is desired. The `INTERSECT` operator inherently handles uniqueness for the resulting districts. No explicit `GROUP BY` is needed for aggregation, nor `DISTINCT` in the subqueries if `INTERSECT` is used (as INTERSECT itself implies distinct results).\n\n3.  **Extremum patterns:**\n    *   Not applicable here, no earliest/latest.\n\n4.  **No unnecessary joins / correct PK/FK:**\n    *   `single_table_ok=true` in analysis.\n    *   The current SQL uses only the `shop` table. No joins are present. This is correct.\n\n5.  **Remove ORDER BY:**\n    *   The current SQL has no `ORDER BY`. This is correct.\n\n6.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   `District` and `Number_products` are valid columns in the `shop` table.\n    *   `shop` is a valid table.\n    *   SQL is complete, single line, no comments.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:**\n    *   `self_join_hint=false` in analysis.\n    *   SQL does *not* use a self-join. It uses `INTERSECT`. This is consistent with the analysis not explicitly requiring a self-join and the chosen `set_operation_type`.\n\n2.  **Set Operation Validation:**\n    *   `set_operation_type: INTERSECT` in analysis.\n    *   SQL uses `INTERSECT`. This is correct.\n    *   The structure `SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000` correctly finds districts that appear in *both* sets of shops (those with <3000 products and those with >10000 products).\n\n3.  **WHERE Condition Validation:**\n    *   `where_condition_type: RANGE` in analysis.\n    *   Conditions are `Number_products < 3000` and `Number_products > 10000`. These are range conditions and are correctly applied.\n    *   `null_handling: UNKNOWN` - not directly applicable for these range conditions.\n\n4.  **GROUP BY Validation:**\n    *   No explicit `GROUP BY` in the current SQL. As discussed in point 2 of the initial checklist, `INTERSECT` handles the distinctness of `District` effectively, so a `GROUP BY` on `District` in the subqueries before `INTERSECT` would be redundant.\n\n5.  **ORDER BY Validation:**\n    *   `order_by: []` in analysis.\n    *   No `ORDER BY` in SQL. Correct.\n\n6.  **DISTINCT Validation:**\n    *   `INTERSECT` inherently returns distinct rows, so no explicit `DISTINCT` keyword is strictly needed within each `SELECT` statement before the `INTERSECT`. However, adding `DISTINCT` to each `SELECT` might make the intent clearer or be slightly more robust if the `INTERSECT` implementation varies, but it's not strictly necessary for correctness here. The current query `SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000` is perfectly valid and will return distinct districts.\n\nThe SQL appears to be correct and aligns with the analysis and question.\nNo fixes needed.```json\n{\"sql\": \"SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000\", \"explain\": \"The SQL query correctly identifies districts that have shops meeting both criteria (less than 3000 products and more than 10000 products) using the INTERSECT operator, as specified in the analysis. All column and table names are valid, and the query is complete and follows the expected structure.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2398,
+        "prompt_tokens": 1346,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1052,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:06:22.457090"
+    }
+  ],
+  "final_sql": "SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000",
+  "explain": "The SQL query correctly identifies districts that have shops meeting both criteria (less than 3000 products and more than 10000 products) using the INTERSECT operator, as specified in the analysis. All column and table names are valid, and the query is complete and follows the expected structure.",
+  "error": "",
+  "timestamp": "2026-07-24T14:06:22.458447"
+}

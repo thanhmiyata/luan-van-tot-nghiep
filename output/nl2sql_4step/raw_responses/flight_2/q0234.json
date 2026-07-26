@@ -1,0 +1,69 @@
+{
+  "question_index": 234,
+  "pipeline": "4step",
+  "db_id": "flight_2",
+  "question": "Which airlines have a flight with source airport AHD?",
+  "gold_query": "SELECT T1.Airline FROM AIRLINES AS T1 JOIN FLIGHTS AS T2 ON T1.uid  =  T2.Airline WHERE T2.SourceAirport  =  \"AHD\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.178,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Airline\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"airlines\", \"column\": \"Airline\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"flights\", \"column\": \"SourceAirport\", \"operator\": \"=\", \"value\": \"AHD\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"flights\", \"to_table\": \"airlines\", \"reason\": \"flights.Airline references airlines\"}],\n  \"entities\": {\"tables\": [\"airlines\", \"flights\"], \"columns\": [\"Airline\", \"SourceAirport\"], \"values\": [\"AHD\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1481,
+        "prompt_tokens": 1254,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 227,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:36:05.685202"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.317,
+      "raw_response": "{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\n    \"airlines\",\n    \"flights\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"uid\"\n    ],\n    [\n      0,\n      \"Airline\"\n    ],\n    [\n      2,\n      \"Airline\"\n    ],\n    [\n      2,\n      \"SourceAirport\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      3,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"United Airlines\",\n      \"US Airways\",\n      \"Delta Airlines\",\n      \"Southwest Airlines\"\n    ],\n    [],\n    [\n      \" APG\",\n      \" ASY\",\n      \" CVO\",\n      \" ACV\"\n    ]\n  ]\n}",
+      "token_usage": {
+        "total_tokens": 4358,
+        "prompt_tokens": 814,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3544,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:36:22.003626"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.102,
+      "raw_response": "{\"sql\": \"SELECT airlines.Airline FROM airlines JOIN flights ON airlines.Airline = flights.Airline WHERE flights.SourceAirport = 'AHD'\"}",
+      "token_usage": {
+        "total_tokens": 1288,
+        "prompt_tokens": 1244,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 44,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:36:23.105825"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.704,
+      "raw_response": "I need to validate the provided SQL against the given schema and analysis, following the specified checklist.\n\n**Checklist Steps:**\n\n1.  **SELECT = expected_output_fields (content/order); COUNT(*) preferred, COUNT(DISTINCT pk) only when joins duplicate rows.**\n    *   Expected output fields: `[\"Airline\"]`.\n    *   Current SELECT: `airlines.Airline`. This matches.\n    *   No aggregation is needed as the question asks for a list of airlines.\n    *   The join `airlines JOIN flights ON airlines.Airline = flights.Airline` might duplicate `airlines.Airline` if an airline has multiple flights from 'AHD'. To get distinct airlines, `DISTINCT` is appropriate here. The current SQL does not have `DISTINCT`.\n\n2.  **No unnecessary joins; correct PK/FK; remove ORDER BY unless asked.**\n    *   Join: `airlines JOIN flights ON airlines.Airline = flights.Airline`.\n    *   The `flights` table is needed to filter by `SourceAirport`.\n    *   The `airlines` table is needed to get the `Airline` name.\n    *   The join condition `airlines.Airline = flights.Airline` is correct for connecting these two tables based on the common `Airline` column.\n    *   No `ORDER BY` is present, which is correct as not asked.\n\n3.  **Every name in ORDER BY is a real column or an alias defined in SELECT; ordering by count uses ORDER BY count(*) directly.**\n    *   No `ORDER BY` present. (N/A)\n\n4.  **Negation questions use NOT IN/EXCEPT, not != on joined rows; \"X and Y\" on the same column uses INTERSECT.**\n    *   Not a negation question. (N/A)\n\n5.  **Names exist in schema; SQL complete, one line, no comments.**\n    *   `airlines`, `flights`, `Airline`, `SourceAirport` all exist in the schema.\n    *   `'AHD'` is a valid string literal.\n    *   SQL is complete, one line, no comments.\n\n**Issues Found:**\n\n*   The `SELECT` clause needs `DISTINCT` because an airline might have multiple flights from 'AHD', and we only want to list each airline once. The question \"Which airlines...\" implies a list of unique airlines.\n\n**Correction:**\n\nAdd `DISTINCT` to `SELECT airlines.Airline`.\n\n**Corrected SQL:**\n`SELECT DISTINCT T1.Airline FROM airlines AS T1 JOIN flights AS T2 ON T1.Airline = T2.Airline WHERE T2.SourceAirport = 'AHD'`\n\nUsing aliases `T1` and `T2` for brevity and convention, though not strictly required by the prompt, it's good practice. The original column names `airlines.Airline` and `flights.Airline` are fine too. Let's stick to the original naming convention for minimal change unless the validator specifically asks for aliases.\n\nLet's re-evaluate the DISTINCT need. The question is \"Which airlines have a flight with source airport AHD?\". If an airline has 10 flights from AHD, we still list that airline only once. So `DISTINCT` is necessary.\n\nFinal check of the corrected SQL:\n`SELECT DISTINCT airlines.Airline FROM airlines JOIN flights ON airlines.Airline = flights.Airline WHERE flights.SourceAirport = 'AHD'`\n\nThis fulfills all requirements.\n- `SELECT DISTINCT airlines.Airline` matches `expected_output_fields` and handles potential duplicates from the join correctly.\n- Joins are minimal and correct.\n- No `ORDER BY`.\n- No negation or intersect issues.\n- All names exist and SQL is complete and one line.{\"sql\": \"SELECT DISTINCT T1.Airline FROM airlines AS T1 JOIN flights AS T2 ON T1.Airline = T2.Airline WHERE T2.SourceAirport = 'AHD'\", \"explain\": \"Added DISTINCT to the SELECT clause to ensure each airline is listed only once, as an airline might have multiple flights from the specified source airport. Used table aliases for brevity.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1690,
+        "prompt_tokens": 804,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 886,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:36:27.811465"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT T1.Airline FROM airlines AS T1 JOIN flights AS T2 ON T1.Airline = T2.Airline WHERE T2.SourceAirport = 'AHD'",
+  "explain": "Added DISTINCT to the SELECT clause to ensure each airline is listed only once, as an airline might have multiple flights from the specified source airport. Used table aliases for brevity.",
+  "error": "",
+  "timestamp": "2026-07-25T01:36:27.813450"
+}

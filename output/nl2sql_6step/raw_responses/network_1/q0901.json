@@ -1,0 +1,97 @@
+{
+  "question_index": 901,
+  "pipeline": "6step",
+  "db_id": "network_1",
+  "question": "What are the names of high schoolers who both have friends and are liked?",
+  "gold_query": "SELECT T2.name FROM Friend AS T1 JOIN Highschooler AS T2 ON T1.student_id  =  T2.id INTERSECT SELECT T2.name FROM Likes AS T1 JOIN Highschooler AS T2 ON T1.liked_id  =  T2.id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 5.299,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Highschooler\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Highschooler\", \"to_table\": \"Friend\", \"reason\": \"friends relationship\"},\n    {\"from_table\": \"Highschooler\", \"to_table\": \"Likes\", \"reason\": \"liked relationship\"}\n  ],\n  \"entities\": {\"tables\": [\"Highschooler\", \"Friend\", \"Likes\"], \"columns\": [\"name\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"INTERSECT\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1647,
+        "prompt_tokens": 1398,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 249,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:28:39.224145"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.619,
+      "raw_response": "```json\n{\n  \"db_id\": \"network_1\",\n  \"table_names_original\": [\n    \"Highschooler\",\n    \"Friend\",\n    \"Likes\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"ID\"\n    ],\n    [\n      0,\n      \"name\"\n    ],\n    [\n      1,\n      \"student_id\"\n    ],\n    [\n      1,\n      \"friend_id\"\n    ],\n    [\n      2,\n      \"student_id\"\n    ],\n    [\n      2,\n      \"liked_id\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ],\n    [\n      3,\n      1\n    ],\n    [\n      5,\n      1\n    ],\n    [\n      6,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": []\n}\n```",
+      "token_usage": {
+        "total_tokens": 4448,
+        "prompt_tokens": 769,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3679,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:28:55.862444"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.963,
+      "raw_response": "{ \"steps\": [ { \"step\": \"Identify Relevant Tables\", \"action\": \"Use Highschooler, Friend, and Likes tables.\", \"details\": \"The tables are needed to find the students with both friends and liked by someone.\" }, { \"step\": \"Determine Joins Needed\", \"action\": \"Join tables\", \"details\": \"Join Highschooler with Friend on Highschooler.ID = Friend.student_id and join Highschooler with Likes on Highschooler.ID = Likes.liked_id.\" }, { \"step\": \"Plan Set Operation\", \"action\": \"Use INTERSECT\", \"details\": \"Select names from Highschooler for both cases: those who have friends and those who are liked.\" }, { \"step\": \"Structure First Query for INTERSECT\", \"action\": \"First SELECT\", \"details\": \"Retrieve names of high schoolers from Highschooler table who have friends by checking existence in Friend table.\" }, { \"step\": \"Structure Second Query for INTERSECT\", \"action\": \"Second SELECT\", \"details\": \"Retrieve names of high schoolers from Highschooler table who are liked by checking existence in Likes table.\" }, { \"step\": \"Compile Final Plan Into SQL\", \"action\": \"Combine using INTERSECT\", \"details\": \"Ensure that both independent conditions are satisfied for the result ensuring no duplicates.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1685,
+        "prompt_tokens": 1392,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 293,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:28:59.844886"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.192,
+      "raw_response": "{\"sql\": \"SELECT name FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) INTERSECT SELECT name FROM Highschooler WHERE ID IN (SELECT liked_id FROM Likes)\"}",
+      "token_usage": {
+        "total_tokens": 2048,
+        "prompt_tokens": 1997,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 51,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:29:01.054550"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.763,
+      "raw_response": "{\"sql\": \"SELECT name FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) INTERSECT SELECT name FROM Highschooler WHERE ID IN (SELECT liked_id FROM Likes)\", \"notes\": \"The initial SQL query was already in the correct format to find names of high schoolers who both have friends and are liked by someone. The INTERSECT operation correctly fulfills the query goal, with each subquery selecting names based on distinct conditions tied by student IDs related to friends and likes.\", \"diagnostics\": [\"SQL correctly uses INTERSECT as per plan to ensure both conditions (having friends and being liked) are met.\", \"No unnecessary joins were present or needed, as the columns filter directly through IDs.\", \"Query structure aligns with expected output fields with correct order and field name (name).\"]}",
+      "token_usage": {
+        "total_tokens": 1771,
+        "prompt_tokens": 1595,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 176,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:29:03.839453"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.771,
+      "raw_response": "{\"sql\": \"SELECT name FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) INTERSECT SELECT name FROM Highschooler WHERE ID IN (SELECT liked_id FROM Likes)\", \"explain\": \"The SQL correctly identifies high schoolers who are both friends and liked, using `INTERSECT` as specified in the analysis and linking tables via `ID` and relevant foreign keys.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2182,
+        "prompt_tokens": 1336,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 846,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:29:08.629992"
+    }
+  ],
+  "final_sql": "SELECT name FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) INTERSECT SELECT name FROM Highschooler WHERE ID IN (SELECT liked_id FROM Likes)",
+  "explain": "The SQL correctly identifies high schoolers who are both friends and liked, using `INTERSECT` as specified in the analysis and linking tables via `ID` and relevant foreign keys.",
+  "error": "",
+  "timestamp": "2026-07-24T18:29:08.631006"
+}

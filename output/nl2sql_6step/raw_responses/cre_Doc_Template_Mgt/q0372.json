@@ -1,0 +1,97 @@
+{
+  "question_index": 372,
+  "pipeline": "6step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "What are the ids of documents that have 2 or more paragraphs?",
+  "gold_query": "SELECT document_id FROM Paragraphs GROUP BY document_id HAVING count(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.092,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Document_ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"to count paragraphs per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1951,
+        "prompt_tokens": 1720,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 231,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:33:03.188186"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.068,
+      "raw_response": "Thought: I have analyzed the user's request, the original schema, and the analysis output.\nI need to filter the schema to include only the tables and columns necessary to answer the question: \"What are the ids of documents that have 2 or more paragraphs?\".\nThe analysis indicates that `Documents.Document_ID` is the expected output, and a join between `Documents` and `Paragraphs` is needed to count paragraphs per document, grouping by `Documents.Document_ID`.\n\n**Required Tables:**\n1.  `Documents` (for `Document_ID` output and grouping)\n2.  `Paragraphs` (to count paragraphs and provide the FK for joining with `Documents`)\n\n**Required Columns:**\n\n*   **From `Documents` table:**\n    *   `Document_ID`: Referenced in `expected_output_fields`, `output_fields_detailed`, `group_by`. It is also a Primary Key for `Documents` and the target of a Foreign Key from `Paragraphs`.\n    *   Other columns in `Documents` are not explicitly required by the analysis for output, filters, grouping, or ordering, nor are they PK/FKs *needed* to enable the required joins.\n\n*   **From `Paragraphs` table:**\n    *   `Paragraph_ID`: This is the Primary Key for the `Paragraphs` table. While not directly used in the output or filters, it's good practice to keep the PK of a required table if it's minimal, or if it might be implicitly used for `COUNT(*)`. The specific column `Paragraph_ID` is not strictly necessary for `COUNT(*)` (which could use `*` or `Document_ID`), but keeping PKs of active tables is a safe superset strategy.\n    *   `Document_ID`: This is a Foreign Key to `Documents.Document_ID` and is essential for joining `Paragraphs` to `Documents` and for grouping the counts correctly.\n    *   Other columns in `Paragraphs` are not explicitly required.\n\n**Schema Reconstruction Steps:**\n\n1.  **Identify original column indices for required columns:**\n    *   `Documents.Document_ID`: original `column_names_original` index `9`.\n    *   `Paragraphs.Paragraph_ID`: original `column_names_original` index `14`.\n    *   `Paragraphs.Document_ID`: original `column_names_original` index `15`.\n\n2.  **Map original table indices to new table indices:**\n    *   Original `Documents` (index 2) -> New `Documents` (index 0)\n    *   Original `Paragraphs` (index 3) -> New `Paragraphs` (index 1)\n\n3.  **Create new `column_names_original` list with new table indices:**\n    *   `[0, \"Document_ID\"]` (from original table 2, col 9)\n    *   `[1, \"Paragraph_ID\"]` (from original table 3, col 14)\n    *   `[1, \"Document_ID\"]` (from original table 3, col 15)\n\n4.  **Create new `column_types` list:**\n    *   `number` (for original column 9)\n    *   `number` (for original column 14)\n    *   `number` (for original column 15)\n\n5.  **Filter and update `foreign_keys`:**\n    *   Original `[[5,1],[10,3],[15,9]]`\n    *   Only `[15,9]` (`Paragraphs.Document_ID` -> `Documents.Document_ID`) is relevant.\n    *   Map original column indices to new: `15` -> new column index `2`; `9` -> new column index `0`.\n    *   New `foreign_keys`: `[[2,0]]`\n\n6.  **Filter and update `primary_keys`:**\n    *   Original `[1,3,9,14]`\n    *   Relevant are `9` (`Documents.Document_ID`) and `14` (`Paragraphs.Paragraph_ID`).\n    *   Map original column indices to new: `9` -> new column index `0`; `14` -> new column index `1`.\n    *   New `primary_keys`: `[0,1]`\n\n7.  **Filter `column_sample_values`:**\n    *   Keep samples for original columns `9`, `14`, `15`.\n    *   Original values: `[[],[\"AD\",\"BK\",\"CV\",\"PP\"],[\"Presentation\",\"CV\",\"Advertisement\",\"Paper\"],[],[],[\"PP\",\"BK\",\"PPT\",\"AD\"],[],[],[\"\"],[],[],[\"Introduction of OS\",\"Understanding DB\",\"Summer Show\",\"Robbin CV\"],[\"n\",\"y\",\"u\",\"h\"],[],[],[],[\"Korea\",\"Somalia\",\"Palestinian Territory\",\"Jersey\"],[]]`\n    *   Values for 9, 14, 15 are `[], [], []`.\n    *   New `column_sample_values`: `[[],[],[]]`\n\nThis process ensures that only the necessary tables and columns are kept, along with the PK/FK relationships required to perform the join and aggregation.{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Documents\", \"Paragraphs\"], \"column_names_original\": [[0, \"Document_ID\"], [1, \"Paragraph_ID\"], [1, \"Document_ID\"]], \"column_types\": [\"number\", \"number\", \"number\"], \"foreign_keys\": [[2, 0]], \"primary_keys\": [0, 1], \"column_sample_values\": [[], [], []]}",
+      "token_usage": {
+        "total_tokens": 4522,
+        "prompt_tokens": 921,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3601,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:33:19.275651"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.26,
+      "raw_response": "{\n  \"steps\": [\n    {\n      \"step\": \"Identify tables\",\n      \"detail\": \"We need both Documents and Paragraphs tables because we are counting paragraphs related to documents.\"\n    },\n    {\n      \"step\": \"Join tables\",\n      \"detail\": \"Join Paragraphs table to Documents using the foreign key relationship Paragraphs.Document_ID = Documents.Document_ID.\"\n    },\n    {\n      \"step\": \"Aggregate and filter\",\n      \"detail\": \"Use GROUP BY on Documents.Document_ID to count paragraphs per document and filter with HAVING COUNT(Paragraphs.Paragraph_ID) >= 2.\"\n    },\n    {\n      \"step\": \"Select fields\",\n      \"detail\": \"Select Document_ID from the results.\"\n    }\n  ]\n}",
+      "token_usage": {
+        "total_tokens": 1543,
+        "prompt_tokens": 1380,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 163,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:33:21.545762"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.039,
+      "raw_response": "{\"sql\": \"SELECT Documents.Document_ID FROM Documents JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID HAVING COUNT(Paragraphs.Paragraph_ID) >= 2\"}",
+      "token_usage": {
+        "total_tokens": 1960,
+        "prompt_tokens": 1908,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 52,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:33:22.605408"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.695,
+      "raw_response": "{\"sql\": \"SELECT Documents.Document_ID FROM Documents JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID HAVING COUNT(Paragraphs.Paragraph_ID) >= 2\", \"notes\": \"The initial SQL was already well-aligned with the expected output fields. The join and HAVING clause correctly implement the logic to find documents with 2 or more paragraphs.\", \"diagnostics\": [\"No changes were necessary as the SQL meets the expected criteria.\"]}",
+      "token_usage": {
+        "total_tokens": 1587,
+        "prompt_tokens": 1478,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 109,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:33:24.316116"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.053,
+      "raw_response": "I need to validate the provided SQL against the given schema and analysis, applying the 6-step checklist and critical final pattern checks.\n\nThe current SQL is: `SELECT Documents.Document_ID FROM Documents JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID HAVING COUNT(Paragraphs.Paragraph_ID) >= 2`\n\nLet's go through the checklist:\n\n1.  **SELECT matches expected_output_fields exactly (content & order):**\n    *   `expected_output_fields`: `[\"Document_ID\"]`\n    *   `SELECT`: `Documents.Document_ID`\n    *   This matches exactly.\n\n2.  **For counts:**\n    *   `COUNT(*)` vs `COUNT(DISTINCT ...)`: The current SQL uses `COUNT(Paragraphs.Paragraph_ID)`. The `Paragraph_ID` is a primary key for the `Paragraphs` table (column 2 in the schema). Counting `Paragraph_ID` is effectively counting rows, and `COUNT(*)` would also work and is generally preferred for simple row counts. However, since `Paragraph_ID` is a non-nullable primary key, `COUNT(Paragraphs.Paragraph_ID)` is equivalent to `COUNT(*)` for this scenario and perfectly valid. No change needed here.\n    *   `GROUP BY` minimal and consistent: `GROUP BY Documents.Document_ID`. The `SELECT` clause is `Documents.Document_ID`, which is the grouping column. This is consistent.\n\n3.  **Extremum patterns:**\n    *   Not applicable here, as it's not asking for earliest/latest.\n\n4.  **No unnecessary joins; correct PK/FK:**\n    *   Join: `Documents JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID`\n    *   `Documents.Document_ID` (column 1) and `Paragraphs.Document_ID` (column 3) are linked by the foreign key `[[3,1]]`. The join condition is correct.\n    *   The join is necessary to count paragraphs per document. `single_table_ok` is false.\n    *   Join hints in analysis confirm: `{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"to count paragraphs per document\"}`.\n    *   The join is correct and necessary.\n\n5.  **Remove ORDER BY unless required:**\n    *   The question does not require ordering. The SQL does not have an `ORDER BY` clause. This is correct.\n\n6.  **Every name in ORDER BY is a real column or alias; ordering by count:**\n    *   Not applicable as there is no `ORDER BY`.\n\n7.  **Negation questions:**\n    *   Not applicable.\n\n8.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   All table and column names (`Documents`, `Paragraphs`, `Document_ID`, `Paragraph_ID`) exist in the schema.\n    *   The SQL is complete, single line, and has no comments.\n\n**Critical Final Pattern Checks:**\n\n1.  **Self-Join Validation:**\n    *   `self_join_hint`: `false`. SQL does not use self-join. Correct.\n\n2.  **Set Operation Validation:**\n    *   `set_operation_type`: `NONE`. SQL does not use set operations. Correct.\n\n3.  **WHERE Condition Validation:**\n    *   `where_condition_type`: `RANGE`. The condition `HAVING COUNT(Paragraphs.Paragraph_ID) >= 2` is a range condition on an aggregate, which is appropriate. `null_handling`: `UNKNOWN`. Not directly relevant here. Correct.\n\n4.  **GROUP BY Validation:**\n    *   `GROUP BY Documents.Document_ID`. `Document_ID` is the primary key for `Documents` (column 1). This is appropriate for grouping by document entity. Correct.\n\n5.  **ORDER BY Validation:**\n    *   `order_by`: `[]`. SQL has no ORDER BY. Correct.\n\n6.  **DISTINCT Validation:**\n    *   `GROUP BY Documents.Document_ID` is used for aggregation (`COUNT`). Not just for uniqueness. Correct.\n\nThe SQL appears to be correct and aligns with all validation checks. No fixes are needed.{\"sql\": \"SELECT T1.Document_ID FROM Documents AS T1 JOIN Paragraphs AS T2 ON T1.Document_ID = T2.Document_ID GROUP BY T1.Document_ID HAVING COUNT(T2.Paragraph_ID) >= 2\", \"explain\": \"The original SQL is correct and aligns with the schema and analysis. It selects Document_ID from Documents, joins with Paragraphs to count paragraphs, groups by Document_ID, and filters for documents having 2 or more paragraphs. Added aliases for brevity and clarity, which is good practice.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2429,
+        "prompt_tokens": 1352,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1077,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:33:29.386400"
+    }
+  ],
+  "final_sql": "SELECT T1.Document_ID FROM Documents AS T1 JOIN Paragraphs AS T2 ON T1.Document_ID = T2.Document_ID GROUP BY T1.Document_ID HAVING COUNT(T2.Paragraph_ID) >= 2",
+  "explain": "The original SQL is correct and aligns with the schema and analysis. It selects Document_ID from Documents, joins with Paragraphs to count paragraphs, groups by Document_ID, and filters for documents having 2 or more paragraphs. Added aliases for brevity and clarity, which is good practice.",
+  "error": "",
+  "timestamp": "2026-07-25T05:33:29.388910"
+}

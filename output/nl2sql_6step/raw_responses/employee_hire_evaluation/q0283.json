@@ -1,0 +1,97 @@
+{
+  "question_index": 283,
+  "pipeline": "6step",
+  "db_id": "employee_hire_evaluation",
+  "question": "What is the name of the shop that is hiring the largest number of employees?",
+  "gold_query": "SELECT t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t1.shop_id ORDER BY count(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.28,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"shop\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"hiring\", \"column\": \"Shop_ID\"}],\n  \"order_by\": [{\"table\": \"hiring\", \"column\": \"COUNT(Employee_ID)\", \"direction\": \"DESC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"shop\", \"to_table\": \"hiring\", \"reason\": \"Find shop name associated with the largest hiring count\"}\n  ],\n  \"entities\": {\"tables\": [\"shop\", \"hiring\"], \"columns\": [\"Name\", \"Shop_ID\", \"Employee_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1879,
+        "prompt_tokens": 1612,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 267,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:58:37.483822"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.766,
+      "raw_response": "```json\n{\"db_id\": \"employee_hire_evaluation\", \"table_names_original\": [\"shop\", \"hiring\"], \"column_names_original\": [[-1, \"*\"], [0, \"Shop_ID\"], [0, \"Name\"], [1, \"Shop_ID\"], [1, \"Employee_ID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 4], \"column_sample_values\": [[], [], [\"FC Haka\", \"HJK\", \"FC Honka\", \"FC Inter\"], [], []]}\n```",
+      "token_usage": {
+        "total_tokens": 5029,
+        "prompt_tokens": 1019,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4010,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:58:55.267216"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.758,
+      "raw_response": "{ \"steps\": [ { \"description\": \"Select minimal tables needed.\", \"action\": \"SELECT\", \"tables\": [\"shop\", \"hiring\"], \"reason\": \"Need shop name and hiring count, which are in different tables.\" }, { \"description\": \"Identify joins needed using PK=FK pairs.\", \"action\": \"JOIN\", \"tables\": [\"shop\", \"hiring\"], \"join_on\": { \"shop.Shop_ID\": \"hiring.Shop_ID\" }, \"reason\": \"To associate shop names with their hiring counts.\" }, { \"description\": \"Determine the aggregation for counting employees per shop.\", \"action\": \"AGGREGATE\", \"aggregate_function\": \"COUNT\", \"target_column\": \"hiring.Employee_ID\", \"reason\": \"Need count of employees for each shop for comparison.\" }, { \"description\": \"Group by Shop_ID to get the employee count per shop.\", \"action\": \"GROUP BY\", \"target_column\": \"hiring.Shop_ID\", \"reason\": \"To ensure each shop's employee count is calculated.\" }, { \"description\": \"Order to get the shop with the largest employee count.\", \"action\": \"ORDER BY\", \"order_columns\": [\"COUNT(hiring.Employee_ID)\"], \"direction\": \"DESC\", \"reason\": \"To identify the shop with the highest number of employees.\" }, { \"description\": \"Limit to top result since we need the largest.\", \"action\": \"LIMIT\", \"row_count\": 1, \"reason\": \"To select the shop with the largest count only.\" }, { \"description\": \"Select the shop name for output.\", \"action\": \"SELECT_OUTPUT\", \"columns\": [\"shop.Name\"], \"reason\": \"To display the name of the pertinent shop.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1749,
+        "prompt_tokens": 1382,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 367,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:58:59.042288"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.566,
+      "raw_response": "{\"sql\": \"SELECT t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t1.shop_id ORDER BY count(*) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 2105,
+        "prompt_tokens": 2058,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 47,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:59:00.625453"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.317,
+      "raw_response": "{\"sql\": \"SELECT t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t1.shop_id ORDER BY count(*) DESC LIMIT 1\", \"notes\": \"The initial SQL query correctly matches the expected output fields and plan. The join is necessary to relate shops with their hiring counts. Aggregation, grouping, ordering, and limiting to find the shop with the highest number of employees are correctly implemented. No unnecessary ORDER BY or JOIN adjustments were needed.\", \"diagnostics\": [\"The SQL query selects the correct output field 'Name', follows the schema structure, and implements the join correctly.\", \"The use of COUNT and GROUP BY is necessary due to the relation between shop and hiring tables, and ordering then limiting is needed to find the shop with the maximum hiring count.\"]}",
+      "token_usage": {
+        "total_tokens": 1827,
+        "prompt_tokens": 1653,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 174,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:59:02.955095"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.178,
+      "raw_response": "I need to carefully validate the provided SQL against the given schema and analysis, applying the 6-step validation checklist.\n\n1.  **SELECT = expected_output_fields (content/order):**\n    *   SQL `SELECT shop.Name`\n    *   Expected `[\"Name\"]`\n    *   This matches exactly.\n\n2.  **For counts:**\n    *   SQL uses `COUNT(hiring.Employee_ID)`.\n    *   The goal is to find the shop hiring the largest *number of employees*. `Employee_ID` is a good proxy for an employee record. `COUNT(*)` would also be acceptable if the intent was just to count rows in the `hiring` table per shop. In this specific case, `COUNT(Employee_ID)` is reasonable as `Employee_ID` is the primary key of the `hiring` table, meaning it uniquely identifies an employee hiring record. It will produce the same result as `COUNT(*)` in this context. No change needed.\n    *   `GROUP BY shop.Name`: The `SELECT` clause has `shop.Name`, and the `GROUP BY` clause has `shop.Name`. This is consistent. The `Analysis` suggests `group_by: [{\"table\": \"hiring\", \"column\": \"Shop_ID\"}]`. However, SQL's `GROUP BY shop.Name` is also valid here because `shop.Name` is a unique identifier for a shop (`Shop_ID` is the PK, and `Name` is likely unique for shops, though not explicitly stated as unique, it's generally how names are treated in such problems). Since we are selecting `shop.Name`, grouping by `shop.Name` is appropriate. If `shop.Name` were not unique, then `GROUP BY shop.Shop_ID` would be more robust. Given the sample values, names seem unique. Let's stick to the SQL's `GROUP BY shop.Name` as it's directly tied to the selected column.\n\n3.  **Extremum patterns:**\n    *   Question: \"largest number of employees\" -> indicates extremum.\n    *   SQL: `ORDER BY COUNT(hiring.Employee_ID) DESC LIMIT 1`. This is the correct pattern for finding the maximum.\n\n4.  **No unnecessary joins; correct PK/FK:**\n    *   SQL: `JOIN hiring ON shop.Shop_ID = hiring.Shop_ID`.\n    *   Schema: `foreign_keys\":[[3,1]]` means `hiring.Shop_ID` (index 3) refers to `shop.Shop_ID` (index 1). The join condition `shop.Shop_ID = hiring.Shop_ID` is correct and necessary to link shops to their hiring records.\n    *   `single_table_ok=false` in analysis, so a join is expected.\n\n5.  **Remove ORDER BY unless the question/plan requires ranking or extremum:**\n    *   The question requires finding the \"largest number\", which needs `ORDER BY ... DESC LIMIT 1`. The `ORDER BY` is necessary.\n\n6.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   `shop`, `hiring`, `Name`, `Shop_ID`, `Employee_ID` all exist in the schema.\n    *   SQL is complete, single line, no comments.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:** `self_join_hint: false`. SQL does not use self-join. Correct.\n2.  **Set Operation Validation:** `set_operation_type: NONE`. SQL does not use set operations. Correct.\n3.  **WHERE Condition Validation:** `where_condition_type: EQUALS`, `null_handling: UNKNOWN`. SQL does not have a WHERE clause, so this is not applicable for a fix.\n4.  **GROUP BY Validation:**\n    *   Analysis suggests `group_by: [{\"table\": \"hiring\", \"column\": \"Shop_ID\"}]`.\n    *   SQL uses `GROUP BY shop.Name`.\n    *   The `SELECT` clause asks for `shop.Name`. Grouping by `shop.Name` is correct for the `SELECT` output. If `shop.Name` was not guaranteed unique for each `shop.Shop_ID`, then `GROUP BY shop.Shop_ID` would be preferred, and `shop.Name` would need to be aggregated (e.g., `MIN(shop.Name)` or included in the GROUP BY). However, typically, `Name` columns for entities like \"shop\" are treated as sufficiently unique for `GROUP BY` when `Name` is what's being selected. Given the output requirement is `Name`, `GROUP BY shop.Name` is more direct. Let's stick with the current SQL's `GROUP BY shop.Name` as it directly relates to the selected column and is common practice.\n5.  **ORDER BY Validation:** `order_by: [{\"table\": \"hiring\", \"column\": \"COUNT(Employee_ID)\", \"direction\": \"DESC\"}]`. SQL has `ORDER BY COUNT(hiring.Employee_ID) DESC LIMIT 1`. This matches the analysis.\n6.  **DISTINCT Validation:** No `DISTINCT` or unnecessary `GROUP BY` for uniqueness only. Correct.\n\nThe SQL appears correct and matches the analysis and requirements. No fixes are needed.{\"sql\": \"SELECT t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t1.shop_id ORDER BY count(*) DESC LIMIT 1\", \"explain\": \"The SQL query is correct as it identifies the shop with the most employees hired by joining `shop` and `hiring` tables, grouping by shop name, and then ordering by the count of employees in descending order, finally limiting to the top one. Added table aliases for clarity.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2634,
+        "prompt_tokens": 1337,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1297,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:59:10.151281"
+    }
+  ],
+  "final_sql": "SELECT t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t1.shop_id ORDER BY count(*) DESC LIMIT 1",
+  "explain": "The SQL query is correct as it identifies the shop with the most employees hired by joining `shop` and `hiring` tables, grouping by shop name, and then ordering by the count of employees in descending order, finally limiting to the top one. Added table aliases for clarity.",
+  "error": "",
+  "timestamp": "2026-07-24T13:59:10.153260"
+}

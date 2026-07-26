@@ -1,0 +1,69 @@
+{
+  "question_index": 201,
+  "pipeline": "4step",
+  "db_id": "flight_2",
+  "question": "What are airport names at City 'Aberdeen'?",
+  "gold_query": "SELECT AirportName FROM AIRPORTS WHERE City = \"Aberdeen\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.234,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"AirportName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"airports\", \"column\": \"AirportName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"airports\", \"column\": \"City\", \"operator\": \"=\", \"value\": \"Aberdeen\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"airports\"], \"columns\": [\"AirportName\", \"City\"], \"values\": [\"Aberdeen\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1446,
+        "prompt_tokens": 1253,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 193,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:19:08.437164"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 13.718,
+      "raw_response": "```json\n{\"db_id\":\"flight_2\",\"table_names_original\":[\"airports\"],\"column_names_original\":[[-1,\"*\"],[1,\"City\"],[1,\"AirportCode\"],[1,\"AirportName\"]],\"column_types\":[\"text\",\"text\",\"text\"],\"foreign_keys\":[],\"primary_keys\":[2],\"column_sample_values\":[[],[\"Aberdeen \",\"Abilene \",\"Abingdon \",\"Ada \"],[\"AAF\",\"ABI\",\"ABL\",\"ABQ\"],[\"Phillips AAF \",\"Municipal \",\"Dyess AFB \",\"Virginia Highlands \"]]}\n```",
+      "token_usage": {
+        "total_tokens": 3913,
+        "prompt_tokens": 788,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3125,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:19:22.157154"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.118,
+      "raw_response": "{\"sql\": \"SELECT AirportName FROM airports WHERE City = 'Aberdeen'\"}",
+      "token_usage": {
+        "total_tokens": 1239,
+        "prompt_tokens": 1211,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 28,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:19:23.275716"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.035,
+      "raw_response": "I need to validate the provided SQL \"SELECT AirportName FROM airports WHERE City = 'Aberdeen'\" against the given schema and analysis.\n\nHere's the checklist:\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   `expected_output_fields`: `[\"AirportName\"]`\n    *   `SELECT` clause: `AirportName`\n    *   Match: Yes.\n    *   `COUNT(*)` preferred: Not applicable as it's a direct selection.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   No `ORDER BY`.\n    *   No joins.\n    *   Correct.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available:**\n    *   `City = 'Aberdeen'`\n    *   `column_sample_values` for `City`: `[\"Aberdeen \", \"Abilene \", \"Abingdon \", \"Ada \"]`\n    *   The sample value `Aberdeen ` has a trailing space. The current SQL uses `'Aberdeen'`. This is a potential mismatch.\n    *   However, usually, leading/trailing spaces in sample values are just examples of what *might* be in the column, not a strict rule that *all* values have them. For exact matches, it's safer to use `TRIM(City) = 'Aberdeen'` or `City LIKE 'Aberdeen%'`. Given the context of a direct equality check and the common practice of data cleaning, matching `'Aberdeen'` directly is often preferred, assuming the schema definition intends `City` to be 'Aberdeen' without the space. If the database *actually* stores 'Aberdeen ' (with a space), then `City = 'Aberdeen '` or `TRIM(City) = 'Aberdeen'` would be necessary.\n    *   For the purpose of validation, if the question asks for 'Aberdeen' (without space), and the SQL uses 'Aberdeen' (without space), it matches the *intent* of the question. The sample value with a space is a bit ambiguous. Let's assume the question's 'Aberdeen' is the canonical form. If the schema has a sample with a space, it's a potential data quality issue, not necessarily an error in the query's literal itself, unless the query *must* account for the specific trailing space.\n    *   Let's check `column_sample_values`. It shows `Aberdeen ` (with a space). This means that if the data truly contains 'Aberdeen ' (with a space), the current query `City = 'Aberdeen'` would *not* match it.\n    *   The best practice to handle potential trailing/leading spaces in data when looking for an exact text match is to use `TRIM()`.\n\n4.  **Column/table names exist; SQL is complete and one line:**\n    *   `airports` exists.\n    *   `AirportName` exists.\n    *   `City` exists.\n    *   SQL is complete and one line.\n    *   Correct.\n\n**Fixing the literal mismatch:**\nBased on the `column_sample_values`, `City` might contain 'Aberdeen ' (with a trailing space). To ensure the query correctly matches all entries for 'Aberdeen', it should handle this. The most robust way is `TRIM(City) = 'Aberdeen'`.\n\nLet's re-evaluate the strictness of \"Text literals match real values from column_sample_values (exact casing/spelling) when available.\"\nIf the sample value is `Aberdeen `, and the SQL uses `Aberdeen`, they do not *exactly* match due to the space.\n\nTherefore, the SQL should be `SELECT AirportName FROM airports WHERE TRIM(City) = 'Aberdeen'`.\n\nFinal check for the fix:\n*   `SELECT AirportName` matches `expected_output_fields`.\n*   `TRIM(City) = 'Aberdeen'` handles the potential trailing space in the `City` column, ensuring 'Aberdeen ' matches 'Aberdeen'.\n*   All names exist. SQL is complete and one line.\n\nThe explanation should clearly state why `TRIM()` was added.{\n \"sql\": \"SELECT AirportName FROM airports WHERE TRIM(City) = 'Aberdeen'\",\n \"explain\": \"The `City` column's sample values include 'Aberdeen ' (with a trailing space). To ensure accurate matching against the requested 'Aberdeen', `TRIM()` is used to remove any leading or trailing spaces from the `City` column before comparison.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1783,
+        "prompt_tokens": 767,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1016,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:19:28.312388"
+    }
+  ],
+  "final_sql": "SELECT AirportName FROM airports WHERE TRIM(City) = 'Aberdeen'",
+  "explain": "The `City` column's sample values include 'Aberdeen ' (with a trailing space). To ensure accurate matching against the requested 'Aberdeen', `TRIM()` is used to remove any leading or trailing spaces from the `City` column before comparison.",
+  "error": "",
+  "timestamp": "2026-07-25T01:19:28.314339"
+}

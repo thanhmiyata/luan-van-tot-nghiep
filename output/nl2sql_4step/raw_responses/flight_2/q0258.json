@@ -1,0 +1,69 @@
+{
+  "question_index": 258,
+  "pipeline": "4step",
+  "db_id": "flight_2",
+  "question": "Which airports do not have departing or arriving flights?",
+  "gold_query": "SELECT AirportName FROM Airports WHERE AirportCode NOT IN (SELECT SourceAirport FROM Flights UNION SELECT DestAirport FROM Flights)",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.639,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"AirportName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"airports\", \"column\": \"AirportName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"airports\", \"to_table\": \"flights\", \"reason\": \"check for flights involving airports\"}],\n  \"entities\": {\"tables\": [\"airports\", \"flights\"], \"columns\": [\"AirportName\", \"SourceAirport\", \"DestAirport\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1446,
+        "prompt_tokens": 1253,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 193,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:47:47.318423"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 18.163,
+      "raw_response": "```json\n{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\n    \"airports\",\n    \"flights\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"AirportCode\"\n    ],\n    [\n      0,\n      \"AirportName\"\n    ],\n    [\n      1,\n      \"Airline\"\n    ],\n    [\n      1,\n      \"SourceAirport\"\n    ],\n    [\n      1,\n      \"DestAirport\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      5,\n      1\n    ],\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"AAF\",\n      \"ABI\",\n      \"ABL\",\n      \"ABQ\"\n    ],\n    [\n      \"Phillips AAF \",\n      \"Municipal \",\n      \"Dyess AFB \",\n      \"Virginia Highlands \"\n    ],\n    [],\n    [\n      \" APG\",\n      \" ASY\",\n      \" CVO\",\n      \" ACV\"\n    ],\n    [\n      \" ASY\",\n      \" APG\",\n      \" ACV\",\n      \" CVO\"\n    ]\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4789,
+        "prompt_tokens": 788,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4001,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:48:05.482773"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.572,
+      "raw_response": "{\"sql\": \"SELECT AirportName FROM airports WHERE AirportCode NOT IN (SELECT SourceAirport FROM flights UNION SELECT DestAirport FROM flights)\"}",
+      "token_usage": {
+        "total_tokens": 1292,
+        "prompt_tokens": 1253,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 39,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:48:07.055893"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.215,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, applying the specified rules.\n\n**Validation Steps:**\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   Expected: `[\"AirportName\"]`\n    *   Actual: `SELECT AirportName`\n    *   Matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   The query uses a subquery with `NOT IN`.\n    *   The subquery `(SELECT SourceAirport FROM flights UNION SELECT DestAirport FROM flights)` correctly identifies all airports involved in flights (either as source or destination).\n    *   The main query `SELECT AirportName FROM airports WHERE AirportCode NOT IN (...)` correctly filters `airports` whose `AirportCode` is not in the set of flight-involved airports.\n    *   No explicit joins are used, but the `NOT IN` with a subquery correctly establishes the relationship.\n    *   No `ORDER BY` is present, which is correct as the analysis doesn't specify one.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available:**\n    *   No text literals are used in the `WHERE` clause or `SELECT` list, so this is not applicable.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `AirportName` exists in `airports`.\n    *   `AirportCode` exists in `airports`.\n    *   `SourceAirport` exists in `flights`.\n    *   `DestAirport` exists in `flights`.\n    *   `airports` and `flights` tables exist.\n    *   The SQL is complete and one line.\n\n**Potential Issue/Refinement:**\nThe `UNION` operator implicitly performs a `DISTINCT` operation. This is correct here as we want a unique list of all airport codes involved in flights.\n\nThe query seems correct and adheres to all validation rules.```json\n{\n \"sql\": \"SELECT AirportName FROM airports WHERE AirportCode NOT IN (SELECT SourceAirport FROM flights UNION SELECT DestAirport FROM flights)\",\n \"explain\": \"The original SQL query correctly identifies airports that do not appear as either a SourceAirport or a DestAirport in the flights table using a NOT IN subquery with a UNION to get all unique airport codes involved in flights. All column and table names are valid and match the schema. The SELECT clause matches the expected output fields.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1376,
+        "prompt_tokens": 817,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 559,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:48:10.272093"
+    }
+  ],
+  "final_sql": "SELECT AirportName FROM airports WHERE AirportCode NOT IN (SELECT SourceAirport FROM flights UNION SELECT DestAirport FROM flights)",
+  "explain": "The original SQL query correctly identifies airports that do not appear as either a SourceAirport or a DestAirport in the flights table using a NOT IN subquery with a UNION to get all unique airport codes involved in flights. All column and table names are valid and match the schema. The SELECT clause matches the expected output fields.",
+  "error": "",
+  "timestamp": "2026-07-25T01:48:10.272904"
+}

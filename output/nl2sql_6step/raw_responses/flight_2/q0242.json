@@ -1,0 +1,97 @@
+{
+  "question_index": 242,
+  "pipeline": "6step",
+  "db_id": "flight_2",
+  "question": "Which airlines have at least 10 flights?",
+  "gold_query": "SELECT T1.Airline FROM AIRLINES AS T1 JOIN FLIGHTS AS T2 ON T1.uid  =  T2.Airline GROUP BY T1.Airline HAVING count(*)  >  10",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.21,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Airline\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"airlines\", \"column\": \"Airline\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"flights\", \"column\": \"Airline\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"flights\", \"to_table\": \"airlines\", \"reason\": \"Airline mapping for count\"}],\n  \"entities\": {\"tables\": [\"airlines\", \"flights\"], \"columns\": [\"Airline\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1921,
+        "prompt_tokens": 1686,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 235,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:25:47.167642"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 18.977,
+      "raw_response": "```json\n{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\"airlines\", \"flights\"],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"uid\"],\n    [0, \"Airline\"],\n    [1, \"Airline\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [3, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\"United Airlines\", \"US Airways\", \"Delta Airlines\", \"Southwest Airlines\"],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 5219,
+        "prompt_tokens": 861,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4358,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:26:06.164752"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.411,
+      "raw_response": "{ \"steps\": [ {\"step\": \"Identify the minimal necessary tables\", \"detail\": \"Involves tables 'flights' and 'airlines' as both are needed. 'Flights' to count the number of occurrences per airline, and 'airlines' to map names.\"}, {\"step\": \"Determine if a join is necessary\", \"detail\": \"A join is required to link airlines to their flights as the column 'Airline' links both tables, even though there are no foreign keys explicitly defined.\"}, {\"step\": \"Establish the join condition\", \"detail\": \"Join 'flights' and 'airlines' on 'flights.Airline = airlines.Airline' as primary keys are not marking foreign keys correctly, but the logical join is based on 'Airline' name in context.\"}, {\"step\": \"Choose type of count and aggregation\", \"detail\": \"Use COUNT(*) on the 'flights' table to count all flights per airline without need for distinct aggregation due to nature of question.\"}, {\"step\": \"Apply necessary filters and criteria\", \"detail\": \"Use GROUP BY 'flights.Airline' and HAVING COUNT(*) >= 10 to filter airlines with at least 10 flights.\"}, {\"step\": \"Select the expected output fields in the required order\", \"detail\": \"Select 'airlines.Airline' as it matches the expected result fields specified.\"} ] }",
+      "token_usage": {
+        "total_tokens": 1688,
+        "prompt_tokens": 1384,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 304,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:26:12.595169"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.16,
+      "raw_response": "{\"sql\": \"SELECT airlines.Airline FROM flights JOIN airlines ON flights.Airline = airlines.Airline GROUP BY flights.Airline HAVING COUNT(*) >= 10\"}",
+      "token_usage": {
+        "total_tokens": 2124,
+        "prompt_tokens": 2076,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 48,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:26:13.765488"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.198,
+      "raw_response": "{\"sql\": \"SELECT airlines.Airline FROM flights JOIN airlines ON flights.Airline = airlines.Airline GROUP BY airlines.Airline HAVING COUNT(*) >= 10\", \"notes\": \"Adjusted GROUP BY to ensure it aligns with the selected airline name from 'airlines' table to match expected output exactly.\", \"diagnostics\": [\"Verified the correct JOIN between 'flights' and 'airlines' on 'Airline'.\", \"Reconfirmed GROUP BY is using the appropriate column from 'airlines' for correct aggregation filtering.\"]}",
+      "token_usage": {
+        "total_tokens": 1765,
+        "prompt_tokens": 1642,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 123,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:26:16.977343"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.91,
+      "raw_response": "The user wants me to act as a Final Validator for a given SQL query based on a provided question, schema, and analysis. I need to go through a 6-step validation checklist and return the corrected SQL in a specific JSON format.\n\nHere's the plan:\n1.  **Analyze the current SQL:** `SELECT airlines.Airline FROM flights JOIN airlines ON flights.Airline = airlines.Airline GROUP BY airlines.Airline HAVING COUNT(*) >= 10`\n2.  **Compare SELECT with `expected_output_fields`:** `expected_output_fields`: `[\"Airline\"]`. Current `SELECT`: `airlines.Airline`. This matches exactly.\n3.  **Check for COUNT(*):** `COUNT(*)` is used in `HAVING`. This is correct for counting flights.\n4.  **Check GROUP BY:** The analysis `group_by` is `[{\"table\": \"flights\", \"column\": \"Airline\"}]`. The SQL uses `GROUP BY airlines.Airline`. The join is on `flights.Airline = airlines.Airline`. Both `flights.Airline` and `airlines.Airline` represent the same concept here. Grouping by `airlines.Airline` is appropriate since the SELECT statement asks for `airlines.Airline`. The `HAVING COUNT(*)` refers to the count of *flights* for each airline. This seems correct.\n5.  **Check joins:** `single_table_ok` is `false`, `join_hints` indicates a join between `flights` and `airlines` on `Airline`. The SQL has `JOIN airlines ON flights.Airline = airlines.Airline`. This join is necessary and correct.\n6.  **Check ORDER BY:** The analysis `order_by` is empty. The SQL has no `ORDER BY`. This is correct.\n7.  **Check CRITICAL Final Pattern Checks:**\n    *   **Self-Join Validation:** `self_join_hint` is `false`. No self-join in SQL, correct.\n    *   **Set Operation Validation:** `set_operation_type` is `NONE`. No set operations in SQL, correct.\n    *   **WHERE Condition Validation:** `where_condition_type` is `RANGE`, `null_handling` is `UNKNOWN`. There is no `WHERE` clause, only `HAVING`. The `HAVING COUNT(*) >= 10` correctly implements the \"at least 10 flights\" condition.\n    *   **GROUP BY Validation:** The `GROUP BY airlines.Airline` is consistent with the `SELECT airlines.Airline`. The `Airline` column is likely a natural identifier for airlines in this context, and given `expected_output_fields` is just `Airline`, grouping by it is fine.\n    *   **ORDER BY Validation:** No `ORDER BY` is required or present. Correct.\n    *   **DISTINCT Validation:** No `DISTINCT` or unnecessary `GROUP BY` for uniqueness. `GROUP BY` is used for aggregation, which is correct.\n\nThe SQL seems to be correct based on all validation steps.{\"sql\": \"SELECT airlines.Airline FROM flights JOIN airlines ON flights.Airline = airlines.Airline GROUP BY airlines.Airline HAVING COUNT(*) >= 10\", \"explain\": \"The SQL query correctly identifies airlines with at least 10 flights. The SELECT clause matches the expected output field. The join between 'flights' and 'airlines' is necessary and correctly implemented. GROUP BY is consistent with the selected non-aggregated column, and HAVING correctly filters based on the count of flights.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2066,
+        "prompt_tokens": 1318,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 748,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:26:20.897202"
+    }
+  ],
+  "final_sql": "SELECT airlines.Airline FROM flights JOIN airlines ON flights.Airline = airlines.Airline GROUP BY airlines.Airline HAVING COUNT(*) >= 10",
+  "explain": "The SQL query correctly identifies airlines with at least 10 flights. The SELECT clause matches the expected output field. The join between 'flights' and 'airlines' is necessary and correctly implemented. GROUP BY is consistent with the selected non-aggregated column, and HAVING correctly filters based on the count of flights.",
+  "error": "",
+  "timestamp": "2026-07-25T02:26:20.898979"
+}

@@ -1,0 +1,97 @@
+{
+  "question_index": 816,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "What is the language spoken by the largest percentage of people in each country?",
+  "gold_query": "SELECT LANGUAGE ,  CountryCode ,  max(Percentage) FROM countrylanguage GROUP BY CountryCode",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.634,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"CountryCode\", \"Language\", \"Percentage\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"agg\": \"MAX\", \"alias\": null, \"order_index\": 2}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"countrylanguage\", \"column\": \"CountryCode\"}],\n  \"order_by\": [{\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"get language details for each country\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"CountryCode\", \"Language\", \"Percentage\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"NONE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1748,
+        "prompt_tokens": 1419,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 329,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:59:08.898825"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 28.114,
+      "raw_response": "```json\n{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[-1, \"*\"], [2, \"Code\"], [3, \"CountryCode\"], [3, \"Language\"], [3, \"Percentage\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\", \"number\"], \"foreign_keys\": [[2, 1]], \"primary_keys\": [1, 2]}\n```",
+      "token_usage": {
+        "total_tokens": 7346,
+        "prompt_tokens": 947,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 6399,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:59:37.030913"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 5.185,
+      "raw_response": "{ \"steps\": [ { \"step\": \"Identify tables needed.\", \"details\": \"We need data on languages spoken by countries; the 'countrylanguage' table contains CountryCode, Language, and Percentage information.\" }, { \"step\": \"Determine if a join is needed.\", \"details\": \"No join needed as all required information is present in the 'countrylanguage' table; the information specific to the languages spoken by each country is available, so no need to join with the 'country' table.\" }, { \"step\": \"Select columns and determine grouping.\", \"details\": \"The output requires CountryCode and the language with the largest percentage for each country. We need to use GROUP BY on CountryCode to get the language with the maximum Percentage value.\" }, { \"step\": \"Determine the aggregation needed.\", \"details\": \"Use MAX(Percentage) to determine the language spoken by the largest percentage of people in each country for each group of CountryCode.\" }, { \"step\": \"Handling ORDER BY.\", \"details\": \"Since the question asks for the language spoken by the largest percentage, there is no explicit need for ordering in the final output based on the full dataset.\" }, { \"step\": \"Prepare the final SELECT statement.\", \"details\": \"Use a subquery to find the maximum percentage for each country, join back onto countrylanguage to get the language, and select CountryCode, Language, and Percentage in the specified order.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1662,
+        "prompt_tokens": 1357,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 305,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:59:42.235540"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.59,
+      "raw_response": "{ \"sql\": \"SELECT CountryCode, Language, Percentage FROM countrylanguage WHERE (CountryCode, Percentage) IN (SELECT CountryCode, MAX(Percentage) FROM countrylanguage GROUP BY CountryCode)\" }",
+      "token_usage": {
+        "total_tokens": 1916,
+        "prompt_tokens": 1862,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 54,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:59:43.844242"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.929,
+      "raw_response": "{\"sql\": \"SELECT cl.CountryCode, cl.Language, cl.Percentage FROM countrylanguage cl JOIN (SELECT CountryCode, MAX(Percentage) AS max_percentage FROM countrylanguage GROUP BY CountryCode) sub ON cl.CountryCode = sub.CountryCode AND cl.Percentage = sub.max_percentage\", \"notes\": \"Replaced the initial subquery structure with a join to retrieve languages with maximum percentage per country. This correctly selects columns in the required order without unnecessary joins or order by, following the plan.\", \"diagnostics\": [\"Aligned SQL structure with expected output columns: CountryCode, Language, Percentage.\", \"Removed unnecessary ORDER BY as per task requirements.\", \"Used a subquery join to effectively find the language with the maximum percentage per country.\"]}",
+      "token_usage": {
+        "total_tokens": 1765,
+        "prompt_tokens": 1604,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 161,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:59:45.784093"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 13.601,
+      "raw_response": "{\"sql\": \"SELECT cl.CountryCode, cl.Language, cl.Percentage FROM countrylanguage cl JOIN (SELECT CountryCode, MAX(Percentage) AS max_percentage FROM countrylanguage GROUP BY CountryCode) sub ON cl.CountryCode = sub.CountryCode AND cl.Percentage = sub.max_percentage ORDER BY cl.Percentage DESC\", \"explain\": \"Added `ORDER BY cl.Percentage DESC` as specified in the analysis to sort the final results.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 4231,
+        "prompt_tokens": 1361,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2870,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:59:59.403801"
+    }
+  ],
+  "final_sql": "SELECT cl.CountryCode, cl.Language, cl.Percentage FROM countrylanguage cl JOIN (SELECT CountryCode, MAX(Percentage) AS max_percentage FROM countrylanguage GROUP BY CountryCode) sub ON cl.CountryCode = sub.CountryCode AND cl.Percentage = sub.max_percentage ORDER BY cl.Percentage DESC",
+  "explain": "Added `ORDER BY cl.Percentage DESC` as specified in the analysis to sort the final results.",
+  "error": "",
+  "timestamp": "2026-07-24T00:59:59.406952"
+}

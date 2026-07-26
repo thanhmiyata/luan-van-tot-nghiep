@@ -1,0 +1,69 @@
+{
+  "question_index": 37,
+  "pipeline": "4step",
+  "db_id": "concert_singer",
+  "question": "List all singer names in concerts in year 2014.",
+  "gold_query": "SELECT T2.name FROM singer_in_concert AS T1 JOIN singer AS T2 ON T1.singer_id  =  T2.singer_id JOIN concert AS T3 ON T1.concert_id  =  T3.concert_id WHERE T3.year  =  2014",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.413,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"singer\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"concert\", \"column\": \"Year\", \"operator\": \"=\", \"value\": \"2014\", \"value_type\": \"NUMBER\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"singer_in_concert\", \"to_table\": \"concert\", \"reason\": \"concert_ID\"}, {\"from_table\": \"singer_in_concert\", \"to_table\": \"singer\", \"reason\": \"Singer_ID\"}],\n  \"entities\": {\"tables\": [\"singer\", \"concert\", \"singer_in_concert\"], \"columns\": [\"Name\", \"Year\"], \"values\": [\"2014\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1436,
+        "prompt_tokens": 1186,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 250,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:29:13.884913"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 15.54,
+      "raw_response": "{\"db_id\": \"concert_singer\", \"table_names_original\": [\"singer\", \"concert\", \"singer_in_concert\"], \"column_names_original\": [[0, \"Singer_ID\"], [0, \"Name\"], [1, \"concert_ID\"], [1, \"Year\"], [2, \"concert_ID\"], [2, \"Singer_ID\"]], \"column_types\": [\"number\", \"text\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[5, 0], [4, 2]], \"primary_keys\": [0, 2, 4], \"column_sample_values\": [[], [\"Joe Sharp\", \"Timbaland\", \"Justin Brown\", \"Rose White\"], [], [\"2014\", \"2015\"], [], [\"2\", \"3\", \"5\", \"6\"]]}",
+      "token_usage": {
+        "total_tokens": 5017,
+        "prompt_tokens": 986,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4031,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:29:29.426929"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.428,
+      "raw_response": "{\"sql\": \"SELECT Name FROM singer JOIN singer_in_concert ON singer.Singer_ID = singer_in_concert.Singer_ID JOIN concert ON singer_in_concert.concert_ID = concert.concert_ID WHERE Year = 2014\"}",
+      "token_usage": {
+        "total_tokens": 1215,
+        "prompt_tokens": 1156,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 59,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:29:30.860485"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.893,
+      "raw_response": "I need to validate the provided SQL query against the given criteria and the analysis.\n\n1.  **SELECT matches expected_output_fields:**\n    *   Expected: `[\"Name\"]`\n    *   SQL: `SELECT Name` - Matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows.**\n    *   SQL joins: `singer JOIN singer_in_concert ON singer.Singer_ID = singer_in_concert.Singer_ID JOIN concert ON singer_in_concert.concert_ID = concert.concert_ID`\n    *   Schema `foreign_keys`: `[[6,1],[5,3]]` which translates to `singer_in_concert.Singer_ID` (column 6) -> `singer.Singer_ID` (column 1) and `singer_in_concert.concert_ID` (column 5) -> `concert.concert_ID` (column 3).\n    *   The joins are correct and necessary to link `singer` (for Name) with `concert` (for Year) through `singer_in_concert`.\n    *   No `ORDER BY` clause, which is correct as none was requested.\n    *   No `COUNT(*)` in the `SELECT`, which is also correct as we are listing names, not counting.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available.**\n    *   SQL `WHERE Year = 2014`\n    *   `column_sample_values` for `Year` (column 4) includes `\"2014\"`. The SQL uses `2014` as a number, while the sample values show it as text. However, the `column_types` for `Year` (column 4) is `text`. This is a mismatch. The `WHERE` clause should treat `Year` as text if its type is text.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `singer`, `concert`, `singer_in_concert`, `Name`, `Singer_ID`, `concert_ID`, `Year` all exist in the schema.\n    *   SQL is complete and one line.\n\n**Conclusion for issue:** The `Year` column type is `text` according to `column_types`, but the SQL uses `2014` as a numeric literal. It should be `'2014'` to match the text type.\n\n**Correction:** Change `Year = 2014` to `Year = '2014'`.{\n \"sql\": \"SELECT T1.Name FROM singer AS T1 JOIN singer_in_concert AS T2 ON T1.Singer_ID = T2.Singer_ID JOIN concert AS T3 ON T2.concert_ID = T3.concert_ID WHERE T3.Year = '2014'\",\n \"explain\": \"The 'Year' column is of type TEXT according to the schema, so the literal value '2014' in the WHERE clause must be enclosed in single quotes.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1541,
+        "prompt_tokens": 849,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 692,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:29:34.755892"
+    }
+  ],
+  "final_sql": "SELECT T1.Name FROM singer AS T1 JOIN singer_in_concert AS T2 ON T1.Singer_ID = T2.Singer_ID JOIN concert AS T3 ON T2.concert_ID = T3.concert_ID WHERE T3.Year = '2014'",
+  "explain": "The 'Year' column is of type TEXT according to the schema, so the literal value '2014' in the WHERE clause must be enclosed in single quotes.",
+  "error": "",
+  "timestamp": "2026-07-24T16:29:34.757954"
+}

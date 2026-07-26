@@ -1,0 +1,97 @@
+{
+  "question_index": 30,
+  "pipeline": "6step",
+  "db_id": "concert_singer",
+  "question": "Show countries where a singer above age 40 and a singer below 30 are from.",
+  "gold_query": "SELECT country FROM singer WHERE age  >  40 INTERSECT SELECT country FROM singer WHERE age  <  30",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.261,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Country\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"singer\", \"column\": \"Country\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"singer\", \"column\": \"Age\", \"operator\": \">\", \"value\": \"40\", \"value_type\": \"NUMBER\"},\n    {\"table\": \"singer\", \"column\": \"Age\", \"operator\": \"<\", \"value\": \"30\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"singer\"], \"columns\": [\"Country\", \"Age\"], \"values\": [\"40\", \"30\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"INTERSECT\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1907,
+        "prompt_tokens": 1643,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 264,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:36:54.378280"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.227,
+      "raw_response": "```json\n{\"db_id\": \"concert_singer\", \"table_names_original\": [\"singer\"], \"column_names_original\": [[-1, \"*\"], [0, \"Singer_ID\"], [0, \"Country\"], [0, \"Age\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\"], \"foreign_keys\": [], \"primary_keys\": [1], \"column_sample_values\": [[], [], [\"Netherlands\", \"United States\", \"France\"], []]}\n```",
+      "token_usage": {
+        "total_tokens": 4245,
+        "prompt_tokens": 1036,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3209,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:37:08.623638"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.624,
+      "raw_response": "{ \"steps\": [ \"1. Identify the necessary table: The question only involves the 'singer' table, as it contains the needed columns 'Country' and 'Age'. No join needed.\", \"2. First filter set: Select countries with singers above age 40. Prepare a SELECT query with the condition 'Age > 40'.\", \"3. Second filter set: Select countries with singers below age 30. Prepare a separate SELECT query with the condition 'Age < 30'.\", \"4. Use INTERSECT: As per the set_operation_type 'INTERSECT', use INTERSECT to get countries fulfilling both conditions from steps 2 and 3.\", \"5. Construct SELECT for both queries: Ensure each SELECT statement retrieves distinct countries: 'SELECT DISTINCT Country'.\", \"6. Ensure no additional operations: No need for GROUP BY, ORDER BY, or other operations as the question doesn't imply any ranking or other aggregate operations.\" ] }",
+      "token_usage": {
+        "total_tokens": 1560,
+        "prompt_tokens": 1353,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 207,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:37:12.265160"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.997,
+      "raw_response": "{ \"sql\": \"SELECT DISTINCT Country FROM singer WHERE Age > 40 INTERSECT SELECT DISTINCT Country FROM singer WHERE Age < 30\" }",
+      "token_usage": {
+        "total_tokens": 1920,
+        "prompt_tokens": 1879,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 41,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:37:13.280449"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.96,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT Country FROM singer WHERE Age > 40 INTERSECT SELECT DISTINCT Country FROM singer WHERE Age < 30\", \"notes\": \"SQL is correctly using INTERSECT to find countries where there are singers both above 40 and below 30. The SELECT statements align with expected_output_fields, extracting 'Country' from the 'singer' table without unnecessary joins or clauses.\", \"diagnostics\": [\"No changes were necessary as the initial SQL already matched the expected output fields and followed the plan accurately.\"]}",
+      "token_usage": {
+        "total_tokens": 1585,
+        "prompt_tokens": 1466,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 119,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:37:15.258890"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.63,
+      "raw_response": "I need to validate the provided SQL against the given schema and analysis, following the 6-step checklist.\n\n1.  **SELECT = expected_output_fields:**\n    *   Expected: `[\"Country\"]`\n    *   SQL: `SELECT DISTINCT Country`\n    *   Matches.\n\n2.  **Counts:** Not applicable as it's not a count query.\n\n3.  **Extremum patterns:** Not applicable as it's not an extremum query.\n\n4.  **No unnecessary joins:**\n    *   `single_table_ok=true` in analysis.\n    *   The SQL only uses the `singer` table, no joins.\n    *   Matches.\n\n5.  **Remove ORDER BY:**\n    *   `order_by: []` in analysis.\n    *   The SQL has no ORDER BY.\n    *   Matches.\n\n6.  **Names exist, SQL complete:**\n    *   `Country`, `singer`, `Age` all exist in the schema.\n    *   SQL is complete, single line, no comments.\n    *   Matches.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:**\n    *   `self_join_hint: false`\n    *   SQL does not use self-join.\n    *   Matches.\n\n2.  **Set Operation Validation:**\n    *   `set_operation_type: INTERSECT`\n    *   SQL uses `INTERSECT`.\n    *   Matches.\n\n3.  **WHERE Condition Validation:**\n    *   `where_condition_type: RANGE`\n    *   `Age > 40` and `Age < 30` are range conditions.\n    *   Matches.\n\n4.  **GROUP BY Validation:** Not applicable, no aggregation.\n\n5.  **ORDER BY Validation:** Not applicable, no ORDER BY expected.\n\n6.  **DISTINCT Validation:**\n    *   The analysis `output_fields_detailed` has `agg: NONE` for `Country`, but `DISTINCT Country` is used in the SQL.\n    *   The question \"Show countries where a singer above age 40 and a singer below 30 are from.\" implies we want unique countries that meet both criteria. `INTERSECT` inherently handles some uniqueness, but `DISTINCT` within each subquery is appropriate to ensure that if a country has multiple singers > 40, it's only considered once in the first set, and similarly for the second set. The `DISTINCT` keyword is correctly applied given the nature of `INTERSECT` to find common *unique* elements between two sets. The SQL is correct here.\n\nAll checks pass. The SQL is already correct and matches the analysis and requirements.{\"sql\": \"SELECT DISTINCT Country FROM singer WHERE Age > 40 INTERSECT SELECT DISTINCT Country FROM singer WHERE Age < 30\", \"explain\": \"The SQL query correctly identifies countries with singers above age 40 and countries with singers below age 30 using INTERSECT to find common countries, matching the analysis for expected output fields, set operation, and filter conditions. No changes needed.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1973,
+        "prompt_tokens": 1285,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 688,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T17:37:18.909267"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT Country FROM singer WHERE Age > 40 INTERSECT SELECT DISTINCT Country FROM singer WHERE Age < 30",
+  "explain": "The SQL query correctly identifies countries with singers above age 40 and countries with singers below age 30 using INTERSECT to find common countries, matching the analysis for expected output fields, set operation, and filter conditions. No changes needed.",
+  "error": "",
+  "timestamp": "2026-07-24T17:37:18.911076"
+}

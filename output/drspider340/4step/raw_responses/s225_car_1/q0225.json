@@ -1,0 +1,72 @@
+{
+  "question_index": 225,
+  "pipeline": "4step",
+  "db_id": "s225_car_1",
+  "question": "Show the ids and names of the countries that make more than three cars or produce Fiat vehicles.",
+  "gold_query": "SELECT T1.countryId , T1.CountryName FROM Countries AS T1 JOIN CAR_MAKERS AS T2 ON T1.CountryId = T2.Country GROUP BY T1.countryId HAVING count(*) > 3 UNION SELECT T1.countryId , T1.CountryName FROM Countries AS T1 JOIN CAR_MAKERS AS T2 ON T1.CountryId = T2.Country JOIN MODEL_LIST AS T3 ON T2.Id = T3.Maker WHERE T3.Model = 'fiat'",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 7.519,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"CountryId\", \"CountryName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"countries\", \"car_makers\", \"car_names\", \"cars_data\"],\n  \"required_columns\": [\n    {\"table\": \"countries\", \"column\": \"CountryId\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"car_makers\", \"column\": \"Country\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"Maker\", \"purpose\": \"FILTER\"},\n    {\"table\": \"car_names\", \"column\": \"MakeId\", \"purpose\": \"JOIN\"},\n    {\"table\": \"cars_data\", \"column\": \"Id\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"countries\", \"column\": \"CountryId\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"cars_data\", \"column\": \"Id\", \"operator\": \">\", \"value\": 3, \"value_type\": \"NUMBER\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"table\": \"car_makers\", \"column\": \"Maker\", \"operator\": \"=\", \"value\": \"fiat\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"fiat\", \"table\": \"car_makers\", \"column\": \"Maker\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Countries making more than three cars\"},\n    {\"scope_id\": \"s2\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b2\"], \"reason\": \"Countries producing Fiat vehicles\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"UNION\", \"branches\": [\n    {\"branch_id\": \"b1\", \"scope_id\": \"s1\", \"required_tables\": [\"countries\", \"cars_data\"], \"required_columns\": [], \"purpose\": \"Countries making more than three cars\"},\n    {\"branch_id\": \"b2\", \"scope_id\": \"s2\", \"required_tables\": [\"countries\", \"car_makers\"], \"required_columns\": [], \"purpose\": \"Countries producing Fiat vehicles\"}\n  ], \"reason\": \"Combine results for either condition\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"car_makers\", \"to_table\": \"countries\", \"reason\": \"Match makers to their countries\"},\n    {\"from_table\": \"cars_data\", \"to_table\": \"countries\", \"reason\": \"Match car data to their countries via car_names\"}\n  ],\n  \"entities\": {\"tables\": [\"countries\", \"car_makers\", \"car_names\", \"cars_data\"], \"columns\": [\"CountryId\", \"CountryName\", \"Maker\"], \"values\": [\"fiat\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 3485,
+        "prompt_tokens": 2688,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 797,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T20:00:25.586719"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.517,
+      "raw_response": "{\"table_names_original\": [\"countries\", \"car_makers\", \"model_list\", \"car_names\", \"cars_data\"], \"column_names_original\": [[\"CountryId\"], [\"CountryName\"], [\"Id\"], [\"Maker\"], [\"Country\"], [\"ModelId\"], [\"Maker\"], [\"Model\"], [\"MakeId\"], [\"Model\"], [\"Id\"]]}",
+      "token_usage": {
+        "total_tokens": 4680,
+        "prompt_tokens": 2272,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2408,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T20:00:37.105819"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.246,
+      "raw_response": "{\"sql\": \"SELECT countries.CountryId, countries.CountryName FROM countries JOIN car_makers ON car_makers.Country = countries.CountryId WHERE car_makers.Maker = 'fiat' UNION SELECT countries.CountryId, countries.CountryName FROM countries WHERE EXISTS (SELECT 1 FROM car_names JOIN cars_data ON car_names.MakeId = cars_data.Id WHERE cars_data.Id > 3 AND car_names.Model = countries.CountryId)\"}",
+      "token_usage": {
+        "total_tokens": 3182,
+        "prompt_tokens": 3084,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 98,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T20:00:39.353236",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/drspider340/database/s225_car_1/s225_car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": [
+          {
+            "code": "NON_FK_JOIN",
+            "message": "car_names.Model = countries.CountryId is not a declared foreign-key edge. Verify it semantically; this is a warning, not a fatal error."
+          }
+        ],
+        "checked_join_conditions": [
+          "car_makers.Country = countries.CountryId",
+          "car_names.MakeId = cars_data.Id",
+          "car_names.Model = countries.CountryId"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT countries.CountryId, countries.CountryName FROM countries JOIN car_makers ON car_makers.Country = countries.CountryId WHERE car_makers.Maker = 'fiat' UNION SELECT countries.CountryId, countries.CountryName FROM countries WHERE EXISTS (SELECT 1 FROM car_names JOIN cars_data ON car_names.MakeId = cars_data.Id WHERE cars_data.Id > 3 AND car_names.Model = countries.CountryId)",
+  "explain": "Validator no-op: Generator SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T20:00:39.356913"
+}

@@ -1,0 +1,97 @@
+{
+  "question_index": 375,
+  "pipeline": "6step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "What is the document id with least number of paragraphs?",
+  "gold_query": "SELECT document_id FROM Paragraphs GROUP BY document_id ORDER BY count(*) ASC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.988,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Document_ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\"}],\n  \"order_by\": [{\"table\": \"Paragraphs\", \"column\": \"Paragraph_ID\", \"direction\": \"ASC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"To count paragraphs per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\", \"Paragraph_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1974,
+        "prompt_tokens": 1717,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 257,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:34:43.866589"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 19.902,
+      "raw_response": "{\"db_id\":\"cre_Doc_Template_Mgt\",\"table_names_original\":[\"Documents\",\"Paragraphs\"],\"column_names_original\":[[-1,\"*\"],[0,\"Document_ID\"],[1,\"Paragraph_ID\"],[1,\"Document_ID\"]],\"column_types\":[\"text\",\"number\",\"number\",\"number\"],\"foreign_keys\":[[3,1]],\"primary_keys\":[1,2],\"column_sample_values\":[[],[],[],[]]}",
+      "token_usage": {
+        "total_tokens": 6055,
+        "prompt_tokens": 947,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5108,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:35:03.785331"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 1.976,
+      "raw_response": "{ \"steps\": [ \"List minimal tables: Documents, Paragraphs\", \"Join needed: Documents.Document_ID = Paragraphs.Document_ID\", \"Use COUNT(*) to count Paragraph_IDs per Document_ID\", \"GROUP BY Document_ID to calculate number of paragraphs per document\", \"ORDER BY COUNT(*) ASC to find the document with the least paragraphs\", \"Add LIMIT 1 to get only the document id with the least paragraphs\" ] }",
+      "token_usage": {
+        "total_tokens": 1501,
+        "prompt_tokens": 1403,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 98,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:35:05.780242"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.076,
+      "raw_response": "{\"sql\": \"SELECT p.Document_ID FROM Paragraphs p GROUP BY p.Document_ID ORDER BY COUNT(*) ASC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1926,
+        "prompt_tokens": 1889,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 37,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:35:06.873634"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.217,
+      "raw_response": "{\"sql\": \"SELECT p.Document_ID FROM Documents d JOIN Paragraphs p ON d.Document_ID = p.Document_ID GROUP BY p.Document_ID ORDER BY COUNT(*) ASC LIMIT 1\", \"notes\": \"SQL was adjusted to include a necessary join between Documents and Paragraphs. All ordering and grouping align with plan steps and expected output fields.\", \"diagnostics\": [\"Added join between Documents and Paragraphs, removed extra ORDER BY that was not per question intent, maintained GROUP BY Document_ID for counting paragraphs per document.\"]}",
+      "token_usage": {
+        "total_tokens": 1560,
+        "prompt_tokens": 1444,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 116,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:35:09.108819"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.757,
+      "raw_response": "The user wants me to act as a Final Validator for a SQL query. I need to go through a 6-step validation checklist and fix any issues I find.\n\nHere's the plan:\n1.  **SELECT matches expected_output_fields:**\n    *   Expected: `[\"Document_ID\"]`\n    *   Current: `SELECT p.Document_ID`\n    *   Looks good, `p.Document_ID` matches `Document_ID`.\n\n2.  **Counts and GROUP BY:**\n    *   Question: \"What is the document id with least number of paragraphs?\" This implies counting paragraphs per document.\n    *   Current: `GROUP BY p.Document_ID ORDER BY COUNT(*) ASC LIMIT 1`\n    *   `COUNT(*)` is used, which is good for counting rows.\n    *   `GROUP BY p.Document_ID` is consistent with the non-aggregated SELECT field and the goal of counting paragraphs per document.\n\n3.  **Extremum patterns:**\n    *   Question asks for \"least number\", so `ORDER BY COUNT(*) ASC LIMIT 1` is the correct pattern for finding the minimum.\n\n4.  **Joins:**\n    *   `Documents d JOIN Paragraphs p ON d.Document_ID = p.Document_ID`\n    *   `foreign_keys`: `[[3,1]]` which means `Paragraphs.Document_ID` (index 3) refers to `Documents.Document_ID` (index 1). The join condition `d.Document_ID = p.Document_ID` is correct based on the schema and FK.\n    *   The join is necessary to count paragraphs (`Paragraphs` table) per document (`Documents` table). `single_table_ok` is `false`, so a join is expected.\n\n5.  **Remove ORDER BY unless required:**\n    *   The question explicitly asks for the \"least number\", so `ORDER BY COUNT(*) ASC LIMIT 1` is required.\n    *   The analysis `order_by` suggests `Paragraphs.Paragraph_ID` in ASC direction, which seems incorrect for getting the *least number of paragraphs*. The current SQL's `ORDER BY COUNT(*) ASC` is correct for the question. The analysis might be slightly off here regarding the `order_by` *column*, but the SQL's `ORDER BY COUNT(*)` is right for the intent. I will prioritize the SQL matching the *question* over a potentially flawed `analysis.order_by` detail when it comes to aggregation/extremum.\n\n6.  **Names exist, SQL complete:**\n    *   `Documents`, `Paragraphs`, `Document_ID` exist in the schema.\n    *   SQL is complete and one line.\n\n**Critical Final Pattern Checks:**\n\n1.  **Self-Join Validation:** `self_join_hint` is `false`. No self-join in SQL. OK.\n2.  **Set Operation Validation:** `set_operation_type` is `NONE`. No set operations in SQL. OK.\n3.  **WHERE Condition Validation:** No `WHERE` clause in the SQL. `where_condition_type` is `EQUALS`, but there are no filters. OK.\n4.  **GROUP BY Validation:** `GROUP BY p.Document_ID`. `Document_ID` is a PK in `Documents` (index 1) and also present in `Paragraphs` (index 3). Grouping by `p.Document_ID` is appropriate to aggregate paragraphs per document. OK.\n5.  **ORDER BY Validation:** SQL has `ORDER BY COUNT(*) ASC LIMIT 1`. This correctly addresses \"least number\". The analysis's `order_by` suggests `Paragraphs.Paragraph_ID` which is incorrect for this type of question. The SQL is correct.\n6.  **DISTINCT Validation:** No `DISTINCT` used. `GROUP BY` is used for aggregation, not just uniqueness. OK.\n\nThe SQL appears to be correct and matches the question's intent perfectly, including the extremum pattern. The `analysis.order_by` field seems to have a minor discrepancy (suggesting ordering by `Paragraph_ID` instead of `COUNT(*)`), but the SQL correctly implements `ORDER BY COUNT(*)`. I will trust the SQL in this case as it directly answers the question.\n\nNo fixes needed.{\"sql\": \"SELECT p.Document_ID FROM Documents AS T1 JOIN Paragraphs AS T2 ON T1.Document_ID = T2.Document_ID GROUP BY p.Document_ID ORDER BY COUNT(*) ASC LIMIT 1\", \"explain\": \"The SQL query correctly identifies the document ID with the least number of paragraphs by joining Documents and Paragraphs, grouping by Document_ID, counting paragraphs for each group, and then ordering by the count in ascending order and taking the top result. All tables, columns, and join conditions are correct according to the schema and question.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2438,
+        "prompt_tokens": 1374,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1064,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:35:14.884707"
+    }
+  ],
+  "final_sql": "SELECT p.Document_ID FROM Documents AS T1 JOIN Paragraphs AS T2 ON T1.Document_ID = T2.Document_ID GROUP BY p.Document_ID ORDER BY COUNT(*) ASC LIMIT 1",
+  "explain": "The SQL query correctly identifies the document ID with the least number of paragraphs by joining Documents and Paragraphs, grouping by Document_ID, counting paragraphs for each group, and then ordering by the count in ascending order and taking the top result. All tables, columns, and join conditions are correct according to the schema and question.",
+  "error": "",
+  "timestamp": "2026-07-25T05:35:14.887215"
+}

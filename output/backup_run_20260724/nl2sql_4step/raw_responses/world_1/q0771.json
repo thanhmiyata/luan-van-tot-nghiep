@@ -1,0 +1,69 @@
+{
+  "question_index": 771,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "For the countries founded before 1930, what is the total number of distinct official languages?",
+  "gold_query": "SELECT count(DISTINCT T2.Language) FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE  IndepYear  <  1930 AND T2.IsOfficial  =  \"T\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.987,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"total_distinct_languages\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"total_distinct_languages\", \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"country\", \"column\": \"IndepYear\", \"operator\": \"<\", \"value\": \"1930\", \"value_type\": \"NUMBER\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"join to filter languages by country independence year\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"IndepYear\", \"Language\"], \"values\": [\"1930\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1208,
+        "prompt_tokens": 972,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 236,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:45:01.754667"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 10.594,
+      "raw_response": "{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[0, \"Code\"], [0, \"IndepYear\"], [1, \"CountryCode\"], [1, \"Language\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\"], \"foreign_keys\": [[2, 0]], \"primary_keys\": [0, 2]}",
+      "token_usage": {
+        "total_tokens": 3166,
+        "prompt_tokens": 825,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2341,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:45:12.350426"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.891,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT countrylanguage.Language) AS total_distinct_languages FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.IndepYear < 1930\"}",
+      "token_usage": {
+        "total_tokens": 1049,
+        "prompt_tokens": 906,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 143,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:45:14.243274"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.444,
+      "raw_response": "I need to validate the given SQL query against the provided schema, question, and analysis.\n\nHere's the plan:\n1.  **Check SELECT clause:**\n    *   Does it match `expected_output_fields` in content and order?\n    *   Does `COUNT` use `DISTINCT` when counting entities? (The analysis states `COUNT_DISTINCT` for `Language`).\n2.  **Check Joins:**\n    *   Are all joins necessary? (The analysis suggests a join between `country` and `countrylanguage`).\n    *   Are PK/FK correct? (`country.Code = countrylanguage.CountryCode`).\n3.  **Check WHERE clause:**\n    *   Does it match the `filters` in the analysis? (`country.IndepYear < 1930`).\n4.  **Check ORDER BY:**\n    *   Is there any unnecessary `ORDER BY`? (Analysis says `order_by: []`).\n5.  **Check Column/Table Names:**\n    *   Do all column and table names exist in the schema?\n6.  **Check SQL Completeness and Formatting:**\n    *   Is it one line, complete, and without comments?\n\nLet's break down the current SQL:\n`SELECT COUNT(DISTINCT countrylanguage.Language) AS total_distinct_languages FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.IndepYear < 1930`\n\n**Validation Steps:**\n\n1.  **SELECT clause:**\n    *   `COUNT(DISTINCT countrylanguage.Language) AS total_distinct_languages` matches `expected_output_fields: [\"total_distinct_languages\"]` and `output_fields_detailed` which specifies `agg: COUNT_DISTINCT` for `Language` and `alias: total_distinct_languages`. This is correct.\n2.  **Joins:**\n    *   `FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode`.\n    *   The join is necessary because the filter `country.IndepYear < 1930` is on `country` table, but the aggregation `COUNT(DISTINCT Language)` is on `countrylanguage` table.\n    *   The join condition `country.Code = countrylanguage.CountryCode` correctly uses the primary key `country.Code` and foreign key `countrylanguage.CountryCode` as specified in the schema (`foreign_keys\":[[2,0]]` meaning `column_names_original[2]` -> `countrylanguage.CountryCode` references `column_names_original[0]` -> `country.Code`). This is correct.\n3.  **WHERE clause:**\n    *   `WHERE country.IndepYear < 1930` matches the filter `{\"table\": \"country\", \"column\": \"IndepYear\", \"operator\": \"<\", \"value\": \"1930\"}` from the analysis. This is correct.\n4.  **ORDER BY:**\n    *   There is no `ORDER BY` clause, which matches `order_by: []` in the analysis. This is correct.\n5.  **Column/Table Names:**\n    *   `country`, `countrylanguage`, `Code`, `Language`, `CountryCode`, `IndepYear` all exist in the schema. This is correct.\n6.  **SQL Completeness and Formatting:**\n    *   The SQL is complete, one line, and has no comments. This is correct.\n\nAll checks pass. The SQL is correct and requires no modifications.{ \"sql\": \"SELECT COUNT(DISTINCT countrylanguage.Language) AS total_distinct_languages FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.IndepYear < 1930\", \"explain\": \"The SQL query is correct. It correctly joins `country` and `countrylanguage` tables on their respective primary/foreign keys (`Code` and `CountryCode`), filters countries by `IndepYear < 1930`, and then counts the distinct languages from the `countrylanguage` table using `COUNT(DISTINCT Language)` as requested. All table and column names exist, and the query is complete and well-formatted.\", \"error\": \"\" }",
+      "token_usage": {
+        "total_tokens": 1652,
+        "prompt_tokens": 734,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 918,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:45:18.688332"
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT countrylanguage.Language) AS total_distinct_languages FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.IndepYear < 1930",
+  "explain": "The SQL query is correct. It correctly joins `country` and `countrylanguage` tables on their respective primary/foreign keys (`Code` and `CountryCode`), filters countries by `IndepYear < 1930`, and then counts the distinct languages from the `countrylanguage` table using `COUNT(DISTINCT Language)` as requested. All table and column names exist, and the query is complete and well-formatted.",
+  "error": "",
+  "timestamp": "2026-07-23T23:45:18.690771"
+}

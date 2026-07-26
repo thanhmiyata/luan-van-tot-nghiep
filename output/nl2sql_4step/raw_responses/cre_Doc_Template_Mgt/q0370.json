@@ -1,0 +1,69 @@
+{
+  "question_index": 370,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "What are the ids and names of each document, as well as the number of paragraphs in each?",
+  "gold_query": "SELECT T1.document_id ,  T2.document_name ,  count(*) FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_id  =  T2.document_id GROUP BY T1.document_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.332,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Document_ID\", \"Document_Name\", \"Paragraph_Count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Documents\", \"column\": \"Document_Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"Paragraphs\", \"column\": \"Paragraph_ID\", \"agg\": \"COUNT\", \"alias\": \"Paragraph_Count\", \"order_index\": 2}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"to count the number of paragraphs per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\", \"Document_Name\", \"Paragraph_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1576,
+        "prompt_tokens": 1292,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 284,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:46:26.827123"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.701,
+      "raw_response": "{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Documents\", \"Paragraphs\"], \"column_names_original\": [[-1, \"*\"], [0, \"Document_ID\"], [0, \"Document_Name\"], [1, \"Paragraph_ID\"], [1, \"Document_ID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [\"Introduction of OS\", \"Understanding DB\", \"Summer Show\", \"Robbin CV\"], [], []]}",
+      "token_usage": {
+        "total_tokens": 5086,
+        "prompt_tokens": 947,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4139,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:46:43.529321"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.868,
+      "raw_response": "{\"sql\": \"SELECT Documents.Document_ID, Documents.Document_Name, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_Count FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID, Documents.Document_Name\"}",
+      "token_usage": {
+        "total_tokens": 1366,
+        "prompt_tokens": 1306,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 60,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:46:45.398481"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.508,
+      "raw_response": "I need to validate the provided SQL against the given criteria and the analysis.\n\nHere's the plan:\n1.  **Check SELECT fields and order:** Compare `SELECT Documents.Document_ID, Documents.Document_Name, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_Count` with `expected_output_fields: [\"Document_ID\", \"Document_Name\", \"Paragraph_Count\"]` and `output_fields_detailed` order.\n    *   `Document_ID` matches.\n    *   `Document_Name` matches.\n    *   `Paragraph_Count` (COUNT(Paragraphs.Paragraph_ID)) matches the alias.\n    *   The order is correct.\n    *   Also, consider if `COUNT(*)` should be used instead of `COUNT(Paragraphs.Paragraph_ID)`. In a `LEFT JOIN`, `COUNT(Paragraphs.Paragraph_ID)` correctly counts paragraphs (or 0 if no paragraphs), and `COUNT(*)` would count 1 for documents with no paragraphs, so `COUNT(Paragraphs.Paragraph_ID)` is appropriate here to count actual paragraphs.\n2.  **Check joins:** `LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID` is correct and necessary as per `join_hints` and `single_table_ok: false`. PK/FK relationship `foreign_keys\":[[4,1]]` means `Paragraphs.Document_ID` (index 4) refers to `Documents.Document_ID` (index 1). This is correct.\n3.  **Check GROUP BY:** `GROUP BY Documents.Document_ID, Documents.Document_Name` is present. The `analysis` specifies `group_by: [{\"table\": \"Documents\", \"column\": \"Document_ID\"}]`. However, when selecting non-aggregated columns in a `GROUP BY` query, all non-aggregated columns in the `SELECT` clause *must* be included in the `GROUP BY` clause (or functionally dependent on a column in `GROUP BY`). Since `Documents.Document_Name` is selected and not aggregated, it needs to be in the `GROUP BY` clause alongside `Documents.Document_ID`. The current SQL `GROUP BY Documents.Document_ID, Documents.Document_Name` is therefore correct and more robust than just `GROUP BY Documents.Document_ID` if `Document_Name` is not functionally dependent on `Document_ID` (though it often is, SQL standards generally require all non-aggregated `SELECT` columns to be in `GROUP BY`). Given the analysis only specified `Document_ID`, it might imply `Document_Name` is functionally dependent, but the current SQL is safer and universally correct. I will consider the current `GROUP BY` correct.\n4.  **Check ORDER BY:** No `ORDER BY` is present, and `order_by: []` in the analysis, so this is correct.\n5.  **Check names/completeness:** All column and table names exist in the schema. SQL is complete and one line. No comments.\n6.  **Text literals:** Not applicable in this query.\n7.  **Negation/INTERSECT:** Not applicable.\n\nConclusion: The SQL looks correct and aligns with all validation rules.```json\n{\n \"sql\": \"SELECT Documents.Document_ID, Documents.Document_Name, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_Count FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID, Documents.Document_Name\",\n \"explain\": \"The SQL is correct. SELECT fields match expected output and order. LEFT JOIN is necessary and uses correct PK/FK. GROUP BY includes all non-aggregated SELECT columns. No unnecessary ORDER BY.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1750,
+        "prompt_tokens": 931,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 819,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:46:49.907720"
+    }
+  ],
+  "final_sql": "SELECT Documents.Document_ID, Documents.Document_Name, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_Count FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID, Documents.Document_Name",
+  "explain": "The SQL is correct. SELECT fields match expected output and order. LEFT JOIN is necessary and uses correct PK/FK. GROUP BY includes all non-aggregated SELECT columns. No unnecessary ORDER BY.",
+  "error": "",
+  "timestamp": "2026-07-25T04:46:49.909581"
+}

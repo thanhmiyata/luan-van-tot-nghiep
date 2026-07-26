@@ -1,0 +1,97 @@
+{
+  "question_index": 66,
+  "pipeline": "6step",
+  "db_id": "pets_1",
+  "question": "What is the first name of every student who has a dog but does not have a cat?",
+  "gold_query": "SELECT T1.fname ,  T1.age FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'dog' AND T1.stuid NOT IN (SELECT T1.stuid FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'cat')",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.807,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Fname\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"Fname\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Pets\", \"column\": \"PetType\", \"operator\": \"=\", \"value\": \"dog\", \"value_type\": \"STRING\"},\n    {\"table\": \"Pets\", \"column\": \"PetType\", \"operator\": \"<>\", \"value\": \"cat\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"reason\": \"link students to their pets\"},\n    {\"from_table\": \"Has_Pet\", \"to_table\": \"Pets\", \"reason\": \"get pet type for filter\"}\n  ],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\", \"Pets\"], \"columns\": [\"Fname\"], \"values\": [\"dog\", \"cat\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1805,
+        "prompt_tokens": 1480,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 325,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:57:07.038829"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.755,
+      "raw_response": "```json\n{\"db_id\": \"pets_1\", \"table_names_original\": [\"Student\", \"Has_Pet\", \"Pets\"], \"column_names_original\": [[-1, \"*\"], [0, \"StuID\"], [0, \"Fname\"], [1, \"StuID\"], [1, \"PetID\"], [2, \"PetID\"], [2, \"PetType\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\", \"number\", \"text\"], \"foreign_keys\": [[3, 1], [4, 5]], \"primary_keys\": [1, 5], \"column_sample_values\": [[], [], [\"Linda\", \"Tracy\", \"Shiela\", \"Dinesh\"], [], [], [], [\"cat\", \"dog\"]]}\n```",
+      "token_usage": {
+        "total_tokens": 4726,
+        "prompt_tokens": 915,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3811,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:57:24.816147"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.971,
+      "raw_response": "{ \"steps\": [ { \"step\": \"Identify required tables\", \"action\": \"Use 'Student', 'Has_Pet', and 'Pets' tables to link students with their pets.\" }, { \"step\": \"Determine necessary joins\", \"action\": \"Join 'Student' and 'Has_Pet' using 'Student.StuID = Has_Pet.StuID', and 'Has_Pet' and 'Pets' using 'Has_Pet.PetID = Pets.PetID'.\" }, { \"step\": \"Apply filters\", \"action\": \"Filter for Pets.PetType = 'dog' and add a condition to exclude those with Pets.PetType = 'cat'.\" }, { \"step\": \"Select output fields\", \"action\": \"Select 'Student.Fname' as the expected output.\" }, { \"step\": \"No ORDER BY needed\", \"action\": \"Since there is no ranking or sorting required, avoid using ORDER BY.\" }, { \"step\": \"Implement set operation\", \"action\": \"Use a subquery or NOT EXISTS to ensure students with dogs do not have cats.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1704,
+        "prompt_tokens": 1463,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 241,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:57:28.809254"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.622,
+      "raw_response": "{\"sql\": \"SELECT Student.Fname FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'dog' AND Student.StuID NOT IN (SELECT Has_Pet.StuID FROM Has_Pet JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat')\"}",
+      "token_usage": {
+        "total_tokens": 2119,
+        "prompt_tokens": 2016,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 103,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:57:30.449796"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.148,
+      "raw_response": "{\"sql\": \"SELECT Student.Fname FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'dog' AND Student.StuID NOT IN (SELECT Has_Pet.StuID FROM Has_Pet JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat')\", \"notes\": \"The original SQL was already correct. Ensures students have a dog and not a cat; aligns with the expected output field 'Fname'.\", \"diagnostics\": [\"Join logic and keys are correct.\", \"No unnecessary joins present.\", \"No GROUP BY or ORDER BY needed as per plan.\"]}",
+      "token_usage": {
+        "total_tokens": 1834,
+        "prompt_tokens": 1666,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 168,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:57:32.617129"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.28,
+      "raw_response": "{\"sql\": \"SELECT T1.Fname FROM Student AS T1 JOIN Has_Pet AS T2 ON T1.StuID = T2.StuID JOIN Pets AS T3 ON T2.PetID = T3.PetID WHERE T3.PetType = 'dog' AND T1.StuID NOT IN (SELECT T2.StuID FROM Has_Pet AS T2 JOIN Pets AS T3 ON T2.PetID = T3.PetID WHERE T3.PetType = 'cat')\", \"explain\": \"The query correctly selects the first name of students who own a dog. The NOT IN clause with a subquery correctly filters out any student who also owns a cat. All joins are necessary and correct, and output fields match the expected. Aliases added for brevity.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2740,
+        "prompt_tokens": 1455,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1285,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:57:38.915859"
+    }
+  ],
+  "final_sql": "SELECT T1.Fname FROM Student AS T1 JOIN Has_Pet AS T2 ON T1.StuID = T2.StuID JOIN Pets AS T3 ON T2.PetID = T3.PetID WHERE T3.PetType = 'dog' AND T1.StuID NOT IN (SELECT T2.StuID FROM Has_Pet AS T2 JOIN Pets AS T3 ON T2.PetID = T3.PetID WHERE T3.PetType = 'cat')",
+  "explain": "The query correctly selects the first name of students who own a dog. The NOT IN clause with a subquery correctly filters out any student who also owns a cat. All joins are necessary and correct, and output fields match the expected. Aliases added for brevity.",
+  "error": "",
+  "timestamp": "2026-07-24T15:57:38.917128"
+}

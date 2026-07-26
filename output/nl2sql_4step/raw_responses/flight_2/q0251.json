@@ -1,0 +1,69 @@
+{
+  "question_index": 251,
+  "pipeline": "4step",
+  "db_id": "flight_2",
+  "question": "What are flight numbers of flights departing from City \"Aberdeen \"?",
+  "gold_query": "SELECT T1.FlightNo FROM FLIGHTS AS T1 JOIN AIRPORTS AS T2 ON T1.SourceAirport   =  T2.AirportCode WHERE T2.City  =  \"Aberdeen\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.026,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"FlightNo\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"flights\", \"column\": \"FlightNo\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"airports\", \"column\": \"City\", \"operator\": \"=\", \"value\": \"Aberdeen\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"flights\", \"to_table\": \"airports\", \"reason\": \"map source airports to city\"}],\n  \"entities\": {\"tables\": [\"flights\", \"airports\"], \"columns\": [\"FlightNo\", \"City\"], \"values\": [\"Aberdeen\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1479,
+        "prompt_tokens": 1256,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 223,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:44:22.300459"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 29.179,
+      "raw_response": "{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\n    \"airports\",\n    \"flights\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"City\"],\n    [0, \"AirportCode\"],\n    [1, \"FlightNo\"],\n    [1, \"SourceAirport\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"text\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [4, 2]\n  ],\n  \"primary_keys\": [\n    2,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"Aberdeen \",\n      \"Abilene \",\n      \"Abingdon \",\n      \"Ada \"\n    ],\n    [\n      \"AAF\",\n      \"ABI\",\n      \"ABL\",\n      \"ABQ\"\n    ],\n    [],\n    [\n      \" APG\",\n      \" ASY\",\n      \" CVO\",\n      \" ACV\"\n    ]\n  ]\n}",
+      "token_usage": {
+        "total_tokens": 7156,
+        "prompt_tokens": 820,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 6336,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:44:51.480675"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.204,
+      "raw_response": "{\"sql\": \"SELECT FlightNo FROM flights WHERE SourceAirport IN (SELECT AirportCode FROM airports WHERE City = 'Aberdeen ')\" }",
+      "token_usage": {
+        "total_tokens": 1331,
+        "prompt_tokens": 1292,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 39,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:44:54.685208"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.736,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\n\n**Validation Steps:**\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"FlightNo\"]`\n    *   SQL `SELECT`: `FlightNo`\n    *   Matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   The question asks for flight numbers, which are unique per flight. `COUNT(*)` is not relevant here.\n    *   The join is implicit through the subquery: `flights.SourceAirport` (FK) and `airports.AirportCode` (PK). This is correct.\n    *   No `ORDER BY` in the SQL, and none requested in the analysis. This is correct.\n    *   The join is necessary to link flights to their source airport's city.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling):**\n    *   SQL `WHERE City = 'Aberdeen '`\n    *   `column_sample_values` for `City`: `[\"Aberdeen \", \"Abilene \", ...]`\n    *   The SQL literal `'Aberdeen '` includes a trailing space, which matches the sample value `Aberdeen `. This is correct.\n\n4.  **Column/table names exist; SQL is complete and one line:**\n    *   `FlightNo` (flights), `SourceAirport` (flights), `AirportCode` (airports), `City` (airports) all exist in the schema.\n    *   `flights`, `airports` table names exist.\n    *   SQL is complete and one line.\n\n**Conclusion:** The SQL appears to be correct and matches all validation criteria.```json\n{\n \"sql\": \"SELECT FlightNo FROM flights WHERE SourceAirport IN (SELECT AirportCode FROM airports WHERE City = 'Aberdeen ')\",\n \"explain\": \"The SQL query correctly retrieves FlightNo from flights, filtering by SourceAirport linked to airports where the City is 'Aberdeen ', matching the exact literal from sample values.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1337,
+        "prompt_tokens": 855,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 482,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:44:57.422702"
+    }
+  ],
+  "final_sql": "SELECT FlightNo FROM flights WHERE SourceAirport IN (SELECT AirportCode FROM airports WHERE City = 'Aberdeen ')",
+  "explain": "The SQL query correctly retrieves FlightNo from flights, filtering by SourceAirport linked to airports where the City is 'Aberdeen ', matching the exact literal from sample values.",
+  "error": "",
+  "timestamp": "2026-07-25T01:44:57.424241"
+}

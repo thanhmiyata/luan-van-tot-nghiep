@@ -1,0 +1,97 @@
+{
+  "question_index": 968,
+  "pipeline": "6step",
+  "db_id": "dog_kennels",
+  "question": "How many professionals have performed any treatment to dogs?",
+  "gold_query": "SELECT count(DISTINCT professional_id) FROM Treatments",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.788,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Professionals\", \"column\": \"*\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"count\", \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Treatments\", \"to_table\": \"Dogs\", \"reason\": \"to get treatments specifically for dogs\"}, {\"from_table\": \"Treatments\", \"to_table\": \"Professionals\", \"reason\": \"to identify professionals performing treatments\"}],\n  \"entities\": {\"tables\": [\"Professionals\", \"Treatments\", \"Dogs\"], \"columns\": [\"professional_id\", \"dog_id\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2766,
+        "prompt_tokens": 2511,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 255,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:48:26.349909"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 13.93,
+      "raw_response": "```json\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Dogs\",\n    \"Professionals\",\n    \"Treatments\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"dog_id\"],\n    [1, \"professional_id\"],\n    [2, \"treatment_id\"],\n    [2, \"dog_id\"],\n    [2, \"professional_id\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [4, 1],\n    [5, 2]\n  ],\n  \"primary_keys\": [\n    1,\n    2,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 5236,
+        "prompt_tokens": 1923,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3313,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:48:40.300022"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.67,
+      "raw_response": "{ \"steps\": [ { \"action\": \"use_tables\", \"tables\": [\"Professionals\", \"Treatments\"] }, { \"action\": \"join_tables\", \"from_table\": \"Treatments\", \"to_table\": \"Professionals\", \"on\": {\"Treatments.professional_id\": \"Professionals.professional_id\"} }, { \"action\": \"select\", \"columns\": [\"COUNT(DISTINCT Professionals.professional_id) AS count\"] }, { \"action\": \"where\", \"condition\": \"Treatments.dog_id IS NOT NULL\" } ] }",
+      "token_usage": {
+        "total_tokens": 1551,
+        "prompt_tokens": 1426,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 125,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:48:42.988833"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.243,
+      "raw_response": "{ \"sql\": \"SELECT COUNT(DISTINCT Professionals.professional_id) AS count FROM Treatments JOIN Professionals ON Treatments.professional_id = Professionals.professional_id WHERE Treatments.dog_id IS NOT NULL\" }",
+      "token_usage": {
+        "total_tokens": 1988,
+        "prompt_tokens": 1935,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 53,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:48:44.241961"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.161,
+      "raw_response": "{\"sql\": \"SELECT COUNT(Professionals.professional_id) AS count FROM Treatments JOIN Professionals ON Treatments.professional_id = Professionals.professional_id WHERE Treatments.dog_id IS NOT NULL\", \"notes\": \"Revised SQL to COUNT(Professionals.professional_id) as there is no indication of duplication that requires COUNT(DISTINCT). Join is necessary to link treatments to professionals.\", \"diagnostics\": [\"Ensured the SQL query aligns with expected_output_fields focusing on count.\", \"Reviewed the plan and confirmed necessary joins were in place. Removed DISTINCT as JOIN alone doesn't cause duplication.\", \"No unnecessary ORDER BY or GROUP BY operations.\"]}",
+      "token_usage": {
+        "total_tokens": 1643,
+        "prompt_tokens": 1503,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 140,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:48:46.422143"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.306,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT T2.professional_id) AS count FROM Treatments AS T1 JOIN Professionals AS T2 ON T1.professional_id = T2.professional_id WHERE T1.dog_id IS NOT NULL\", \"explain\": \"Changed COUNT(T2.professional_id) to COUNT(DISTINCT T2.professional_id) to correctly count the number of unique professionals who have performed treatments, as indicated by the analysis's 'agg: COUNT_DISTINCT' for the output field.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2363,
+        "prompt_tokens": 1390,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 973,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:48:51.749736"
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT T2.professional_id) AS count FROM Treatments AS T1 JOIN Professionals AS T2 ON T1.professional_id = T2.professional_id WHERE T1.dog_id IS NOT NULL",
+  "explain": "Changed COUNT(T2.professional_id) to COUNT(DISTINCT T2.professional_id) to correctly count the number of unique professionals who have performed treatments, as indicated by the analysis's 'agg: COUNT_DISTINCT' for the output field.",
+  "error": "",
+  "timestamp": "2026-07-25T03:48:51.751603"
+}

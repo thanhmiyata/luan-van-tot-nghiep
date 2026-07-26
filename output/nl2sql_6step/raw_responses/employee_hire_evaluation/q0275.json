@@ -1,0 +1,97 @@
+{
+  "question_index": 275,
+  "pipeline": "6step",
+  "db_id": "employee_hire_evaluation",
+  "question": "Find the names of stores whose number products is more than the average number of products.",
+  "gold_query": "SELECT name FROM shop WHERE number_products  >  (SELECT avg(number_products) FROM shop)",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.985,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"shop\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"shop\", \"column\": \"Number_products\", \"operator\": \">\", \"value\": \"(SELECT AVG(s2.Number_products) FROM shop s2)\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"shop\"], \"columns\": [\"Name\", \"Number_products\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"RANGE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1847,
+        "prompt_tokens": 1613,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 234,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:53:22.630967"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 12.953,
+      "raw_response": "Thought: The user wants a filtered schema. I will start by identifying all tables and columns explicitly mentioned in the analyzer output's `expected_output_fields`, `filters`, `group_by`, and `order_by`. In this case, only the `shop` table and its `Name` and `Number_products` columns are relevant. Since the query involves a comparison within the same table (average number of products in `shop`), no joins with other tables are needed. I will then identify the primary key of the `shop` table (`Shop_ID`) to keep it, even if not strictly used for joins in this specific query, as per the rule \"Keep PK/FK columns that enable the minimal join path\" and \"Prefer keeping a small safe superset over dropping a needed column\". Finally, I will reconstruct the schema JSON, carefully re-indexing columns and filtering out irrelevant information.\n\n**Steps:**\n1.  **Identify Required Tables:** The `entities.tables` and `filters` both point to the `shop` table. No other tables are mentioned for output, filters, group by, or order by. So, only `shop` is needed.\n2.  **Identify Required Columns:**\n    *   From `expected_output_fields`: `shop.Name` (original index 6)\n    *   From `filters`: `shop.Number_products` (original index 9)\n    *   Primary Key for `shop`: `shop.Shop_ID` (original index 5)\n3.  **Map Original Indices to New Indices:**\n    *   `[-1, \"*\"]` -> new index `0`\n    *   `[0, \"Shop_ID\"]` (original index 5) -> new index `1`\n    *   `[0, \"Name\"]` (original index 6) -> new index `2`\n    *   `[0, \"Number_products\"]` (original index 9) -> new index `3`\n4.  **Filter `column_types`**: Based on the selected columns' original types.\n    *   `*` -> `text` (default/placeholder)\n    *   `Shop_ID` (original index 5) -> `number`\n    *   `Name` (original index 6) -> `text`\n    *   `Number_products` (original index 9) -> `number`\n5.  **Filter `primary_keys`**: Only `Shop_ID` is a PK we keep. Its new index is `1`.\n6.  **Filter `foreign_keys`**: No joins are needed, so no FKs are preserved.\n7.  **Filter `column_sample_values`**: Retain samples for the selected columns based on their original indices.```json\n{\"db_id\": \"employee_hire_evaluation\", \"table_names_original\": [\"shop\"], \"column_names_original\": [[-1, \"*\"], [0, \"Shop_ID\"], [0, \"Name\"], [0, \"Number_products\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\"], \"foreign_keys\": [], \"primary_keys\": [1], \"column_sample_values\": [[], [], [\"FC Haka\", \"HJK\", \"FC Honka\", \"FC Inter\"], []]}\n```",
+      "token_usage": {
+        "total_tokens": 3851,
+        "prompt_tokens": 985,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2866,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:53:35.601765"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.988,
+      "raw_response": "{ \"steps\": [ \"Step 1: Identify the table involved. The table 'shop' suffices as the single table is enough for this query. No join needed.\", \"Step 2: Determine the necessary SELECT field. We need to list the 'Name' of the stores.\", \"Step 3: Identify the condition. The query requires that the number of products is more than the average number of products. This implies a subquery is needed to calculate the average.\", \"Step 4: Plan the WHERE clause using a subquery. We need to use a subquery to calculate the average number of products in the 'shop' table and use this in the filtering condition.\", \"Step 5: Since there is no explicit need for GROUP BY or ORDER BY in this query, they are not included.\", \"Step 6: No set operations needed as it's a simple condition filtering. No complex set operations are indicated by the analysis.\" ] }",
+      "token_usage": {
+        "total_tokens": 1535,
+        "prompt_tokens": 1331,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 204,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:53:38.607522"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.898,
+      "raw_response": "{ \"sql\": \"SELECT Name FROM shop WHERE Number_products > (SELECT AVG(Number_products) FROM shop)\" }",
+      "token_usage": {
+        "total_tokens": 1888,
+        "prompt_tokens": 1854,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 34,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:53:39.523884"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.846,
+      "raw_response": "{\"sql\": \"SELECT Name FROM shop WHERE Number_products > (SELECT AVG(Number_products) FROM shop)\", \"notes\": \"The initial SQL already aligns perfectly with the expected output fields and plan. It selects 'Name' from the 'shop' table where the condition 'Number_products' is greater than the average. No additional modifications are necessary.\", \"diagnostics\": [\"No changes needed as the initial SQL conforms to the requirements.\", \"The SELECT, WHERE clause, and subquery to calculate the average are correctly implemented per the plan.\"]}",
+      "token_usage": {
+        "total_tokens": 1554,
+        "prompt_tokens": 1434,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 120,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:53:41.388578"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.692,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, applying the 6-step validation checklist and critical final pattern checks.\n\nHere's my thought process:\n\n1.  **Analyze Inputs:**\n    *   **SQL:** `SELECT Name FROM shop WHERE Number_products > (SELECT AVG(Number_products) FROM shop)`\n    *   **Question:** \"Find the names of stores whose number products is more than the average number of products.\"\n    *   **Schema:** `shop` table with `Shop_ID`, `Name`, `Number_products`. `Name` is `text`, `Number_products` is `number`.\n    *   **Analysis:**\n        *   `expected_output_fields`: `[\"Name\"]`\n        *   `filters`: `Number_products > (SELECT AVG(s2.Number_products) FROM shop s2)`\n        *   `self_join_hint`: `false` (This is important for the self-join validation check)\n\n2.  **Step-by-step Validation:**\n\n    *   **1. SELECT = expected_output_fields:**\n        *   SQL: `SELECT Name`\n        *   Expected: `[\"Name\"]`\n        *   Match: Yes. The `SELECT` clause matches the `expected_output_fields` exactly.\n\n    *   **2. For counts / GROUP BY:**\n        *   No `COUNT` or `GROUP BY` in the main query. The subquery uses `AVG`, which is fine.\n\n    *   **3. Extremum patterns:**\n        *   Not applicable here; it's a comparison with an average, not finding min/max.\n\n    *   **4. No unnecessary joins; correct PK/FK:**\n        *   The query operates on a single table `shop` and uses a subquery to calculate the average. `single_table_ok` is true in the analysis. No explicit joins are present, which is correct. The subquery is also on `shop`.\n\n    *   **5. Remove ORDER BY:**\n        *   No `ORDER BY` is present in the SQL, and the analysis does not require one. Correct.\n\n    *   **6. Names exist in schema; SQL complete, single line, no comments:**\n        *   `Name` and `Number_products` exist in the `shop` table. The SQL is complete, single line, and has no comments. Correct.\n\n3.  **Critical Final Pattern Checks:**\n\n    *   **1. Self-Join Validation:**\n        *   `self_join_hint` in analysis is `false`.\n        *   SQL uses a subquery for `AVG(Number_products)`. The subquery approach is generally acceptable when `self_join_hint` is `false` for calculating aggregate values like average from the *same* table. If `self_join_hint` was `true`, I would need to transform this into a self-join (e.g., `SELECT T1.Name FROM shop AS T1, shop AS T2 GROUP BY T1.Name HAVING T1.Number_products > AVG(T2.Number_products)` - though this self-join pattern for average is less common and often less efficient than a subquery). Given `self_join_hint: false`, the subquery is fine and generally preferred for this specific aggregate comparison. The existing SQL is correct in this context.\n\n    *   **2. Set Operation Validation:**\n        *   `set_operation_type`: `NONE`. No set operations are used in the SQL. Correct.\n\n    *   **3. WHERE Condition Validation:**\n        *   `where_condition_type`: `RANGE`. The condition `Number_products > (SELECT AVG(Number_products) FROM shop)` is a range comparison, which aligns with the analysis. Correct.\n        *   `null_handling`: `UNKNOWN`. Not directly relevant to this specific condition, as it's a numerical comparison.\n\n    *   **4. GROUP BY Validation:**\n        *   No `GROUP BY` in the main query. Not applicable.\n\n    *   **5. ORDER BY Validation:**\n        *   No `ORDER BY` required by the analysis. No `ORDER BY` in SQL. Correct.\n\n    *   **6. DISTINCT Validation:**\n        *   No `DISTINCT` or `GROUP BY` used for uniqueness. Not applicable.\n\n4.  **Conclusion:** The SQL query appears to be correct and aligns with all validation checks. There are no fixes needed. The subquery is an appropriate pattern for this type of comparison where the average is calculated from the entire table and then used to filter individual rows from the same table.```json\n{\n \"sql\": \"SELECT Name FROM shop WHERE Number_products > (SELECT AVG(Number_products) FROM shop)\",\n \"explain\": \"The SQL query already correctly identifies names of shops with more products than the average, using a subquery for the average calculation as is common and efficient for this pattern. All validation checks passed, including correct SELECT fields, no unnecessary joins, and proper WHERE clause for range comparison.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 2374,
+        "prompt_tokens": 1263,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1111,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:53:48.093237"
+    }
+  ],
+  "final_sql": "SELECT Name FROM shop WHERE Number_products > (SELECT AVG(Number_products) FROM shop)",
+  "explain": "The SQL query already correctly identifies names of shops with more products than the average, using a subquery for the average calculation as is common and efficient for this pattern. All validation checks passed, including correct SELECT fields, no unnecessary joins, and proper WHERE clause for range comparison.",
+  "error": "",
+  "timestamp": "2026-07-24T13:53:48.094339"
+}

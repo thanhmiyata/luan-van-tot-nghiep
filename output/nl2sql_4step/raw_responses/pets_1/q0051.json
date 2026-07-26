@@ -1,0 +1,69 @@
+{
+  "question_index": 51,
+  "pipeline": "4step",
+  "db_id": "pets_1",
+  "question": "Find number of pets owned by students who are older than 20.",
+  "gold_query": "SELECT count(*) FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid WHERE T1.age  >  20",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.617,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"COUNT(PetID)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Has_Pet\", \"column\": \"PetID\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Student\", \"column\": \"Age\", \"operator\": \">\", \"value\": \"20\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [{\"table\": \"Has_Pet\", \"column\": \"StuID\"}],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Has_Pet\", \"to_table\": \"Student\", \"reason\": \"to filter students by age\"}\n  ],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\"], \"columns\": [\"Age\", \"StuID\", \"PetID\"], \"values\": [\"20\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1276,
+        "prompt_tokens": 1024,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 252,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:32:18.668869"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 19.183,
+      "raw_response": "Thought: I have carefully analyzed the question, original schema, and the provided analysis.\n1.  **Identify Required Tables**: The analysis explicitly mentions `Student` and `Has_Pet` in `entities.tables` and `join_hints`. The `Pets` table is not required as `PetID` for counting is available in `Has_Pet` and no attributes from `Pets` are needed for filtering or output.\n2.  **Identify Required Columns**:\n    *   `Student` table: `StuID` (PK, for join with `Has_Pet`), `Age` (for filter `Age > 20`).\n    *   `Has_Pet` table: `StuID` (FK, for join with `Student`), `PetID` (for `COUNT(PetID)`).\n    *   The `[-1, \"*\"]` entry is typically preserved as the first column.\n3.  **Map Original Indices to New Indices**: I will create a mapping from original column indices to their new indices in the filtered schema to correctly update `primary_keys` and `foreign_keys`.\n    *   Original `column_names_original`: `[[-1,\"*\"],[0,\"StuID\"],[0,\"LName\"],[0,\"Fname\"],[0,\"Age\"],[0,\"Sex\"],[0,\"Major\"],[0,\"Advisor\"],[0,\"city_code\"],[1,\"StuID\"],[1,\"PetID\"],[2,\"PetID\"],[2,\"PetType\"],[2,\"pet_age\"],[2,\"weight\"]]`\n    *   Original `primary_keys`: `[1,11]` (Student.StuID, Pets.PetID)\n    *   Original `foreign_keys`: `[[9,1],[10,11]]` (Has_Pet.StuID -> Student.StuID, Has_Pet.PetID -> Pets.PetID)\n\n    **Columns to keep (original index -> new index):**\n    *   `[-1, \"*\"]` (original index 0) -> new index 0\n    *   `[0, \"StuID\"]` (original index 1) -> new index 1\n    *   `[0, \"Age\"]` (original index 4) -> new index 2\n    *   `[1, \"StuID\"]` (original index 9) -> new index 3\n    *   `[1, \"PetID\"]` (original index 10) -> new index 4\n\n4.  **Construct Filtered Schema**:\n    *   `table_names_original`: Keep `Student` and `Has_Pet`.\n    *   `column_names_original`: Include the selected columns with their new indices.\n    *   `column_types`: Match the types of the selected columns.\n    *   `primary_keys`: Update indices based on the mapping. `1` (Student.StuID) maps to `1`. `11` (Pets.PetID) is dropped as `Pets` is not needed.\n    *   `foreign_keys`: Update indices based on the mapping. `[9,1]` (Has_Pet.StuID -> Student.StuID) maps to `[3,1]`. `[10,11]` (Has_Pet.PetID -> Pets.PetID) is dropped as `Pets` is not needed.\n    *   `column_sample_values`: Keep only values for the selected columns, maintaining their original order relative to other *kept* columns. If no sample values for a kept column, use `[]`.\n\nThe filtered schema will include `db_id`, `table_names_original`, `column_names_original`, `column_types`, `foreign_keys`, `primary_keys`, and `column_sample_values`.{\"db_id\": \"pets_1\", \"table_names_original\": [\"Student\", \"Has_Pet\"], \"column_names_original\": [[-1, \"*\"], [0, \"StuID\"], [0, \"Age\"], [1, \"StuID\"], [1, \"PetID\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1], \"column_sample_values\": [[], [], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 5133,
+        "prompt_tokens": 800,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4333,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:32:37.853848"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.51,
+      "raw_response": "{\"sql\": \"SELECT COUNT(PetID) FROM Has_Pet WHERE StuID IN (SELECT StuID FROM Student WHERE Age > 20)\"}",
+      "token_usage": {
+        "total_tokens": 1140,
+        "prompt_tokens": 1098,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 42,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:32:39.366491"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.946,
+      "raw_response": "{\n\"sql\": \"SELECT COUNT(PetID) FROM Has_Pet WHERE StuID IN (SELECT StuID FROM Student WHERE Age > 20)\",\n\"explain\": \"The SQL correctly identifies the number of pets by counting PetID from Has_Pet, filtering for students whose StuID is present in the Student table where Age is greater than 20. All column and table names are valid, and the query structure is correct for the given question and schema.\",\n\"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1527,
+        "prompt_tokens": 755,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 772,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:32:44.314356"
+    }
+  ],
+  "final_sql": "SELECT COUNT(PetID) FROM Has_Pet WHERE StuID IN (SELECT StuID FROM Student WHERE Age > 20)",
+  "explain": "The SQL correctly identifies the number of pets by counting PetID from Has_Pet, filtering for students whose StuID is present in the Student table where Age is greater than 20. All column and table names are valid, and the query structure is correct for the given question and schema.",
+  "error": "",
+  "timestamp": "2026-07-24T15:32:44.316804"
+}

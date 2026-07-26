@@ -1,293 +1,208 @@
 question_analysis_task:
   description: >
-    6-step: Analyzer stage. Extract intent, complexity, expected_output_fields (ordered), and single_table_ok flag with gold-like patterns.
+    6-step: Analyzer. Produce a typed semantic contract before schema filtering.
 
     Inputs:
     - Question: {question}
-    - Raw Schema (Spider JSON): ```{raw_db_schema}```
+    - Raw Schema (including named_foreign_keys, sample values, and question_value_matches): ```{raw_db_schema}```
 
     Requirements:
-    1) Map every expected field to real schema columns; never invent names.
-    2) expected_output_fields list preserves the question's requested order; set field_order_critical=true.
-    3) Mark single_table_ok=true when one table already has all required columns for SELECT and filters.
-    4) Prefer raw columns over aggregates when the question asks to "list/show" values (e.g., date_from, date_to instead of MIN/MAX).
-    5) For "first/earliest/latest" style questions, model expected_output_fields as raw columns plus order_by + limit=1 (not MIN/MAX).
-    6) For "how many X" without explicit "distinct", default to COUNT(*) on the appropriate table; only use COUNT_DISTINCT when the question explicitly refers to "distinct/unique".
-    7) Provide structured filters/group_by/order_by/join_hints aligned to actual columns.
-    8) Use the provided `foreign_keys` and `primary_keys` in the schema to identify relationships; never assume joins based on name similarity alone.
+    1) Map every table and column to an identifier present in the schema. Never invent or rename identifiers.
+    2) `output_fields_detailed` is authoritative for SELECT. It contains only fields explicitly requested for display and preserves their order. Filtering, grouping, and ranking columns are not outputs unless requested.
+    3) Populate `required_tables` and `required_columns` with the safe semantic superset needed for projection, predicates, grouping, ranking, and joins.
+    4) Set `single_table_ok=true` only when one table contains every required column. Use named_foreign_keys; never infer a join from similar names or ID-looking columns.
+    5) Treat question_value_matches as authoritative database evidence. Prefer the longest complete match and never split it into shorter literals. Otherwise preserve the complete question literal without translation or invention.
+    6) Classify predicate scope before Boolean/set logic:
+       - SAME_ROW: all conditions hold on one row; use AND/OR/BETWEEN.
+       - RELATED_ROWS: one entity has multiple related rows; use separate EXISTS, INTERSECT, or independent aggregate branches when combining joins would change multiplicity.
+       - INDEPENDENT_BRANCHES: separate result sets; use UNION/INTERSECT/EXCEPT only when the set meaning is explicit.
+       Tag filters/group_by/having with scope_id and branch_id. Fill set_operation.branches with each independent branch's tables and columns.
+    7) Related-row negation ("without", "never", "do not have") requires NOT EXISTS, NOT IN, or EXCEPT on the entity key; joined-row `<>` is not equivalent.
+    8) For "per/for each/by/different X", include X in output_fields_detailed and group_by only when X is requested as output.
+    9) Represent "the row with highest/lowest Y, return X" as extreme_row: project X, rank by Y, LIMIT 1. Do not add the ranking aggregate to SELECT unless requested.
+    10) Generic "how many/number of/count of" uses {"agg":"COUNT","column":"*"} and distinct=false. COUNT_DISTINCT requires explicit different/distinct/unique wording.
+    11) Minimum/lowest, maximum/highest, and average are aggregate operands when describing numeric thresholds. Use {"kind":"SCALAR_AGGREGATE","agg":"MIN|MAX|AVG","table":"t","column":"c"} with value_type=SUBQUERY; never bind those words as literals.
+    12) Resolve ambiguous outputs by exact lexical column match, then a single table covering all outputs, then shortest declared FK distance to filter/rank tables. Distinguish "make" from "maker".
+    13) Before returning, verify that every independent condition in the original Question appears in filters, predicate_scope, set_operation, having, or scalar_comparisons.
 
-    **CRITICAL Pattern Recognition:**
-    - "4 or 5 stars" / "rating of 4 or 5" → Mark where_condition_type="RANGE" (use >= 4, NOT IN (4,5))
-    - "directors with more than one movie" / "X with multiple Y" (same entity type) → Mark self_join_hint=true (use self-join, NOT subquery with HAVING)
-    - "movies with 3 or 4 stars" → Check if question means "both 3 AND 4" (INTERSECT) vs "either 3 OR 4" (IN/OR). Mark set_operation_type accordingly.
-    - "null date" / "no date" / "ratingDate is null" → Check if dataset uses string "null" vs SQL NULL. Mark null_handling="STRING_NULL" or "SQL_NULL"
-    - "ordered by X, Y, Z" / "sort by" → Mark order_by as required with all columns
-    - "most rated" / "highest count" → Mark group_by should use PK (mID/id), not display column (title/name)
-    - "average rating per movie" → SELECT should include mID (PK) for GROUP BY, not just title
-
-    Return ONLY raw JSON (No markdown backticks, no ```json, no quotes around the entire object):
+    Return ONLY raw JSON:
     {
       "intent": "COUNT|LIST|MAX_MIN|AGGREGATION|BOOLEAN|OTHER",
       "complexity": "EASY|MEDIUM|HARD",
       "expected_output_fields": ["field1", "field2"],
       "field_order_critical": true,
       "single_table_ok": true,
-      "output_fields_detailed": [
-        {"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "alias": null, "order_index": 0}
-      ],
-      "filters": [{"table": "t", "column": "c", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "v", "value_type": "NUMBER|STRING|DATE|OTHER"}],
-      "group_by": [{"table": "t", "column": "c"}],
+      "required_tables": ["t"],
+      "required_columns": [{"table": "t", "column": "c", "purpose": "OUTPUT|FILTER|GROUP|ORDER|JOIN"}],
+      "output_fields_detailed": [{"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "alias": null, "order_index": 0}],
+      "distinct": false,
+      "filters": [{"scope_id": "s1", "branch_id": "b1", "table": "t", "column": "c", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "literal_or_SCALAR_AGGREGATE_object", "value_type": "NUMBER|STRING|DATE|OTHER|SUBQUERY"}],
+      "literal_bindings": [{"literal": "v", "table": "t", "column": "c", "evidence": "QUESTION|SAMPLE_VALUE|QUESTION_EXACT_DB_MATCH"}],
+      "predicate_scope": [{"scope_id": "s1", "scope": "SAME_ROW|RELATED_ROWS|INDEPENDENT_BRANCHES", "logic": "AND|OR|BETWEEN|EXISTS|NOT_EXISTS", "branch_ids": ["b1"], "reason": "short reason"}],
+      "group_by": [{"branch_id": "b1", "table": "t", "column": "c"}],
+      "having": [{"branch_id": "b1", "table": "t", "column": "c", "agg": "COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "operator": "=|<>|>|<|>=|<=", "value": 1}],
       "order_by": [{"table": "t", "column": "c", "direction": "ASC|DESC"}],
+      "set_operation": {"operator": "NONE|UNION|INTERSECT|EXCEPT", "branches": [], "reason": ""},
+      "extreme_row": null,
+      "scalar_comparisons": [{"table": "t", "column": "c", "operator": ">|<|>=|<=|=|<>", "value": {"kind": "SCALAR_AGGREGATE", "agg": "MIN|MAX|AVG", "table": "t", "column": "c"}}],
       "join_hints": [{"from_table": "a", "to_table": "b", "reason": "why join"}],
       "entities": {"tables": ["t1"], "columns": ["c1"], "values": ["v1"]},
-      "self_join_hint": false,
-      "set_operation_type": "NONE|INTERSECT|UNION|OR",
-      "null_handling": "SQL_NULL|STRING_NULL|UNKNOWN",
-      "where_condition_type": "RANGE|IN|EQUALS|LIKE",
       "confidence": 0.95
     }
   expected_output: >
-    JSON with expected_output_fields, single_table_ok flag, and structured hints.
+    Typed semantic-contract JSON with real identifiers and explicit predicate scope.
   agent: question_analyzer
 
 select_needed_schema_task:
   description: >
-    Filter schema using Analyzer output. Keep minimal tables/columns but preserve PK/FK needed for joins.
+    Filter schema by names while preserving every endpoint and bridge needed for joins.
 
     Inputs:
     - Question: {question}
     - Original Schema: ```{raw_db_schema}```
     - Analysis: ```{question_analysis}```
+    - Named FK Graph: ```{named_fk_graph}```
 
     Steps:
-    1) Start from tables in entities.tables and all tables referenced in output_fields_detailed/filters/group_by/order_by.
-    2) Keep columns used in outputs/filters/group_by/order_by and all PK/FK for those tables.
-    3) Optionally keep intermediate tables needed to connect required tables.
-    4) Prefer a small safe superset over dropping a needed column.
+    1) Start from analysis.required_tables and every table referenced by outputs, filters, literal bindings, group_by, having, order_by, scalar_comparisons, and extreme_row.
+    2) Keep every required column plus PK/FK columns of retained tables.
+    3) Retain intermediate bridge tables/columns on a shortest declared-FK connection between endpoints.
+    4) Copy only names present in Original Schema. Do not calculate replacement indices or invent relationships.
+    5) Prefer a small safe superset over dropping a required or bridge column. main.py deterministically rebuilds indices and FK metadata.
 
-    Return ONLY raw JSON with same structure as input schema. NO markdown backticks.
+    Return ONLY names-only raw JSON:
+    {"table_names_original": ["real_table"], "column_names_original": ["real_column"]}.
   expected_output: >
-    Filtered schema JSON preserving PK/FK connectivity.
+    Filtered schema names preserving endpoint and bridge connectivity.
   agent: schema_selector
 
 query_planning_task:
   description: >
-    6-step: Query Planner. Build minimal plan before SQL.
+    6-step: Query Planner. Translate the typed contract into a minimal executable strategy.
 
     Inputs:
     - Question: "{question}"
     - Schema: ```{db_schema}```
     - Analysis: ```{question_analysis}```
+    - Deterministic Join Plan: ```{join_plan}```
 
-    Plan rules:
-    - List minimal tables; state "no join needed" if single_table_ok.
-    - If joining, MUST use the provided `foreign_keys` mappings. Do not join on columns that are not marked as FK/PK unless it's a very specific self-join case.
-    - Avoid adding extra tables not required by outputs/filters.
-    - For pure counts (no fields in SELECT except aggregate), prefer COUNT(*) unless the question clearly requires distinct entities (then mark COUNT_DISTINCT).
-    - For "top-k/most/least" with non-aggregated display fields, plan GROUP BY only on those display fields (typically ids and their details) and ORDER BY COUNT(*) DESC/ASC with LIMIT k.
-    - For extremum-of-column questions where expected_output_fields are raw columns, plan ORDER BY <column> ASC/DESC + LIMIT 1 instead of MIN/MAX.
-    - Add ORDER BY only when question implies ranking/sorting or extremum.
-    - Specify needed set operations (UNION/INTERSECT/EXCEPT) explicitly when the question is about "both / either / but not", instead of emulating them via HAVING on counts.
+    Planning rules:
+    1) The original Question outranks an inconsistent Analysis field. Preserve output_fields_detailed order and do not add an aggregate/ranking expression to SELECT merely because it is used by ORDER BY.
+    2) State "no join needed" when one table covers all required fields. Otherwise use only the subset of Deterministic Join Plan needed for the query/branch. Each allowed_edges list contains alternatives; select the semantic edge instead of combining all alternatives.
+    3) Generic count is COUNT(*). COUNT(column) requires explicit null-sensitive wording; COUNT DISTINCT requires explicit distinct/different/unique wording.
+    4) SAME_ROW uses AND/OR/BETWEEN. RELATED_ROWS with independent counts/existence must use separate EXISTS, aggregate subqueries, or INTERSECT so joins do not multiply rows.
+    5) Use one SELECT with OR when projection and join graph are shared. Use UNION only for incompatible result branches and INTERSECT for independent result/existence conditions.
+    6) Related-row negation uses NOT EXISTS, NOT IN, or EXCEPT on the entity key.
+    7) Group by the stable entity PK/FK when a displayed label is functionally dependent on it. Do not group solely by a potentially non-unique name.
+    8) Render SCALAR_AGGREGATE thresholds as SELECT MIN/MAX/AVG(column) FROM the declared table. Never quote aggregate words.
+    9) INNER JOIN is the default. LEFT JOIN requires explicit retention of unmatched outer entities.
+    10) Verify that the plan covers every condition in the Question and contains no unrequested output field, table, or ORDER BY.
 
-    **CRITICAL Planning Rules:**
-    1. **Self-Join Detection:**
-       - If analysis says self_join_hint=true → MUST use self-join pattern in plan
-       - Example: "directors with >1 movie" → JOIN Movie AS T1 JOIN Movie AS T2 ON T1.director = T2.director WHERE T1.title != T2.title
-       - DO NOT plan subquery with HAVING COUNT(*) > 1 when self-join is needed
-
-    2. **Set Operations:**
-       - If analysis says set_operation_type=INTERSECT → Plan MUST use INTERSECT (two SELECT statements)
-       - If analysis says set_operation_type=OR → Plan MUST use OR in WHERE clause, NOT UNION
-       - If analysis says set_operation_type=UNION → Plan MUST use UNION (two separate result sets)
-       - "both A and B" / "A that also has B" → INTERSECT
-       - "either A or B" (single result set) → OR in WHERE
-       - "A combined with B" (different sets) → UNION
-
-    3. **GROUP BY Strategy:**
-       - When counting/aggregating per entity → GROUP BY the PK (id/mID), NOT display column
-       - Example: "movie rated most" → GROUP BY mID, not title
-       - Only GROUP BY display column if explicitly needed for output
-
-    4. **WHERE Conditions:**
-       - If analysis says where_condition_type=RANGE → Plan to use >= or <= (inclusive), NOT IN
-       - Example: "4 or 5 stars" → Use >= 4, not IN (4,5)
-       - If analysis says null_handling=STRING_NULL → Plan to use = "null", NOT IS NULL
-       - If analysis says null_handling=SQL_NULL → Plan to use IS NULL
-
-    5. **ORDER BY:**
-       - If analysis marks order_by as required → MUST include in plan with all specified columns
-       - "ordered by X, Y, Z" → Plan must specify all columns and direction
-
-    Return ONLY raw JSON (No markdown backticks).
-    { "steps": [ ... ] }
+    Return ONLY raw JSON:
+    {
+      "steps": ["minimal ordered step"],
+      "select": [{"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "order_index": 0}],
+      "joins": [{"from_table": "a", "to_table": "b", "condition": "declared FK equality"}],
+      "predicates": [{"scope_id": "s1", "branch_id": "b1", "expression": "typed predicate"}],
+      "group_by": [{"table": "t", "column": "stable key"}],
+      "having": [],
+      "order_by": [],
+      "set_operation": {"operator": "NONE|UNION|INTERSECT|EXCEPT", "branches": []},
+      "limit": null,
+      "warnings": []
+    }
   expected_output: >
-    JSON plan respecting expected_output_fields order and minimal joins.
+    Minimal typed query plan consistent with the question, analysis, and declared FK graph.
   agent: query_planner
 
 generate_sql_task:
   description: >
-    6-step: SQL Expert. Generate one-line SQL following expected_output_fields and planner.
+    6-step: SQL Expert. Generate one executable SQLite statement.
 
     Inputs:
     - Question: "{question}"
     - Schema: ```{db_schema}```
     - Analysis: ```{question_analysis}```
     - Query Plan: ```{query_plan}```
+    - Deterministic Join Plan: ```{join_plan}```
 
     Core rules:
-    1) SELECT exactly expected_output_fields in given order; no extra/missing/renamed columns, no switching to "description" columns when ids/types are requested.
-    2) When counting:
-       - Default to COUNT(*) for "how many X" unless query_plan/analysis explicitly require COUNT_DISTINCT.
-       - Use COUNT(DISTINCT id/PK) only when the plan says we are counting distinct entities.
-       - GROUP BY only the non-aggregated SELECT fields (typically ids/details) required by the plan; do not add extra GROUP BY columns.
-    4) Join only if needed; use ONLY the provided `foreign_keys` from the schema. If planner says "no join needed", avoid joins completely.
-    5) SELECT list MUST be EXACT: Only include columns requested by `expected_output_fields`. NEVER add ID columns or extra details like `COUNT(*)` unless explicitly in the field list. If the question says "show details", it usually refers to the specific "Details" or "Name" column, not the PK.
-    6) Use `=` operator by default for specific values (e.g., WHERE Name = 'Alison'). ONLY use `LIKE` if the question uses keywords like "contains", "starts with", or "ends with".
-    7) Match values to the most semantic column: if the value is a label (like 'game1'), check the `Name` or `Label` column before assuming it's a `Filename` or `ID`.
-    8) Correct set ops: use INTERSECT/UNION/EXCEPT exactly when the plan specifies them; do NOT replace them with HAVING COUNT(DISTINCT ...) or other approximations.
-    9) Avoid SELECT * unless explicitly asked; SQL must be a single executable line without comments.
-    
-    Return ONLY raw JSON (No markdown backticks).
-    { "sql": "..." }
-    10) For extremum-of-column questions where expected_output_fields are raw columns (e.g., date_from, date_to), prefer ORDER BY <column> ASC/DESC + LIMIT 1 over MIN/MAX aggregates.
+    1) SELECT exactly the real expressions requested by output_fields_detailed, in order. Do not add IDs or rank/filter/aggregate columns. {"agg":"COUNT","column":"*"} means COUNT(*), not SELECT *.
+    2) Preserve complete literal spans. Copy SAMPLE_VALUE or QUESTION_EXACT_DB_MATCH spelling exactly; never split the longest match.
+    3) Use only required join-plan steps. In each set branch, use only that branch's tables. For ambiguous allowed_edges choose only the semantically matching edge.
+    4) A non-FK join is allowed only when join_plan_warnings explicitly reports an unresolved semantic relationship.
+    5) Generic counting always renders COUNT(*). COUNT(column) requires explicit null-sensitive wording and COUNT DISTINCT explicit distinct wording.
+    6) Follow predicate scope and branch IDs. Do not combine independent related-row aggregates in one multiplying join.
+    7) For extreme_row RESULT_ROW, project X and ORDER BY rank Y with LIMIT 1; do not add Y/count to SELECT unless requested.
+    8) Related-row negation uses NOT EXISTS, NOT IN, or EXCEPT.
+    9) Use one SELECT with OR when the projection/join graph is shared; UNION only for incompatible branches.
+    10) INNER JOIN is default; LEFT JOIN requires explicit unmatched-entity semantics. Group by stable entity keys.
+    11) Render SCALAR_AGGREGATE as `(SELECT MIN|MAX|AVG(column) FROM table)`, never as a quoted literal.
+    12) Return one read-only, single-line SQLite SELECT/CTE. Express joins as JOIN ... ON qualified columns; no comma/NATURAL/USING joins.
 
-    **CRITICAL Pattern Enforcement:**
-    1. **Self-Join Pattern:**
-       - If plan says self_join=true → MUST use self-join, NOT subquery
-       - Example: JOIN Movie AS T1 JOIN Movie AS T2 ON T1.director = T2.director WHERE T1.title != T2.title
-       - DO NOT use: WHERE director IN (SELECT director FROM Movie GROUP BY director HAVING COUNT(*) > 1)
-
-    2. **Set Operations:**
-       - If plan says set_op=INTERSECT → MUST use INTERSECT (two SELECT statements with same columns)
-       - If plan says set_op=OR → Use OR in WHERE clause, NOT UNION
-       - If plan says set_op=UNION → Use UNION (two separate result sets)
-       - Example INTERSECT: SELECT title FROM ... WHERE stars=3 INTERSECT SELECT title FROM ... WHERE stars=4
-
-    3. **WHERE Conditions:**
-       - If plan says where_condition_type=RANGE → Use >= or <=, NOT IN
-       - Example: "4 or 5 stars" → Use WHERE stars >= 4, NOT WHERE stars IN (4,5)
-       - If plan says null_handling=STRING_NULL → Use = "null", NOT IS NULL
-       - If plan says null_handling=SQL_NULL → Use IS NULL
-
-    4. **GROUP BY:**
-       - If plan specifies GROUP BY mID → Use mID, NOT title or other display column
-       - When aggregating per entity, GROUP BY the PK/ID column from the plan
-       - If SELECT includes mID and title, GROUP BY mID (not title)
-
-    5. **SELECT Columns:**
-       - If GROUP BY uses mID → SELECT should include mID (for grouping), not just title
-       - Match expected_output_fields exactly, but ensure GROUP BY columns are included if needed
+    Return ONLY raw JSON: {"sql": "<single-line SQL>"}.
   expected_output: >
-    JSON {"sql": "<single-line SQL>"} following the plan and core rules.
+    SQL honoring the original question, typed contract, query plan, and deterministic join plan.
   agent: sql_expert
 
 refine_sql_task:
   description: >
-    6-step: SQL Refiner. Single-pass fix of the generated SQL.
+    6-step: SQL Refiner. Make only evidence-backed corrections to Generator SQL.
 
     Inputs:
     - Initial SQL: "{sql}"
     - Question: "{question}"
     - Schema: ```{db_schema}```
     - Analysis: ```{question_analysis}```
-    - Plan: ```{query_plan}```
+    - Query Plan: ```{query_plan}```
+    - Deterministic Join Plan: ```{join_plan}```
+    - Deterministic Constraint Report: ```{constraint_report}```
 
     Checklist:
-    - Enforce SELECT to match expected_output_fields exactly (names & order); if SQL uses description columns instead of ids/types, switch back to the fields in expected_output_fields.
-    - Remove unnecessary joins; fix join keys; if single_table_ok=true and all SELECT/filters exist in one table, rewrite SQL to use that table only.
-    - For counts:
-      - If plan/analysis do NOT require distinct entities, rewrite COUNT(DISTINCT ...) back to COUNT(*).
-      - Ensure GROUP BY only contains the minimal non-aggregated SELECT fields; drop extra GROUP BY columns.
-    - For extremum-of-column questions with raw column outputs, replace MIN/MAX aggregates with ORDER BY column ASC/DESC + LIMIT 1 when needed.
-    - Enforce set operations from the plan (e.g., replace ad hoc HAVING logic with INTERSECT/UNION/EXCEPT when specified).
-    - Drop unasked ORDER BY; ensure set ops and filters follow the plan.
-    - Keep final SQL single-line and executable.
+    0) NO-OP RULE (highest priority): If Deterministic Constraint Report has valid=true and no fatal_errors, return the Initial SQL unchanged. Do not restyle, rename aliases, change COUNT(*), rewrite JOINs, or "improve" structure.
+    1) Fatal deterministic checks are authoritative. Only edit SQL to fix a concrete fatal error or one specific Question/contract violation.
+    2) The original Question outranks Analysis and Query Plan. Re-read it for missing conditions and unrequested SELECT fields.
+    3) SELECT must contain exactly requested outputs. Ranking/count expressions used only for ORDER BY must not be projected.
+    4) Never change COUNT(*) to COUNT(column)/COUNT DISTINCT without explicit null-sensitive/distinct wording.
+    5) Preserve the longest question_value_match and scalar aggregate subqueries.
+    6) Use only necessary declared-FK joins; do not add tables for stylistic reasons. INNER JOIN is default.
+    7) Keep independent related-row aggregates/existence branches separate to avoid multiplicity errors.
+    8) Preserve correct OR/set-operation, negation, grouping-key, extreme-row, and field-order semantics.
+    9) Return one executable, read-only, single-line SQLite statement and concise diagnostics.
 
-    **CRITICAL Pattern Fixes:**
-    1. **Self-Join Fix:**
-       - If SQL uses subquery with HAVING COUNT(*) > 1 for "more than one" → Replace with self-join pattern
-       - Check: JOIN same table twice with WHERE condition excluding self (T1.title != T2.title)
-       - Example: Replace "WHERE director IN (SELECT director FROM Movie GROUP BY director HAVING COUNT(*) > 1)" with self-join
-
-    2. **Set Operation Fix:**
-       - If SQL uses `IN (3,4)` but plan says INTERSECT → Replace with INTERSECT pattern (two SELECTs)
-       - If SQL uses UNION but plan says OR → Replace with OR in WHERE clause
-       - If SQL uses OR but plan says UNION → Replace with UNION (two separate SELECTs)
-
-    3. **WHERE Condition Fix:**
-       - If SQL uses `IN (4,5)` for "4 or 5" and plan says RANGE → Replace with `>= 4` (if inclusive range)
-       - If SQL uses `IS NULL` but plan says STRING_NULL → Replace with `= "null"`
-
-    4. **GROUP BY Fix:**
-       - If SQL uses `GROUP BY title` but should group by entity → Replace with `GROUP BY mID` (or appropriate PK)
-       - Ensure SELECT includes the GROUP BY column if needed (e.g., SELECT mID, title, avg(...) GROUP BY mID)
-
-    5. **DISTINCT vs GROUP BY:**
-       - If SQL uses `GROUP BY year` just to get unique years → Replace with `DISTINCT year` (simpler, no aggregation needed)
-
-    6. **ORDER BY Fix:**
-       - If plan requires ORDER BY but SQL missing it → Add ORDER BY with all specified columns
-       - Check column order matches plan exactly
-
-    Return ONLY raw JSON (No markdown backticks).
-    {"sql": "...", "notes": "...", "diagnostics": ["..."]}.
+    Return ONLY raw JSON:
+    {"sql": "...", "notes": "specific correction or preserved", "diagnostics": []}.
   expected_output: >
-    Refined single-line SQL plus brief notes.
+    Refined SQL with only evidence-backed changes.
   agent: sql_refiner
 
 validate_sql_task:
   description: >
-    6-step: Final Validator. Enforce final checklist and fix if needed.
+    6-step: Final Validator. Make only evidence-backed final corrections.
 
     Inputs:
     - SQL: "{sql}"
     - Question: "{question}"
     - Schema: ```{db_schema}```
     - Analysis: ```{question_analysis}```
+    - Query Plan: ```{query_plan}```
+    - Deterministic Join Plan: ```{join_plan}```
+    - Deterministic Constraint Report: ```{constraint_report}```
 
     Validate:
-    - SELECT = expected_output_fields (content/order); if not, rewrite SELECT to match exactly (including using ids/types instead of descriptions when required).
-    - For counts:
-      - Use COUNT(*) by default when counting rows/records; only keep COUNT(DISTINCT ...) when the plan/analysis clearly require distinct entities.
-      - Ensure GROUP BY is minimal and consistent with non-aggregated SELECT fields.
-    - Check extremum patterns: if expected_output_fields are raw columns and the question is about earliest/latest, prefer ORDER BY + LIMIT 1 over MIN/MAX where appropriate.
-    - No unnecessary joins; correct PK/FK; if single_table_ok=true and extra joins exist, simplify back to the single table.
-    - Remove ORDER BY unless the question/plan requires ranking or extremum.
-    - Names exist in schema; SQL complete, single line, no comments.
-    - Fix issues and return corrected SQL with short explain; if unfixable, include error.
+    0) NO-OP RULE (highest priority): If Deterministic Constraint Report has valid=true and no fatal_errors, return the input SQL unchanged. Do not restyle or rewrite a constraint-valid query.
+    1) Fatal deterministic checks are authoritative for empty, non-read-only, multiple-statement, nonexistent-identifier, and SQLite syntax errors.
+    2) The original Question outranks Analysis/Plan. If no fatal error exists, preserve SQL unless one specific semantic violation is identified.
+    3) Change only the responsible identifier/expression. Every replacement must exist in Schema.
+    4) Use only the required subset of Deterministic Join Plan and the semantically matching alternative edge.
+    5) SELECT must equal requested output content/order. Check COUNT, scope/branches, literal bindings, set operations, negation, scalar comparisons, grouping, and extreme_row.
+    6) Never change COUNT(*) to COUNT(column)/COUNT DISTINCT without explicit null-sensitive/distinct wording. Never split the longest question_value_match.
+    7) Do not add tables or joins unless a missing Question output/predicate/relationship requires them. INNER JOIN is default.
+    8) Verify every stated Question condition even if Analysis or Plan omitted it.
+    9) Return one read-only, single-line SQLite statement. Set error="" for executable SQL and return JSON directly with no prose.
 
-    **CRITICAL Final Pattern Checks:**
-    1. **Self-Join Validation:**
-       - If analysis/plan says self_join_hint=true or self_join=true → SQL MUST use self-join, NOT subquery
-       - Fix if wrong pattern detected (replace subquery with self-join)
-
-    2. **Set Operation Validation:**
-       - If plan says set_op=INTERSECT → SQL MUST use INTERSECT (two SELECTs with same columns)
-       - If plan says set_op=OR → SQL MUST use OR in WHERE, NOT UNION
-       - If plan says set_op=UNION → SQL MUST use UNION (two separate SELECTs)
-       - Fix if wrong operation used
-
-    3. **WHERE Condition Validation:**
-       - Check if `IN (4,5)` should be `>= 4` (for inclusive ranges when plan says RANGE)
-       - Check if `IS NULL` should be `= "null"` (for string nulls when plan says STRING_NULL)
-       - Fix based on plan's where_condition_type and null_handling
-
-    4. **GROUP BY Validation:**
-       - If aggregating per entity → GROUP BY should use PK (mID), not display column
-       - If SQL uses `GROUP BY title` but should use mID → Fix to GROUP BY mID
-       - Ensure SELECT includes GROUP BY column if needed
-
-    5. **ORDER BY Validation:**
-       - If plan requires ORDER BY → SQL MUST have ORDER BY
-       - Check all columns from plan are included in ORDER BY
-       - Fix if missing or incomplete
-
-    6. **DISTINCT Validation:**
-       - If SQL uses `GROUP BY year` just for uniqueness → Suggest `DISTINCT year` instead
-       - Only use GROUP BY when aggregation is needed
-
-    Return ONLY raw JSON (No markdown backticks).
-    {"sql": "...", "explain": "...", "error": ""}.
+    Return ONLY raw JSON:
+    {"sql": "...", "explain": "brief factual note", "error": ""}.
   expected_output: >
     Final validated SQL JSON.
   agent: sql_validator

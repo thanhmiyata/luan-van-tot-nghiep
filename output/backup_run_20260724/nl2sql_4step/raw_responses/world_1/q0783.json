@@ -1,0 +1,69 @@
+{
+  "question_index": 783,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "Return the codes of countries that do not speak English and do not have Republics for governments.",
+  "gold_query": "SELECT Code FROM country WHERE GovernmentForm != \"Republic\" EXCEPT SELECT CountryCode FROM countrylanguage WHERE LANGUAGE  =  \"English\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.645,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"<>\", \"value\": \"English\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"<>\", \"value\": \"T\", \"value_type\": \"STRING\"},\n    {\"table\": \"country\", \"column\": \"GovernmentForm\", \"operator\": \"<>\", \"value\": \"Republic\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"Country code matches\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Code\", \"Language\", \"IsOfficial\", \"GovernmentForm\"], \"values\": [\"English\", \"Republic\", \"T\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1267,
+        "prompt_tokens": 972,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 295,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:49:06.314237"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 10.683,
+      "raw_response": "```json\n{\n  \"db_id\": \"world_1\",\n  \"table_names_original\": [\n    \"country\",\n    \"countrylanguage\"\n  ],\n  \"column_names_original\": [\n    [0, \"Code\"],\n    [0, \"GovernmentForm\"],\n    [1, \"CountryCode\"],\n    [1, \"Language\"],\n    [1, \"IsOfficial\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [2, 0]\n  ],\n  \"primary_keys\": [\n    0,\n    2,\n    3\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 3319,
+        "prompt_tokens": 873,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2446,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:49:16.998452"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.397,
+      "raw_response": "{\"sql\": \"SELECT country.Code FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language <> 'English' AND countrylanguage.IsOfficial <> 'T' AND country.GovernmentForm <> 'Republic'\"}",
+      "token_usage": {
+        "total_tokens": 1028,
+        "prompt_tokens": 969,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 59,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:49:18.397722"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.247,
+      "raw_response": "The user wants me to act as a Final Validator. I need to check the provided SQL against the given schema, question, and analysis, and enforce the 4-step validation checklist.\n\n**Checklist:**\n1.  **SELECT matches expected_output_fields (content/order); COUNT uses DISTINCT when counting entities.**\n    *   `expected_output_fields`: `[\"Code\"]`\n    *   `SQL SELECT`: `country.Code`\n    *   Matches. No `COUNT` involved.\n\n2.  **No unnecessary joins; correct PK/FK; remove ORDER BY unless asked.**\n    *   `SQL joins`: `country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode`\n    *   `Analysis join_hints`: `{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"Country code matches\"}`\n    *   `Schema foreign_keys`: `[[2,0]]` which means `countrylanguage.CountryCode` (index 2) refers to `country.Code` (index 0). The join condition is correct.\n    *   The join is necessary because filters are applied on both `country` (`GovernmentForm`) and `countrylanguage` (`Language`, `IsOfficial`).\n    *   No `ORDER BY` present.\n    *   Joins are minimal and correct.\n\n3.  **Column/table names exist; SQL is complete and one line.**\n    *   `table_names_original`: `country`, `countrylanguage` - exist.\n    *   `column_names_original`: `Code`, `GovernmentForm` (from `country`), `CountryCode`, `Language`, `IsOfficial` (from `countrylanguage`) - all exist.\n    *   SQL is complete and one line.\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable.**\n    *   The question asks for \"countries that do not speak English and do not have Republics for governments.\"\n    *   The SQL filters:\n        *   `countrylanguage.Language <> 'English'` (Does not speak English)\n        *   `country.GovernmentForm <> 'Republic'` (Does not have Republics for governments)\n        *   There's an additional filter: `countrylanguage.IsOfficial <> 'T'` which means \"and is not official\".\n    *   The question \"Return the codes of countries that do not speak English and do not have Republics for governments.\" does *not* mention anything about the language being unofficial. This filter `countrylanguage.IsOfficial <> 'T'` is extraneous and not requested by the user.\n\n**Correction Plan:**\nRemove the unnecessary filter `AND countrylanguage.IsOfficial <> 'T'`.\n\n**Revised SQL:**\n`SELECT T1.Code FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code = T2.CountryCode WHERE T2.Language <> 'English' AND T1.GovernmentForm <> 'Republic'`\n*Self-correction*: The provided SQL uses original table names. The correction should also use original table names, or alias if preferred. Using original names for consistency with input.\n`SELECT country.Code FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language <> 'English' AND country.GovernmentForm <> 'Republic'`\n\n**Explain:** The original SQL included an unnecessary filter `countrylanguage.IsOfficial <> 'T'` which was not requested by the question. Removed this filter.{\n \"sql\": \"SELECT country.Code FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language <> 'English' AND country.GovernmentForm <> 'Republic'\",\n \"explain\": \"Removed the unnecessary filter `countrylanguage.IsOfficial <> 'T'` as the question only asked for countries that do not speak English and do not have Republics for governments, without specifying anything about language official status.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1643,
+        "prompt_tokens": 792,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 851,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:49:22.645401"
+    }
+  ],
+  "final_sql": "SELECT country.Code FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language <> 'English' AND country.GovernmentForm <> 'Republic'",
+  "explain": "Removed the unnecessary filter `countrylanguage.IsOfficial <> 'T'` as the question only asked for countries that do not speak English and do not have Republics for governments, without specifying anything about language official status.",
+  "error": "",
+  "timestamp": "2026-07-23T23:49:22.646681"
+}

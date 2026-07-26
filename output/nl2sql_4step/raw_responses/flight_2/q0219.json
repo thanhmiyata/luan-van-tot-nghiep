@@ -1,0 +1,69 @@
+{
+  "question_index": 219,
+  "pipeline": "4step",
+  "db_id": "flight_2",
+  "question": "How many United Airlines flights go to City 'Aberdeen'?",
+  "gold_query": "SELECT count(*) FROM FLIGHTS AS T1 JOIN AIRPORTS AS T2 ON T1.DestAirport  =  T2.AirportCode JOIN AIRLINES AS T3 ON T3.uid  =  T1.Airline WHERE T2.City  =  \"Aberdeen\" AND T3.Airline  =  \"United Airlines\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.683,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"COUNT\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"flights\", \"column\": \"FlightNo\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"airlines\", \"column\": \"Airline\", \"operator\": \"=\", \"value\": \"United Airlines\", \"value_type\": \"STRING\"},\n    {\"table\": \"airports\", \"column\": \"City\", \"operator\": \"=\", \"value\": \"Aberdeen\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"flights\", \"to_table\": \"airlines\", \"reason\": \"to filter by airline name\"},\n    {\"from_table\": \"flights\", \"to_table\": \"airports\", \"reason\": \"to filter by destination city\"}\n  ],\n  \"entities\": {\"tables\": [\"airlines\", \"flights\", \"airports\"], \"columns\": [\"Airline\", \"City\"], \"values\": [\"United Airlines\", \"Aberdeen\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1552,
+        "prompt_tokens": 1255,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 297,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:28:48.084371"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 19.045,
+      "raw_response": "{\"db_id\": \"flight_2\", \"table_names_original\": [\"airlines\", \"airports\", \"flights\"], \"column_names_original\": [[-1, \"*\"], [0, \"uid\"], [0, \"Airline\"], [1, \"City\"], [1, \"AirportCode\"], [2, \"Airline\"], [2, \"FlightNo\"], [2, \"DestAirport\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\", \"text\", \"number\", \"number\", \"text\"], \"foreign_keys\": [[7, 4]], \"primary_keys\": [1, 4, 5], \"column_sample_values\": [[], [], [\"United Airlines\", \"US Airways\", \"Delta Airlines\", \"Southwest Airlines\"], [\"Aberdeen \", \"Abilene \", \"Abingdon \", \"Ada \"], [\"AAF\", \"ABI\", \"ABL\", \"ABQ\"], [], [], [\" ASY\", \" APG\", \" ACV\", \" CVO\"]]}",
+      "token_usage": {
+        "total_tokens": 5617,
+        "prompt_tokens": 880,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4737,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:29:07.131484"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.661,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) FROM flights JOIN airlines ON flights.Airline = airlines.uid JOIN airports ON flights.DestAirport = airports.AirportCode WHERE airlines.Airline = 'United Airlines' AND airports.City = 'Aberdeen'\"}",
+      "token_usage": {
+        "total_tokens": 1454,
+        "prompt_tokens": 1392,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 62,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:29:08.794212"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.287,
+      "raw_response": "I need to validate the provided SQL query against the given schema and analysis, applying the 4-step checklist.\n\n**Checklist:**\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `[\"COUNT\"]`\n    *   Actual SQL: `SELECT COUNT(*)`\n    *   Match: Yes. `COUNT(*)` is preferred and matches the expectation.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows.**\n    *   Joins:\n        *   `flights JOIN airlines ON flights.Airline = airlines.uid`:\n            *   Schema `airlines.uid` is `PK`.\n            *   Schema `flights.Airline` is `number`. It's likely a `FK` to `airlines.uid`. This join seems correct based on the schema and question (filtering by `airlines.Airline`).\n        *   `flights JOIN airports ON flights.DestAirport = airports.AirportCode`:\n            *   Schema `airports.AirportCode` is `PK`.\n            *   Schema `flights.DestAirport` is `FK` to `airports.AirportCode`. This join is correct for filtering by `airports.City`.\n    *   Minimal joins: Both joins are necessary to apply the filters.\n    *   No ORDER BY present, which is correct as not requested.\n    *   `COUNT(*)` is used, and given the joins are on `PK/FK` relationships for filtering, `COUNT(*)` should be fine and not lead to duplicate counting of flights themselves, but rather correctly count the rows where the conditions are met.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available.**\n    *   `airlines.Airline = 'United Airlines'`: `column_sample_values` for `airlines.Airline` includes `\"United Airlines\"`. Matches exactly.\n    *   `airports.City = 'Aberdeen'`: `column_sample_values` for `airports.City` includes `\"Aberdeen \"`. The SQL has `'Aberdeen'` without a trailing space. This is a mismatch. The `column_sample_values` indicates `Aberdeen ` (with a space). This needs to be corrected to `'Aberdeen '` to match the actual data if the sample is representative.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `flights`, `airlines`, `airports` exist.\n    *   `flights.Airline`, `airlines.uid`, `flights.DestAirport`, `airports.AirportCode`, `airlines.Airline`, `airports.City` all exist as columns or foreign keys/primary keys in the schema.\n    *   SQL is complete and one line.\n\n**Correction needed:** The literal value `'Aberdeen'` needs to be changed to `'Aberdeen '` (with a trailing space) to match the sample value.\n\n**Corrected SQL:**\n`SELECT COUNT(*) FROM flights JOIN airlines ON flights.Airline = airlines.uid JOIN airports ON flights.DestAirport = airports.AirportCode WHERE airlines.Airline = 'United Airlines' AND airports.City = 'Aberdeen '````json\n{\n \"sql\": \"SELECT COUNT(*) FROM flights JOIN airlines ON flights.Airline = airlines.uid JOIN airports ON flights.DestAirport = airports.AirportCode WHERE airlines.Airline = 'United Airlines' AND airports.City = 'Aberdeen '\",\n \"explain\": \"Corrected 'Aberdeen' to 'Aberdeen ' to exactly match the sample value for airports.City, which includes a trailing space.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1762,
+        "prompt_tokens": 969,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 793,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:29:13.083250"
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) FROM flights JOIN airlines ON flights.Airline = airlines.uid JOIN airports ON flights.DestAirport = airports.AirportCode WHERE airlines.Airline = 'United Airlines' AND airports.City = 'Aberdeen '",
+  "explain": "Corrected 'Aberdeen' to 'Aberdeen ' to exactly match the sample value for airports.City, which includes a trailing space.",
+  "error": "",
+  "timestamp": "2026-07-25T01:29:13.084154"
+}

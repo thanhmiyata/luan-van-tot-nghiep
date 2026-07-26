@@ -1,0 +1,97 @@
+{
+  "question_index": 664,
+  "pipeline": "6step",
+  "db_id": "poker_player",
+  "question": "What are the names of poker players, ordered ascending by the number of final tables they have made?",
+  "gold_query": "SELECT T1.Name FROM people AS T1 JOIN poker_player AS T2 ON T1.People_ID  =  T2.People_ID ORDER BY T2.Final_Table_Made",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.982,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"people\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"poker_player\", \"column\": \"Final_Table_Made\", \"direction\": \"ASC\"}],\n  \"join_hints\": [{\"from_table\": \"poker_player\", \"to_table\": \"people\", \"reason\": \"to match players with their names\"}],\n  \"entities\": {\"tables\": [\"poker_player\", \"people\"], \"columns\": [\"Name\", \"Final_Table_Made\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1725,
+        "prompt_tokens": 1477,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 248,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:12:55.407297"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 12.884,
+      "raw_response": "I need to filter the provided schema based on the given question and analysis.\nHere's my plan:\n1.  **Identify relevant tables:** From `entities.tables`, `output_fields_detailed`, `filters`, `group_by`, `order_by`, I see `poker_player` and `people`. Both tables are needed.\n2.  **Identify relevant columns:**\n    *   `expected_output_fields`: `Name` (from `people` table).\n    *   `order_by`: `Final_Table_Made` (from `poker_player` table).\n    *   **PK/FK for joins:** The `join_hints` indicate a join between `poker_player` and `people`. The `foreign_keys` list `[2,7]` which means `poker_player.People_ID` (index 2) links to `people.People_ID` (index 7).\n        *   So, `poker_player.People_ID` (FK) and `people.People_ID` (PK) are essential.\n        *   `poker_player.Poker_Player_ID` is a PK for `poker_player`, but not directly used for joins in this query. However, the rule states \"Keep PK/FK columns that enable the minimal join path\" and \"Prefer keeping a small safe superset over dropping a needed column\". Since `Poker_Player_ID` is a PK for `poker_player`, it's generally good practice to keep it if the table is kept, even if not directly used in this specific query's join. Let's re-evaluate. The join is `poker_player.People_ID = people.People_ID`. `poker_player.Poker_Player_ID` is not part of this join. I will only keep `Poker_Player_ID` if it's explicitly needed or if its removal breaks the schema integrity for `poker_player` given `People_ID` is also an FK. Let's stick to the minimal rule for now. `poker_player.People_ID` is an FK and also a column in `poker_player`. `People_ID` in `people` is its PK.\n3.  **Construct the filtered schema:**\n\n    *   **Tables to keep:** `poker_player`, `people`\n    *   **Columns for `poker_player`:**\n        *   `People_ID` (FK, part of join `poker_player.People_ID = people.People_ID`)\n        *   `Final_Table_Made` (used in `order_by`)\n        *   `Poker_Player_ID` (PK for `poker_player`, not explicitly used in joins/output/filter/group_by/order_by, but `People_ID` is also an FK. Let's check original PKs: `[1,7]`. `1` refers to `poker_player.Poker_Player_ID`, `7` refers to `people.People_ID`. So `Poker_Player_ID` is the *primary* PK for `poker_player`. It is not needed for the specific join path. Let's try to be minimal. `poker_player.People_ID` is enough to join. If `poker_player.Poker_Player_ID` is not needed for output, filter, group_by, order_by, or as a FK in this particular query, I'll drop it. The prompt says \"Keep PK/FK columns that enable the minimal join path\" and \"Prefer keeping a small safe superset over dropping a needed column\". `poker_player.People_ID` is *an* FK but also points to the PK of `people`. The actual PK of `poker_player` is `Poker_Player_ID`. The question doesn't require us to identify a specific poker player by their `Poker_Player_ID`. The FK `(2,7)` means `poker_player.People_ID` (index 2) references `people.People_ID` (index 7). So, `poker_player.People_ID` is an FK and `people.People_ID` is a PK.\n        *   Let's keep `poker_player.People_ID` (FK to `people.People_ID`) and `poker_player.Final_Table_Made`.\n    *   **Columns for `people`:**\n        *   `People_ID` (PK, part of join `poker_player.People_ID = people.People_ID`)\n        *   `Name` (used in `expected_output_fields`)\n\n    *   **Final check of columns and their types/indices:**\n        Original `column_names_original`:\n        `[[-1,\"*\"], [0,\"Poker_Player_ID\"], [0,\"People_ID\"], [0,\"Final_Table_Made\"], [0,\"Best_Finish\"], [0,\"Money_Rank\"], [0,\"Earnings\"], [1,\"People_ID\"], [1,\"Nationality\"], [1,\"Name\"], [1,\"Birth_Date\"], [1,\"Height\"]]`\n\n        *   `poker_player` table (index 0):\n            *   `People_ID` (original index 2, type number) - Keep.\n            *   `Final_Table_Made` (original index 3, type number) - Keep.\n        *   `people` table (index 1):\n            *   `People_ID` (original index 7, type number) - Keep.\n            *   `Name` (original index 9, type text) - Keep.\n\n    *   **Reconstruct `foreign_keys` and `primary_keys`:**\n        *   The join is `poker_player.People_ID` (current index within `poker_player`: 0) and `people.People_ID` (current index within `people`: 0).\n        *   Original `foreign_keys`: `[[2,7]]`. `2` is `poker_player.People_ID`, `7` is `people.People_ID`.\n            *   In the filtered schema:\n                *   `poker_player` columns: `People_ID`, `Final_Table_Made`\n                *   `people` columns: `People_ID`, `Name`\n            *   New index for `poker_player.People_ID` is `1` (original index `2`).\n            *   New index for `people.People_ID` is `3` (original index `7`).\n            *   So, the FK will be `[1,3]` in the new scheme.\n        *   Original `primary_keys`: `[1,7]`. `1` is `poker_player.Poker_Player_ID`, `7` is `people.People_ID`.\n            *   Since I'm dropping `poker_player.Poker_Player_ID`, the `poker_player` table no longer has a PK. This is a potential issue.\n            *   Re-reading: \"Keep PK/FK columns that enable the minimal join path.\" `poker_player.People_ID` is an FK to `people.People_ID`. The original PK for `poker_player` is `Poker_Player_ID`.\n            *   Let's reconsider keeping `Poker_Player_ID` from `poker_player`. The rule \"Prefer keeping a small safe superset over dropping a needed column\" combined with \"Keep PK/FK columns that enable the minimal join path\" suggests keeping *the* PK for each table that is part of the schema, unless it's strictly not needed and another column can act as a pseudo-PK or if the table is merely a join bridge. Here, `poker_player` is a primary data table.\n            *   So, I will keep `poker_player.Poker_Player_ID` as it's the actual PK of the table `poker_player`. This ensures the table's identity is preserved.\n            *   **Updated columns for `poker_player`:** `Poker_Player_ID` (PK), `People_ID` (FK), `Final_Table_Made`.\n            *   **Updated columns for `people`:** `People_ID` (PK), `Name`.\n\n    *   **Final mapping:**\n        *   `poker_player` (index 0):\n            *   `Poker_Player_ID` (original index 1, type number) - Keep.\n            *   `People_ID` (original index 2, type number) - Keep.\n            *   `Final_Table_Made` (original index 3, type number) - Keep.\n        *   `people` (index 1):\n            *   `People_ID` (original index 7, type number) - Keep.\n            *   `Name` (original index 9, type text) - Keep.\n\n    *   **Reconstruct `column_names_original`, `column_types`, `column_sample_values`:**\n        *   `table_names_original`: `[\"poker_player\", \"people\"]` (same as original, indices 0 and 1)\n        *   `column_names_original`:\n            *   `[-1,\"*\"]`\n            *   `[0,\"Poker_Player_ID\"]`\n            *   `[0,\"People_ID\"]`\n            *   `[0,\"Final_Table_Made\"]`\n            *   `[1,\"People_ID\"]`\n            *   `[1,\"Name\"]`\n        *   `column_types`:\n            *   `text` (for `*`)\n            *   `number` (for `Poker_Player_ID`)\n            *   `number` (for `People_ID` from `poker_player`)\n            *   `number` (for `Final_Table_Made`)\n            *   `number` (for `People_ID` from `people`)\n            *   `text` (for `Name`)\n        *   `primary_keys`:\n            *   Original: `poker_player.Poker_Player_ID` (index 1), `people.People_ID` (index 7).\n            *   Filtered: `poker_player.Poker_Player_ID` (new index 1), `people.People_ID` (new index 4). So `[1,4]`.\n        *   `foreign_keys`:\n            *   Original: `poker_player.People_ID` (index 2) -> `people.People_ID` (index 7).\n            *   Filtered: `poker_player.People_ID` (new index 2) -> `people.People_ID` (new index 4). So `[[2,4]]`.\n        *   `column_sample_values`: Need to map correctly.\n            *   Original indices: `[],[],[],[],[],[],[],[],[\"Russia\",\"Bulgaria\"],[\"Aleksey Ostapenko\",\"Teodor Salparov\",\"Roman Bragin\",\"Sergey Grankin\"],[\"May 26, 1986\",\"August 16, 1982\",\"April 17, 1987\",\"January 22, 1987\"],[]]`\n            *   New column map:\n                *   `-1` -> `[]`\n                *   `0,\"Poker_Player_ID\"` (orig 1) -> `[]`\n                *   `0,\"People_ID\"` (orig 2) -> `[]`\n                *   `0,\"Final_Table_Made\"` (orig 3) -> `[]`\n                *   `1,\"People_ID\"` (orig 7) -> `[]`\n                *   `1,\"Name\"` (orig 9) -> `[\"Aleksey Ostapenko\",\"Teodor Salparov\",\"Roman Bragin\",\"Sergey Grankin\"]`\n            *   The sample values are sparse in the original, I'll only copy values for columns that had them and are kept. `Name` has sample values. `People_ID` (both tables) and `Poker_Player_ID`, `Final_Table_Made` do not.\n\nThis revised plan seems robust and adheres to the \"minimal but safe superset\" and \"preserve PK/FK for joins\" rules.```json\n{\"db_id\": \"poker_player\", \"table_names_original\": [\"poker_player\", \"people\"], \"column_names_original\": [[-1, \"*\"], [0, \"Poker_Player_ID\"], [0, \"People_ID\"], [0, \"Final_Table_Made\"], [1, \"People_ID\"], [1, \"Name\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\", \"number\", \"text\"], \"foreign_keys\": [[2, 4]], \"primary_keys\": [1, 4], \"column_sample_values\": [[], [], [], [], [], [\"Aleksey Ostapenko\", \"Teodor Salparov\", \"Roman Bragin\", \"Sergey Grankin\"]]}\n```",
+      "token_usage": {
+        "total_tokens": 3805,
+        "prompt_tokens": 866,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2939,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:13:08.311077"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.148,
+      "raw_response": "{ \"steps\": [ \"List minimal tables: Need both 'poker_player' and 'people' tables because the name resides in 'people' and the ranking criteria 'Final_Table_Made' is in 'poker_player'.\", \"Join needed on PK=FK pair: Join 'poker_player.People_ID' with 'people.People_ID'.\", \"Do not need GROUP BY since we're not aggregating a common field in the output; we just need ordering by a non-output field.\", \"The query needs ORDER BY 'Final_Table_Made' in ascending order as specified in the question.\", \"No set operation needed because this is a straightforward join and sort operation.\", \"Summary of conditions per table: No special conditions on either table, just the join and order operation.\" ] }",
+      "token_usage": {
+        "total_tokens": 1561,
+        "prompt_tokens": 1389,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 172,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:13:11.474757"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.175,
+      "raw_response": "{\"sql\": \"SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Final_Table_Made ASC\"}",
+      "token_usage": {
+        "total_tokens": 1924,
+        "prompt_tokens": 1880,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 44,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:13:12.667165"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.022,
+      "raw_response": "{\"sql\": \"SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Final_Table_Made ASC\", \"notes\": \"The SQL query already aligns with the expected output fields and question requirements. It correctly selects the 'Name' field from the 'people' table, joins with the 'poker_player' table on 'People_ID', and orders the results by 'Final_Table_Made' ascending as requested.\", \"diagnostics\": [\"Ensured SELECT matches the expected fields.\", \"Confirmed that the join is necessary and correct.\", \"Verified the ORDER BY clause aligns with the task's ordering requirement.\"]}",
+      "token_usage": {
+        "total_tokens": 1617,
+        "prompt_tokens": 1472,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 145,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:13:14.707514"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.521,
+      "raw_response": "```json\n{\"sql\": \"SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Final_Table_Made ASC\", \"explain\": \"The SQL query already correctly selects the names of people by joining poker_player and people tables on People_ID and orders them by Final_Table_Made in ascending order, matching the exact requirements from the analysis.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2255,
+        "prompt_tokens": 1343,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 912,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:13:19.250676"
+    }
+  ],
+  "final_sql": "SELECT people.Name FROM poker_player JOIN people ON poker_player.People_ID = people.People_ID ORDER BY poker_player.Final_Table_Made ASC",
+  "explain": "The SQL query already correctly selects the names of people by joining poker_player and people tables on People_ID and orders them by Final_Table_Made in ascending order, matching the exact requirements from the analysis.",
+  "error": "",
+  "timestamp": "2026-07-24T15:13:19.255294"
+}

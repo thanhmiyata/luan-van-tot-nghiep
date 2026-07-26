@@ -1,0 +1,69 @@
+{
+  "question_index": 1032,
+  "pipeline": "4step",
+  "db_id": "real_estate_properties",
+  "question": "Show the property type descriptions of properties belonging to that code.",
+  "gold_query": "SELECT T2.property_type_description FROM Properties AS T1 JOIN Ref_Property_Types AS T2 ON T1.property_type_code  =  T2.property_type_code GROUP BY T1.property_type_code",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 1.751,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"property_type_description\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Property_Types\", \"column\": \"property_type_description\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"Properties\", \"column\": \"property_type_code\", \"operator\": \"=\", \"value\": \"that code\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Ref_Property_Types\", \"to_table\": \"Properties\", \"reason\": \"properties and their types need to be connected to filter by code\"}],\n  \"entities\": {\"tables\": [\"Ref_Property_Types\", \"Properties\"], \"columns\": [\"property_type_description\", \"property_type_code\"], \"values\": [\"that code\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1868,
+        "prompt_tokens": 1628,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 240,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:38:58.218391"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 9.594,
+      "raw_response": "{\"db_id\": \"real_estate_properties\", \"table_names_original\": [\"Ref_Property_Types\", \"Properties\"], \"column_names_original\": [[-1, \"*\"], [0, \"property_type_code\"], [0, \"property_type_description\"], [1, \"property_type_code\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1], \"column_sample_values\": [[], [\"Apartment\", \"Field\", \"House\", \"Other\"], [\"House, Bungalow, etc.\", \"Apartment, Flat, Condo, etc.\", \"Field, Meadow.\", \"Other, to be determined.\"], [\"House\", \"Other\", \"Field\", \"Apartment\"]]}",
+      "token_usage": {
+        "total_tokens": 3562,
+        "prompt_tokens": 1271,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2291,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:39:07.813484"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.348,
+      "raw_response": "{\"sql\": \"SELECT Ref_Property_Types.property_type_description FROM Ref_Property_Types JOIN Properties ON Ref_Property_Types.property_type_code = Properties.property_type_code WHERE Properties.property_type_code = 'that code'\"}",
+      "token_usage": {
+        "total_tokens": 1340,
+        "prompt_tokens": 1286,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 54,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:39:09.163297"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.691,
+      "raw_response": "I need to validate the provided SQL query against the given criteria and the schema/analysis.\n\n1.  **SELECT = expected_output_fields (content/order); COUNT(*) preferred, COUNT(DISTINCT pk) only when joins duplicate rows.**\n    *   Expected output fields: `[\"property_type_description\"]`.\n    *   Current SELECT: `Ref_Property_Types.property_type_description`. Matches.\n    *   No `COUNT(*)` needed as it's a simple selection.\n\n2.  **No unnecessary joins; correct PK/FK; remove ORDER BY unless asked.**\n    *   Joins: `JOIN Properties ON Ref_Property_Types.property_type_code = Properties.property_type_code`.\n    *   The `WHERE` clause `WHERE Properties.property_type_code = 'that code'` requires joining `Properties` to filter by a property's `property_type_code`.\n    *   The `SELECT` clause `Ref_Property_Types.property_type_description` requires `Ref_Property_Types`.\n    *   The join condition `Ref_Property_Types.property_type_code = Properties.property_type_code` is correct based on the schema's FK `[4,1]` (Properties.property_type_code to Ref_Property_Types.property_type_code).\n    *   No `ORDER BY` is present, and none was requested.\n    *   The join is necessary.\n\n3.  **Every name in ORDER BY is a real column or an alias defined in SELECT; ordering by count uses ORDER BY count(*) directly.**\n    *   No `ORDER BY` clause, so this is not applicable.\n\n4.  **Negation questions use NOT IN/EXCEPT, not != on joined rows; \"X and Y\" on the same column uses INTERSECT.**\n    *   No negation or \"X and Y\" on the same column. Not applicable.\n\n5.  **Names exist in schema; SQL complete, one line, no comments.**\n    *   Table names: `Ref_Property_Types`, `Properties` exist.\n    *   Column names: `property_type_description`, `property_type_code` exist in their respective tables.\n    *   The SQL is complete and one line.\n    *   Literal value: `'that code'` is a placeholder for a specific code, which is fine as per `value_type: \"STRING\"`. The sample values for `property_type_code` include `Apartment`, `Field`, `House`, `Other`. If 'that code' was expected to be one of those, it would be a specific check, but as a generic placeholder from the prompt, it's acceptable.\n\nAll checks pass. The SQL seems correct.{\"sql\": \"SELECT Ref_Property_Types.property_type_description FROM Ref_Property_Types JOIN Properties ON Ref_Property_Types.property_type_code = Properties.property_type_code WHERE Properties.property_type_code = 'that code'\", \"explain\": \"The SQL query correctly selects the property type description from 'Ref_Property_Types' and joins with 'Properties' to filter by 'property_type_code' as requested, using the correct foreign key relationship. All table and column names exist in the schema, and the query structure matches the requirements without unnecessary elements.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1646,
+        "prompt_tokens": 914,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 732,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:39:12.855258"
+    }
+  ],
+  "final_sql": "SELECT Ref_Property_Types.property_type_description FROM Ref_Property_Types JOIN Properties ON Ref_Property_Types.property_type_code = Properties.property_type_code WHERE Properties.property_type_code = 'that code'",
+  "explain": "The SQL query correctly selects the property type description from 'Ref_Property_Types' and joins with 'Properties' to filter by 'property_type_code' as requested, using the correct foreign key relationship. All table and column names exist in the schema, and the query structure matches the requirements without unnecessary elements.",
+  "error": "",
+  "timestamp": "2026-07-25T05:39:12.857253"
+}

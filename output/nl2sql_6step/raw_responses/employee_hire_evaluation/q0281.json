@@ -1,0 +1,97 @@
+{
+  "question_index": 281,
+  "pipeline": "6step",
+  "db_id": "employee_hire_evaluation",
+  "question": "Find the names of employees who never won any award in the evaluation.",
+  "gold_query": "SELECT name FROM employee WHERE Employee_ID NOT IN (SELECT Employee_ID FROM evaluation)",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.331,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"employee\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\n      \"table\": \"evaluation\",\n      \"column\": \"Employee_ID\",\n      \"operator\": \"IS\",\n      \"value\": \"NULL\",\n      \"value_type\": \"OTHER\"\n    }\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"employee\", \"to_table\": \"evaluation\", \"reason\": \"Find employees who do not have awards.\"}\n  ],\n  \"entities\": {\"tables\": [\"employee\", \"evaluation\"], \"columns\": [\"Name\", \"Employee_ID\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"SQL_NULL\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1878,
+        "prompt_tokens": 1610,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 268,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:57:38.021375"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.846,
+      "raw_response": "```json\n{\"db_id\": \"employee_hire_evaluation\", \"table_names_original\": [\"employee\", \"evaluation\"], \"column_names_original\": [[\"-1\", \"*\"], [\"0\", \"Employee_ID\"], [\"0\", \"Name\"], [\"1\", \"Employee_ID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [\"George Chuter\", \"Lee Mears\", \"Mark Regan\", \"Jason Hobson\"], [\"1\", \"10\", \"2\", \"4\"]]}\n```",
+      "token_usage": {
+        "total_tokens": 4392,
+        "prompt_tokens": 1004,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3388,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:57:52.885970"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 1.455,
+      "raw_response": "{ \"steps\": [ \"List minimal tables: employee, evaluation\", \"Join needed with PK=FK pair employee.Employee_ID = evaluation.Employee_ID\", \"Use WHERE evaluation.Employee_ID IS NULL to filter employees without any awards\", \"Specify SELECT employee.Name for expected output field\", \"No GROUP BY needed as we are not aggregating\", \"No ORDER BY needed as there is no ranking or sorting requirement\" ] }",
+      "token_usage": {
+        "total_tokens": 1462,
+        "prompt_tokens": 1368,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 94,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:57:54.358736"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.87,
+      "raw_response": "{ \"sql\": \"SELECT employee.Name FROM employee LEFT JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID WHERE evaluation.Employee_ID IS NULL\" }",
+      "token_usage": {
+        "total_tokens": 1820,
+        "prompt_tokens": 1780,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 40,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:57:55.246597"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.259,
+      "raw_response": "{\"sql\": \"SELECT employee.Name FROM employee LEFT JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID WHERE evaluation.Employee_ID IS NULL\", \"notes\": \"The existing SQL already aligns with the expected output fields and constraints: it selects 'Name' from the 'employee' table, performs a LEFT JOIN with the 'evaluation' table using the correct join key 'employee.Employee_ID', and filters using 'WHERE evaluation.Employee_ID IS NULL' as required to find employees without awards. No unnecessary joins, GROUP BY, or ORDER BY clauses are present.\", \"diagnostics\": [\"SQL is already correct as per the given plan and question.\"]}",
+      "token_usage": {
+        "total_tokens": 1505,
+        "prompt_tokens": 1366,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 139,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:57:57.521629"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.803,
+      "raw_response": "I need to validate the provided SQL against the given schema, question, and analysis, following the 6-step validation checklist.\n\n**Validation Steps:**\n\n1.  **SELECT = expected_output_fields:**\n    *   Expected: `[\"Name\"]`\n    *   SQL: `SELECT employee.Name`\n    *   Matches.\n\n2.  **Counts / GROUP BY:**\n    *   No counts or GROUP BY in the SQL. Not applicable.\n\n3.  **Extremum patterns:**\n    *   Not an extremum question. Not applicable.\n\n4.  **Unnecessary joins / correct PK/FK:**\n    *   SQL uses `LEFT JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID`.\n    *   Schema: `foreign_keys=[[3,1]]` which means `evaluation.Employee_ID` (column 3) references `employee.Employee_ID` (column 1). This is correct.\n    *   The `LEFT JOIN` and `WHERE evaluation.Employee_ID IS NULL` pattern is a standard way to find rows in the left table that have no matching rows in the right table. This is appropriate for \"employees who never won any award\".\n    *   `single_table_ok` is `false`, so a join is expected.\n\n5.  **Remove ORDER BY:**\n    *   No `ORDER BY` in the SQL. Correct.\n\n6.  **Names exist / SQL complete:**\n    *   `employee.Name`, `employee.Employee_ID`, `evaluation.Employee_ID` all exist in the schema.\n    *   SQL is complete, single line, no comments.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:** `self_join_hint` is `false`. SQL does not use self-join. Correct.\n2.  **Set Operation Validation:** `set_operation_type` is `NONE`. SQL does not use set operations. Correct.\n3.  **WHERE Condition Validation:**\n    *   Analysis: `filters`: `{\"table\": \"evaluation\", \"column\": \"Employee_ID\", \"operator\": \"IS\", \"value\": \"NULL\", \"value_type\": \"OTHER\"}`\n    *   SQL: `WHERE evaluation.Employee_ID IS NULL`\n    *   `null_handling` is `SQL_NULL`. The `IS NULL` condition is correct for SQL NULLs.\n    *   `where_condition_type` is `EQUALS` but this refers to the *logical* condition of \"no award\", which is implemented via `IS NULL` on the joined table. This is standard and correct.\n4.  **GROUP BY Validation:** Not applicable, no GROUP BY.\n5.  **ORDER BY Validation:** `order_by` in analysis is empty. SQL has no `ORDER BY`. Correct.\n6.  **DISTINCT Validation:** Not applicable, no aggregation or distinct for uniqueness.\n\nThe SQL appears to be correct and aligns with all validation checks.```json\n{\"sql\": \"SELECT employee.Name FROM employee LEFT JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID WHERE evaluation.Employee_ID IS NULL\", \"explain\": \"The SQL correctly identifies employees who have no matching entries in the 'evaluation' table by using a LEFT JOIN and filtering for NULL values in the joined table's foreign key, which matches the analysis intent and schema.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2052,
+        "prompt_tokens": 1310,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 742,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:58:01.344131"
+    }
+  ],
+  "final_sql": "SELECT employee.Name FROM employee LEFT JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID WHERE evaluation.Employee_ID IS NULL",
+  "explain": "The SQL correctly identifies employees who have no matching entries in the 'evaluation' table by using a LEFT JOIN and filtering for NULL values in the joined table's foreign key, which matches the analysis intent and schema.",
+  "error": "",
+  "timestamp": "2026-07-24T13:58:01.345758"
+}

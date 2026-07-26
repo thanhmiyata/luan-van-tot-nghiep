@@ -1,0 +1,97 @@
+{
+  "question_index": 247,
+  "pipeline": "6step",
+  "db_id": "flight_2",
+  "question": "What are flight numbers of flights departing from Airport \"APG\"?",
+  "gold_query": "SELECT FlightNo FROM FLIGHTS WHERE SourceAirport  =  \"APG\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.581,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"FlightNo\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"flights\", \"column\": \"FlightNo\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"flights\", \"column\": \"SourceAirport\", \"operator\": \"=\", \"value\": \"APG\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"flights\"], \"columns\": [\"FlightNo\", \"SourceAirport\"], \"values\": [\"APG\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1922,
+        "prompt_tokens": 1690,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 232,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:29:37.774726"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.08,
+      "raw_response": "I need to filter the provided schema based on the analysis output.\nHere's my plan:\n1.  **Identify required tables:** From `analysis.entities.tables`, the table `flights` is required.\n2.  **Identify required columns:**\n    *   From `analysis.expected_output_fields`: `FlightNo` (from `flights` table).\n    *   From `analysis.filters`: `SourceAirport` (from `flights` table).\n3.  **Identify PK/FK for required tables and columns:**\n    *   `flights` table: Primary Key is `FlightNo` (column index 10).\n    *   `SourceAirport` (column index 12) is a Foreign Key referencing `AirportCode` (column index 6) in `airports` table.\n    *   `DestAirport` (column index 13) is a Foreign Key referencing `AirportCode` (column index 6) in `airports` table.\n    *   Since `SourceAirport` is used in a filter, and it's a FK, its corresponding PK `AirportCode` in `airports` might be considered. However, `airports` table itself is not directly referenced by `entities.tables` or `output_fields_detailed`, `filters`, `group_by`, `order_by` (except through FK). The question \"What are flight numbers of flights departing from Airport \"APG\"?\" only needs `flights` table and a filter on `SourceAirport`. The `airports` table is not strictly needed for the query itself, only the FK reference exists. The rule \"Keep PK/FK columns that enable the minimal join path\" implies we keep the FK column in `flights` (`SourceAirport`) and its corresponding PK in `airports` (`AirportCode`) *if* `airports` was also required for some other reason, or if we needed to join to it. In this case, we don't need to join to `airports` to answer the question.\n    *   The `flights.Airline` (column index 11) is an FK to `airlines.uid` (column index 1), but `airlines` table is not needed.\n4.  **Minimal Schema Construction:**\n    *   **Tables:** `flights`. The `airports` table is not needed for filtering `SourceAirport` directly or for outputting `FlightNo`.\n    *   **Columns for `flights` table:**\n        *   `FlightNo` (from `expected_output_fields`, and also a PK).\n        *   `SourceAirport` (from `filters`, also an FK).\n        *   `DestAirport` (FK, but not directly used in the query). Given the instruction \"Prefer keeping a small safe superset over dropping a needed column\" and \"Keep PK/FK columns that enable the minimal join path\", `DestAirport` is an FK. Does it enable a minimal join path for *this* query? No. It's not referenced. I will drop it to keep it minimal.\n        *   `Airline` (FK, but not used). Drop.\n        *   `*` (index 9, `flights` table, `Airline` in original schema description)\n        *   `Airline` (index 10, in `flights` table, `FlightNo` in original schema description) - This is confusing. Let's re-check `column_names_original`.\n            *   `flights` table: `Airline`, `FlightNo`, `SourceAirport`, `DestAirport`.\n            *   `column_names_original` for `flights`: `[2,\"Airline\"],[2,\"FlightNo\"],[2,\"SourceAirport\"],[2,\"DestAirport\"]` (indices 10, 11, 12, 13).\n            *   `primary_keys`: `[1,6,10]` means `airlines.uid`, `airports.AirportCode`, `flights.Airline` (index 10). This means `flights.Airline` is the PK, not `FlightNo`. This is a critical detail.\n            *   Let's re-evaluate based on `primary_keys`: `flights.Airline` (index 10) is a PK.\n            *   `flights.FlightNo` (index 11) is a normal column.\n            *   `flights.SourceAirport` (index 12) is an FK to `airports.AirportCode` (index 6).\n            *   `flights.DestAirport` (index 13) is an FK to `airports.AirportCode` (index 6).\n\n    *   **Revised Required Columns for `flights`:**\n        *   `FlightNo` (index 11): Required for `expected_output_fields`.\n        *   `SourceAirport` (index 12): Required for `filters`. It's also an FK.\n        *   `Airline` (index 10): This is the PK for the `flights` table. It must be kept.\n\n    *   **What about `airports` and `airlines`?**\n        *   `SourceAirport` (index 12) is an FK to `airports.AirportCode` (index 6).\n        *   `flights.Airline` (index 10) is a PK *and* it's an FK to `airlines.uid` (index 1). So, `airlines.uid` is also needed for the PK-FK relationship for `flights.Airline`.\n        *   Let's check the rules: \"Keep PK/FK columns that enable the minimal join path.\" And \"Never drop columns referenced in expected_output_fields, filters, group_by, order_by.\" and \"Keep PK/FK columns that enable the minimal join path.\"\n        *   For this query, we do not perform any joins. We filter and select from a single table (`flights`).\n        *   `FlightNo` and `SourceAirport` are directly referenced.\n        *   `flights.Airline` (index 10) is a PK. It must be kept.\n        *   Since `flights.Airline` (PK) is an FK to `airlines.uid`, and we are not joining to `airlines`, `airlines.uid` is not *needed* for a join path *for this specific query*.\n        *   Similarly, `airports.AirportCode` (index 6) is the target of the FK `SourceAirport` (index 12). Again, no join is happening with `airports`.\n\n    *   The rule \"Keep PK/FK columns that enable the minimal join path\" is key. If no join is *actually* performed to answer the question, then the target PKs of FKs from the required table are not strictly needed. The FK columns themselves (`SourceAirport`, `Airline` (if it were just an FK)) are part of the `flights` table and are kept if referenced directly or if they are the table's PK.\n\n    *   Let's be conservative:\n        *   **Tables:** `flights`.\n        *   **`flights` columns:** `FlightNo` (output), `SourceAirport` (filter), `Airline` (PK of `flights` table).\n        *   No other tables are needed for joins or direct access.\n\n    *   Let's construct the final schema step-by-step:\n        *   Original tables: `airlines` (0), `airports` (1), `flights` (2)\n        *   Required table: `flights` (2)\n        *   Columns for `flights`:\n            *   `FlightNo` (index 11, for `expected_output_fields`)\n            *   `SourceAirport` (index 12, for `filters`)\n            *   `Airline` (index 10, is PK of `flights`)\n        *   PKs: `1,6,10` -> We need to keep `10` (flights.Airline)\n        *   FKs: `[[13,6],[12,6]]`\n            *   `13` (flights.DestAirport) -> `6` (airports.AirportCode) - `DestAirport` is not referenced, drop.\n            *   `12` (flights.SourceAirport) -> `6` (airports.AirportCode) - `SourceAirport` is referenced. Keep `12`. `6` (airports.AirportCode) is not needed as we are not joining to `airports`.\n\nFinal selected columns and their indices:\n*   `flights.Airline` (index 10, PK of `flights`)\n*   `flights.FlightNo` (index 11, output field)\n*   `flights.SourceAirport` (index 12, filter field)\n\nNow construct the JSON.\n\n```json\n{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\n    \"flights\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [2, \"Airline\"],\n    [2, \"FlightNo\"],\n    [2, \"SourceAirport\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```\n\nLet's re-verify the `column_names_original` and `column_types` for the filtered schema.\nOriginal column indices for `flights`:\n10: `flights.Airline` (number)\n11: `flights.FlightNo` (number)\n12: `flights.SourceAirport` (text)\n13: `flights.DestAirport` (text)\n\nThe original schema gives column types as:\n`\"text\",\"number\",\"text\",\"text\",\"text\",\"text\",\"text\",\"text\",\"text\",\"text\",\"number\",\"number\",\"text\",\"text\"`\nMapping to `column_names_original`:\n-1,\"*\": text (idx 0 in `column_types`)\n0,\"uid\": number (idx 1 in `column_types`)\n0,\"Airline\": text (idx 2 in `column_types`)\n0,\"Abbreviation\": text (idx 3 in `column_types`)\n0,\"Country\": text (idx 4 in `column_types`)\n1,\"City\": text (idx 5 in `column_types`)\n1,\"AirportCode\": text (idx 6 in `column_types`)\n1,\"AirportName\": text (idx 7 in `column_types`)\n1,\"Country\": text (idx 8 in `column_types`)\n1,\"CountryAbbrev\": text (idx 9 in `column_types`)\n2,\"Airline\": number (idx 10 in `column_types`) -> THIS IS THE PK of flights\n2,\"FlightNo\": number (idx 11 in `column_types`)\n2,\"SourceAirport\": text (idx 12 in `column_types`)\n2,\"DestAirport\": text (idx 13 in `column_types`)\n\nSo, for `flights` (table index 2), the columns are:\n- `Airline` (original index 10, type `number`)\n- `FlightNo` (original index 11, type `number`)\n- `SourceAirport` (original index 12, type `text`)\n\nNew schema indices:\n0: `*`\n1: `flights.Airline` (PK)\n2: `flights.FlightNo`\n3: `flights.SourceAirport`\n\n`primary_keys` will be `[1]` (referencing the new index for `flights.Airline`).\n`foreign_keys` will be empty as no joins are needed.\n\n`column_types`: `[\"text\", \"number\", \"number\", \"text\"]` (for `*`, `flights.Airline`, `flights.FlightNo`, `flights.SourceAirport`).\n`column_sample_values` also needs to be filtered.\n\nOriginal `column_sample_values`: `[[],[],[\"United Airlines\",\"US Airways\",\"Delta Airlines\",\"Southwest Airlines\"],[\"UAL\",\"USAir\",\"Delta\",\"Southwest\"],[\"USA\"],[\"Aberdeen \",\"Abilene \",\"Abingdon \",\"Ada \"],[\"AAF\",\"ABI\",\"ABL\",\"ABQ\"],[\"Phillips AAF \",\"Municipal \",\"Dyess AFB \",\"Virginia Highlands \"],[\"United States \"],[\"US \",\"US\"],[],[],[\" APG\",\" ASY\",\" CVO\",\" ACV\"],[\" ASY\",\" APG\",\" ACV\",\" CVO\"]]`\n\nThe empty lists `[],[]` at original indices 0, 1, 10, 11 mean no samples provided for these specific columns.\nOriginal index 10 (`flights.Airline`): `[]`\nOriginal index 11 (`flights.FlightNo`): `[]`\nOriginal index 12 (`flights.SourceAirport`): `[\" APG\",\" ASY\",\" CVO\",\" ACV\"]`\n\nFiltered `column_sample_values`:\n`[-1, \"*\"]` -> `[]`\n`[2, \"Airline\"]` (original index 10) -> `[]`\n`[2, \"FlightNo\"]` (original index 11) -> `[]`\n`[2, \"SourceAirport\"]` (original index 12) -> `[\" APG\",\" ASY\",\" CVO\",\" ACV\"]`\n\nThe filtered `column_names_original` should contain the `flights` table index (2).\n`table_names_original` will be `[\"flights\"]`.\n\nCorrected `column_names_original` for filtered schema:\n`[[-1,\"*\"],[2,\"Airline\"],[2,\"FlightNo\"],[2,\"SourceAirport\"]]`\n\nCorrected `column_types`:\nThe original schema's `column_types` correspond directly to the `column_names_original` list by index.\nSo, `column_types` for `[-1,\"*\"],[2,\"Airline\"],[2,\"FlightNo\"],[2,\"SourceAirport\"]` will be:\n- `text` (for `*`, original index 0 of `column_types`)\n- `number` (for `flights.Airline`, original index 10 of `column_types`)\n- `number` (for `flights.FlightNo`, original index 11 of `column_types`)\n- `text` (for `flights.SourceAirport`, original index 12 of `column_types`)\n\nSo, `column_types`: `[\"text\", \"number\", \"number\", \"text\"]`. This is correct.\n\nCorrected `column_sample_values`:\n- `[-1,\"*\"]` corresponds to `column_sample_values[0]` which is `[]`\n- `[2,\"Airline\"]` corresponds to `column_sample_values[10]` which is `[]`\n- `[2,\"FlightNo\"]` corresponds to `column_sample_values[11]` which is `[]`\n- `[2,\"SourceAirport\"]` corresponds to `column_sample_values[12]` which is `[\" APG\",\" ASY\",\" CVO\",\" ACV\"]`\n\nSo, `column_sample_values`: `[[], [], [], [\" APG\",\" ASY\",\" CVO\",\" ACV\"]]`.\n\nLooks consistent now.```json\n{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\n    \"flights\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [2, \"Airline\"],\n    [2, \"FlightNo\"],\n    [2, \"SourceAirport\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [\" APG\", \" ASY\", \" CVO\", \" ACV\"]\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4439,
+        "prompt_tokens": 866,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3573,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:29:53.871648"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.252,
+      "raw_response": "{ \"steps\": [ { \"action\": \"FROM\", \"details\": \"Select from the 'flights' table, as no join is needed.\" }, { \"action\": \"SELECT\", \"details\": \"Select the 'FlightNo' column as it is the expected output field.\" }, { \"action\": \"WHERE\", \"details\": \"Filter rows where 'SourceAirport' = 'APG'.\" }, { \"action\": \"NO_GROUP_BY\", \"details\": \"No GROUP BY is necessary as we are not aggregating results.\" }, { \"action\": \"NO_ORDER_BY\", \"details\": \"No ORDER BY is required as the question does not imply the need for sorting.\" }, { \"action\": \"NO_SET_OPERATION\", \"details\": \"No set operations are required as there are no conditions for UNION/INTERSECT/EXCEPT.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1568,
+        "prompt_tokens": 1380,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 188,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:29:57.133744"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.046,
+      "raw_response": "{ \"sql\": \"SELECT FlightNo FROM flights WHERE SourceAirport = 'APG'\" }",
+      "token_usage": {
+        "total_tokens": 1980,
+        "prompt_tokens": 1950,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 30,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:29:58.202405"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.944,
+      "raw_response": "{\"sql\": \"SELECT FlightNo FROM flights WHERE SourceAirport = ' APG'\", \"notes\": \"Adjusted the filter to match exact casing and spacing from column_sample_values.\", \"diagnostics\": [\"Ensured SELECT matches expected output fields.\", \"Adjusted WHERE clause for correct 'APG' literal value.\"]}",
+      "token_usage": {
+        "total_tokens": 1570,
+        "prompt_tokens": 1496,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 74,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:30:01.158631"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.18,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, following a 6-step checklist.\n\nHere's my validation plan:\n1.  **SELECT clause:**\n    *   Expected output fields: `[\"FlightNo\"]`\n    *   Current SQL: `SELECT FlightNo`\n    *   Matches.\n2.  **Counts:**\n    *   No `COUNT(*)` or `COUNT(DISTINCT...)` is used, so this check is not applicable.\n3.  **Extremum patterns:**\n    *   Not applicable as the question is not about earliest/latest.\n4.  **Joins:**\n    *   `single_table_ok: true`\n    *   Current SQL: `FROM flights` (single table)\n    *   Matches. No unnecessary joins.\n5.  **ORDER BY:**\n    *   `order_by: []` (from analysis)\n    *   Current SQL: No `ORDER BY`.\n    *   Matches.\n6.  **Negation questions:**\n    *   Not a negation question.\n7.  **Schema names and completeness:**\n    *   `FlightNo`, `flights`, `SourceAirport` are valid names in the schema.\n    *   SQL is complete and executable.\n    *   `SourceAirport = ' APG'` - The sample values show `' APG'` with a leading space. The SQL matches this. This is an important detail.\n8.  **CRITICAL Final Pattern Checks:**\n    *   **Self-Join Validation:** `self_join_hint: false`, SQL doesn't use self-join. Correct.\n    *   **Set Operation Validation:** `set_operation_type: \"NONE\"`, SQL doesn't use set operations. Correct.\n    *   **WHERE Condition Validation:** `where_condition_type: \"EQUALS\"`, `null_handling: \"UNKNOWN\"`. SQL uses `SourceAirport = ' APG'`, which is an equality check. The value `' APG'` matches the sample value with the leading space, which is crucial. Correct.\n    *   **GROUP BY Validation:** `group_by: []`, SQL doesn't use GROUP BY. Correct.\n    *   **ORDER BY Validation:** `order_by: []`, SQL doesn't use ORDER BY. Correct.\n    *   **DISTINCT Validation:** No `GROUP BY` used for uniqueness, so this is not applicable.\n\nThe current SQL `SELECT FlightNo FROM flights WHERE SourceAirport = ' APG'` perfectly matches all the criteria and requirements. There are no issues to fix. The leading space in ' APG' in the SQL matches the sample value `[\" APG\",\" ASY\",...]` for `SourceAirport`.{\"sql\": \"SELECT FlightNo FROM flights WHERE SourceAirport = ' APG'\", \"explain\": \"The SQL query is correct and aligns with all validation checks. The SELECT clause matches the expected output fields, no unnecessary joins or ORDER BY clauses are present, and the WHERE condition correctly uses the provided value ' APG' including the leading space as found in the column sample values.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1978,
+        "prompt_tokens": 1305,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 673,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T02:30:05.359895"
+    }
+  ],
+  "final_sql": "SELECT FlightNo FROM flights WHERE SourceAirport = ' APG'",
+  "explain": "The SQL query is correct and aligns with all validation checks. The SELECT clause matches the expected output fields, no unnecessary joins or ORDER BY clauses are present, and the WHERE condition correctly uses the provided value ' APG' including the leading space as found in the column sample values.",
+  "error": "",
+  "timestamp": "2026-07-25T02:30:05.360812"
+}

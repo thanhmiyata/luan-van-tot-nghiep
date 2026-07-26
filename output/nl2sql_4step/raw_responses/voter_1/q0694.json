@@ -1,0 +1,69 @@
+{
+  "question_index": 694,
+  "pipeline": "4step",
+  "db_id": "voter_1",
+  "question": "What are the contestant numbers and names of the contestants who had at least two votes?",
+  "gold_query": "SELECT T1.contestant_number , T1.contestant_name FROM contestants AS T1 JOIN votes AS T2 ON T1.contestant_number  =  T2.contestant_number GROUP BY T1.contestant_number HAVING count(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.721,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"contestant_number\", \"contestant_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"CONTESTANTS\", \"column\": \"contestant_number\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"CONTESTANTS\", \"column\": \"contestant_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"VOTES\", \"column\": \"contestant_number\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"VOTES\", \"to_table\": \"CONTESTANTS\", \"reason\": \"to count votes per contestant\"}],\n  \"entities\": {\"tables\": [\"CONTESTANTS\", \"VOTES\"], \"columns\": [\"contestant_number\", \"contestant_name\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1240,
+        "prompt_tokens": 989,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 251,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:48:02.999550"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 21.403,
+      "raw_response": "```json\n{\n  \"db_id\": \"voter_1\",\n  \"table_names_original\": [\n    \"CONTESTANTS\",\n    \"VOTES\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"contestant_number\"\n    ],\n    [\n      0,\n      \"contestant_name\"\n    ],\n    [\n      1,\n      \"vote_id\"\n    ],\n    [\n      1,\n      \"contestant_number\"\n    ]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"Edwina Burnam\",\n      \"Tabatha Gehling\",\n      \"Kelly Clauss\",\n      \"Jessie Alloway\"\n    ],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 5170,
+        "prompt_tokens": 792,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4378,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:48:24.404428"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.869,
+      "raw_response": "{\"sql\": \"SELECT CONTESTANTS.contestant_number, CONTESTANTS.contestant_name FROM CONTESTANTS JOIN VOTES ON CONTESTANTS.contestant_number = VOTES.contestant_number GROUP BY CONTESTANTS.contestant_number, CONTESTANTS.contestant_name HAVING COUNT(*) >= 2\"}",
+      "token_usage": {
+        "total_tokens": 1259,
+        "prompt_tokens": 1133,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 126,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:48:26.275098"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.506,
+      "raw_response": "I need to perform the 4-step validation checklist on the provided SQL query.\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   Expected: `contestant_number`, `contestant_name`\n    *   Actual: `CONTESTANTS.contestant_number`, `CONTESTANTS.contestant_name`\n    *   Matches in content and order. `COUNT(*)` is used for counting votes per contestant, which is appropriate for `HAVING COUNT(*) >= 2`.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   **Joins:** `CONTESTANTS JOIN VOTES ON CONTESTANTS.contestant_number = VOTES.contestant_number`. This join is necessary to link contestants to their votes to count them. The join condition `CONTESTANTS.contestant_number = VOTES.contestant_number` uses the foreign key relationship (`[4,1]` means `VOTES.contestant_number` references `CONTESTANTS.contestant_number`). This is correct and minimal.\n    *   **ORDER BY:** No `ORDER BY` is present, which is correct as the question doesn't ask for any specific order.\n    *   **COUNT(*):** `COUNT(*)` is used to count votes. Since each row in `VOTES` represents a vote, `COUNT(*)` correctly counts the total votes for each contestant.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available; Column/table names exist; SQL is complete and one line.**\n    *   **Text literals:** No text literals in the query.\n    *   **Column/table names:**\n        *   `CONTESTANTS`: Exists (`table_names_original[0]`).\n        *   `VOTES`: Exists (`table_names_original[1]`).\n        *   `contestant_number`: Exists (`column_names_original[0][1]`, `column_names_original[1][1]`).\n        *   `contestant_name`: Exists (`column_names_original[0][2]`).\n        *   All names exist and are correctly cased.\n    *   **SQL complete and one line:** Yes, the SQL is complete and on one line.\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable.**\n    *   All checks pass. The SQL is correct as provided.{\"sql\": \"SELECT CONTESTANTS.contestant_number, CONTESTANTS.contestant_name FROM CONTESTANTS JOIN VOTES ON CONTESTANTS.contestant_number = VOTES.contestant_number GROUP BY CONTESTANTS.contestant_number, CONTESTANTS.contestant_name HAVING COUNT(*) >= 2\", \"explain\": \"The original SQL query correctly identifies contestants with at least two votes by joining CONTESTANTS and VOTES tables, grouping by contestant number and name, and filtering with HAVING COUNT(*) >= 2. All specified validation criteria are met.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1537,
+        "prompt_tokens": 845,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 692,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:48:29.783176"
+    }
+  ],
+  "final_sql": "SELECT CONTESTANTS.contestant_number, CONTESTANTS.contestant_name FROM CONTESTANTS JOIN VOTES ON CONTESTANTS.contestant_number = VOTES.contestant_number GROUP BY CONTESTANTS.contestant_number, CONTESTANTS.contestant_name HAVING COUNT(*) >= 2",
+  "explain": "The original SQL query correctly identifies contestants with at least two votes by joining CONTESTANTS and VOTES tables, grouping by contestant number and name, and filtering with HAVING COUNT(*) >= 2. All specified validation criteria are met.",
+  "error": "",
+  "timestamp": "2026-07-24T03:48:29.784629"
+}

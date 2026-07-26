@@ -1,0 +1,69 @@
+{
+  "question_index": 915,
+  "pipeline": "4step",
+  "db_id": "network_1",
+  "question": "What is the average grade of students who have friends?",
+  "gold_query": "SELECT avg(grade) FROM Highschooler WHERE id IN (SELECT T1.student_id FROM Friend AS T1 JOIN Highschooler AS T2 ON T1.student_id  =  T2.id)",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.091,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"grade\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Highschooler\", \"column\": \"grade\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Friend\", \"to_table\": \"Highschooler\", \"reason\": \"to find students who have friends\"}\n  ],\n  \"entities\": {\"tables\": [\"Highschooler\", \"Friend\"], \"columns\": [\"grade\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1132,
+        "prompt_tokens": 942,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 190,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:06:51.898878"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 15.352,
+      "raw_response": "{\"db_id\": \"network_1\", \"table_names_original\": [\"Highschooler\", \"Friend\"], \"column_names_original\": [[-1, \"*\"], [0, \"ID\"], [0, \"grade\"], [1, \"student_id\"], [1, \"friend_id\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[4, 1], [3, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 4503,
+        "prompt_tokens": 664,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3839,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:07:07.251435"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.096,
+      "raw_response": "{\"sql\": \"SELECT AVG(grade) FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) OR ID IN (SELECT friend_id FROM Friend)\"}",
+      "token_usage": {
+        "total_tokens": 1088,
+        "prompt_tokens": 1041,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 47,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:07:08.348593"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.164,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, ensuring it meets all the specified criteria.\n\n**Validation Checklist & Steps:**\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `[\"grade\"]` with `AVG` aggregation.\n    *   Current SQL: `SELECT AVG(grade)` - This matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows.**\n    *   Current SQL uses `IN (SELECT student_id FROM Friend) OR ID IN (SELECT friend_id FROM Friend)`. This effectively finds `Highschooler` IDs that exist in either `student_id` or `friend_id` columns in the `Friend` table. This is a common and efficient way to handle \"students who have friends\" where a student can be either the `student_id` or `friend_id`.\n    *   The `foreign_keys` are `[[4,1],[3,1]]` which means `Friend.friend_id` refers to `Highschooler.ID` and `Friend.student_id` refers to `Highschooler.ID`. The subqueries correctly use these relationships implicitly.\n    *   No `ORDER BY` clause, which is correct as none was requested.\n    *   The join hints mentioned `Friend` to `Highschooler`, and the `IN` subqueries achieve this relationship correctly.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available.**\n    *   There are no text literals in the SQL.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `Highschooler`, `ID`, `grade`, `Friend`, `student_id`, `friend_id` all exist in the schema.\n    *   The SQL is complete and already on one line.\n\n**Conclusion:**\nThe SQL query `SELECT AVG(grade) FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) OR ID IN (SELECT friend_id FROM Friend)` correctly answers the question \"What is the average grade of students who have friends?\" by identifying all `Highschooler` IDs that appear in either the `student_id` or `friend_id` columns of the `Friend` table, and then calculating the average grade for those students. All validation checks pass.{\"sql\": \"SELECT AVG(grade) FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) OR ID IN (SELECT friend_id FROM Friend)\", \"explain\": \"The SQL correctly identifies students with friends by checking if their ID exists in either the student_id or friend_id columns of the Friend table and then calculates the average grade. All table and column names are valid, and the query is syntactically correct and matches the expected output fields and aggregation.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1330,
+        "prompt_tokens": 701,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 629,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:07:11.514240"
+    }
+  ],
+  "final_sql": "SELECT AVG(grade) FROM Highschooler WHERE ID IN (SELECT student_id FROM Friend) OR ID IN (SELECT friend_id FROM Friend)",
+  "explain": "The SQL correctly identifies students with friends by checking if their ID exists in either the student_id or friend_id columns of the Friend table and then calculates the average grade. All table and column names are valid, and the query is syntactically correct and matches the expected output fields and aggregation.",
+  "error": "",
+  "timestamp": "2026-07-24T18:07:11.516092"
+}

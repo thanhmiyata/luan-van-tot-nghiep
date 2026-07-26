@@ -1,0 +1,69 @@
+{
+  "question_index": 739,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "How many official languages are spoken in Afghanistan?",
+  "gold_query": "SELECT COUNT(*) FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T1.Name  =  \"Afghanistan\" AND IsOfficial  =  \"T\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.967,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"count\", \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"operator\": \"=\", \"value\": \"AFG\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"=\", \"value\": \"T\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"Filter by Afghanistan's CountryCode\"}],\n  \"entities\": {\"tables\": [\"countrylanguage\", \"country\"], \"columns\": [\"CountryCode\", \"IsOfficial\", \"Language\"], \"values\": [\"AFG\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1226,
+        "prompt_tokens": 962,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 264,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:29:20.699619"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 26.738,
+      "raw_response": "{\n  \"db_id\": \"world_1\",\n  \"table_names_original\": [\"country\", \"countrylanguage\"],\n  \"column_names_original\": [[0, \"Code\"], [0, \"Name\"], [1, \"CountryCode\"], [1, \"Language\"], [1, \"IsOfficial\"]],\n  \"column_types\": [\"text\", \"text\", \"text\", \"text\", \"text\"],\n  \"foreign_keys\": [[2, 0]],\n  \"primary_keys\": [0, 2]\n}",
+      "token_usage": {
+        "total_tokens": 6760,
+        "prompt_tokens": 833,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5927,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:29:47.448461"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.185,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT Language) AS count FROM countrylanguage WHERE CountryCode = 'AFG' AND IsOfficial = 'T'\"}",
+      "token_usage": {
+        "total_tokens": 969,
+        "prompt_tokens": 926,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 43,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:29:48.644741"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.297,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\nHere's the plan:\n1.  **Check SELECT clause**: Ensure `SELECT COUNT(DISTINCT Language) AS count` matches `expected_output_fields` (`[\"count\"]`) and `output_fields_detailed` (`{\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"count\", \"order_index\": 0}`). Also check `COUNT` uses `DISTINCT` when counting entities (languages are entities here).\n2.  **Check WHERE clause**: Ensure `CountryCode = 'AFG' AND IsOfficial = 'T'` matches `filters`.\n3.  **Check joins**: The analysis mentions a join hint `{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"Filter by Afghanistan's CountryCode\"}` and `single_table_ok: false` implying a join might be needed, but the current query doesn't have one. However, the `CountryCode` filter is directly on `countrylanguage`, so a join to `country` is *not* necessary to filter by 'AFG' if 'AFG' is the `CountryCode` directly in `countrylanguage`. The question is \"How many official languages are spoken in Afghanistan?\", which can be answered by filtering `countrylanguage` directly. So, the lack of join is actually correct here.\n4.  **Check column/table names**: All names (`countrylanguage`, `Language`, `CountryCode`, `IsOfficial`) must exist in the schema.\n5.  **Check SQL completeness and format**: Ensure it's one line, no comments.\n\nLet's go through the checklist:\n1.  **SELECT matches expected_output_fields (content/order); COUNT uses DISTINCT when counting entities.**\n    *   `SELECT COUNT(DISTINCT Language) AS count`\n    *   `expected_output_fields`: `[\"count\"]` - Matches.\n    *   `output_fields_detailed`: `{\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"count\", \"order_index\": 0}` - Matches.\n    *   `COUNT` uses `DISTINCT` for `Language` which is correct for counting distinct languages.\n    *   **Result**: OK.\n\n2.  **No unnecessary joins; correct PK/FK; remove ORDER BY unless asked.**\n    *   The SQL query is `SELECT COUNT(DISTINCT Language) AS count FROM countrylanguage WHERE CountryCode = 'AFG' AND IsOfficial = 'T'`.\n    *   It does not contain any joins.\n    *   The analysis `join_hints` mentioned `{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"Filter by Afghanistan's CountryCode\"}` and `single_table_ok: false`. However, the filter `CountryCode = 'AFG'` can be directly applied to the `countrylanguage` table without joining `country`. The `CountryCode` column exists in `countrylanguage`. The original `Country` table would only be needed if we were filtering by `Country.Name` and needed to look up the `Country.Code` first. Since we already have the specific code 'AFG', a join is not required.\n    *   No `ORDER BY` present.\n    *   **Result**: OK (no unnecessary joins are present, and no join is needed).\n\n3.  **Column/table names exist; SQL is complete and one line.**\n    *   `countrylanguage` (table_names_original: `[\"countrylanguage\"]`) - Exists.\n    *   `Language` (column_names_original: `[1,\"Language\"]`) - Exists.\n    *   `CountryCode` (column_names_original: `[1,\"CountryCode\"]`) - Exists.\n    *   `IsOfficial` (column_names_original: `[1,\"IsOfficial\"]`) - Exists.\n    *   SQL is complete and one line.\n    *   **Result**: OK.\n\nThe SQL query appears to be correct and aligns with all validation checks.{\n\"sql\": \"SELECT COUNT(DISTINCT Language) AS count FROM countrylanguage WHERE CountryCode = 'AFG' AND IsOfficial = 'T'\",\n\"explain\": \"The query correctly counts distinct official languages for Afghanistan by filtering the 'countrylanguage' table directly using 'CountryCode' and 'IsOfficial'. No joins are needed as all required information is in the 'countrylanguage' table.\",\n\"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1733,
+        "prompt_tokens": 729,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1004,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:29:53.954810"
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT Language) AS count FROM countrylanguage WHERE CountryCode = 'AFG' AND IsOfficial = 'T'",
+  "explain": "The query correctly counts distinct official languages for Afghanistan by filtering the 'countrylanguage' table directly using 'CountryCode' and 'IsOfficial'. No joins are needed as all required information is in the 'countrylanguage' table.",
+  "error": "",
+  "timestamp": "2026-07-23T23:29:53.957230"
+}

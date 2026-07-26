@@ -1,0 +1,69 @@
+{
+  "question_index": 239,
+  "pipeline": "4step",
+  "db_id": "flight_2",
+  "question": "Find all airlines that have flights from airport 'CVO' but not from 'APG'.",
+  "gold_query": "SELECT T1.Airline FROM AIRLINES AS T1 JOIN FLIGHTS AS T2 ON T1.uid  =  T2.Airline WHERE T2.SourceAirport  =  \"CVO\" EXCEPT SELECT T1.Airline FROM AIRLINES AS T1 JOIN FLIGHTS AS T2 ON T1.uid  =  T2.Airline WHERE T2.SourceAirport  =  \"APG\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.013,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Airline\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"airlines\", \"column\": \"Airline\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"flights\", \"column\": \"SourceAirport\", \"operator\": \"=\", \"value\": \"CVO\", \"value_type\": \"STRING\"},\n    {\"table\": \"flights\", \"column\": \"SourceAirport\", \"operator\": \"<>\", \"value\": \"APG\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"flights\", \"to_table\": \"airlines\", \"reason\": \"to get airline details for flights\"}],\n  \"entities\": {\"tables\": [\"airlines\", \"flights\"], \"columns\": [\"Airline\", \"SourceAirport\"], \"values\": [\"CVO\", \"APG\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1529,
+        "prompt_tokens": 1262,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 267,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:38:25.874052"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 29.365,
+      "raw_response": "```json\n{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\n    \"airlines\",\n    \"flights\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"uid\"\n    ],\n    [\n      0,\n      \"Airline\"\n    ],\n    [\n      1,\n      \"Airline\"\n    ],\n    [\n      1,\n      \"SourceAirport\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      3,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"United Airlines\",\n      \"US Airways\",\n      \"Delta Airlines\",\n      \"Southwest Airlines\"\n    ],\n    [],\n    [\n      \" APG\",\n      \" ASY\",\n      \" CVO\",\n      \" ACV\"\n    ]\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 7664,
+        "prompt_tokens": 859,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 6805,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:38:55.240565"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.654,
+      "raw_response": "{\"sql\": \"SELECT f1.Airline FROM flights f1 WHERE f1.SourceAirport = 'CVO' AND f1.Airline NOT IN (SELECT f2.Airline FROM flights f2 WHERE f2.SourceAirport = 'APG')\"}",
+      "token_usage": {
+        "total_tokens": 1449,
+        "prompt_tokens": 1289,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 160,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:38:57.895089"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.738,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, applying the specified checklist.\n\n**Validation Steps:**\n\n1.  **SELECT = expected_output_fields (content/order); COUNT(*) preferred, COUNT(DISTINCT pk) only when joins duplicate rows.**\n    *   Expected output fields: `[\"Airline\"]`.\n    *   SQL `SELECT f1.Airline`. This matches.\n    *   The problem asks for \"all airlines\", implying distinct airlines. The current query will return distinct airlines because of the `NOT IN` subquery structure and how `Airline` is selected. It's important to consider if `DISTINCT` is needed. If a flight table can have multiple flights for the same airline from CVO, and the subquery filters airlines, the main query will still return each airline once if it matches the criteria. However, `SELECT DISTINCT f1.Airline` would be safer to explicitly ensure unique airlines, but it's not strictly necessary if the `NOT IN` logic already implies uniqueness by filtering at the airline level. Given the `flights` table has `Airline` and `SourceAirport`, it's possible an airline has multiple flights from CVO. So `DISTINCT` should be added to ensure only unique airline names are returned.\n\n2.  **No unnecessary joins; correct PK/FK; remove ORDER BY unless asked.**\n    *   The SQL uses `flights` aliased as `f1` and `flights` aliased as `f2`. No explicit JOINs between different tables are used, only subqueries within the same table. This is minimal and correct.\n    *   No `ORDER BY` is present, which is correct as it's not requested.\n\n3.  **Every name in ORDER BY is a real column or an alias defined in SELECT; ordering by count uses ORDER BY count(*) directly.**\n    *   Not applicable as there is no `ORDER BY`.\n\n4.  **Negation questions use NOT IN/EXCEPT, not != on joined rows; \"X and Y\" on the same column uses INTERSECT.**\n    *   The question \"Find all airlines that have flights from airport 'CVO' but not from 'APG'.\" clearly indicates a negation.\n    *   The SQL uses `NOT IN` with a subquery, which is the correct approach for this type of negation (\"A but not B\").\n\n5.  **Names exist in schema; SQL complete, one line, no comments.**\n    *   `flights`, `Airline`, `SourceAirport` all exist in the schema.\n    *   `CVO` and `APG` are sample values for `SourceAirport`.\n    *   SQL is complete and one line.\n\n**Detailed Check on `DISTINCT`:**\n\nThe question is \"Find all airlines\". If an airline \"X\" has two flights from CVO, and no flights from APG, the current query will return \"X\" twice (once for each CVO flight). To get \"all *unique* airlines\", `DISTINCT` is necessary. The analysis `expected_output_fields: [\"Airline\"]` and `output_fields_detailed: [{\"table\": \"airlines\", \"column\": \"Airline\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}]` doesn't explicitly mention `DISTINCT`, but typically \"Find all X\" implies unique X.\n\nLet's test the logic without `DISTINCT`.\nIf `flights` table contains:\n(Airline: 'UA', SourceAirport: 'CVO')\n(Airline: 'UA', SourceAirport: 'CVO')\n(Airline: 'DL', SourceAirport: 'APG')\n\nSubquery `(SELECT f2.Airline FROM flights f2 WHERE f2.SourceAirport = 'APG')` would return `('DL')`.\nMain query `SELECT f1.Airline FROM flights f1 WHERE f1.SourceAirport = 'CVO' AND f1.Airline NOT IN ('DL')`.\nThis would return:\n('UA')\n('UA')\nThis is not \"all airlines\" but \"all *flight records* for airlines that meet the criteria\". To get \"all *unique* airlines\", `DISTINCT` is needed.\n\n**Final Conclusion:**\nThe SQL query is almost perfect, but it should include `DISTINCT` in the `SELECT` clause to ensure that each airline is listed only once, as is implied by \"Find all airlines\".\n\nCorrected SQL: `SELECT DISTINCT f1.Airline FROM flights f1 WHERE f1.SourceAirport = 'CVO' AND f1.Airline NOT IN (SELECT f2.Airline FROM flights f2 WHERE f2.SourceAirport = 'APG')`\n\nExplain: Added `DISTINCT` to the SELECT clause to ensure only unique airline names are returned, as implied by \"Find all airlines\".{ \"sql\": \"SELECT DISTINCT f1.Airline FROM flights f1 WHERE f1.SourceAirport = 'CVO' AND f1.Airline NOT IN (SELECT f2.Airline FROM flights f2 WHERE f2.SourceAirport = 'APG')\", \"explain\": \"Added DISTINCT to the SELECT clause to ensure only unique airline names are returned, as implied by 'Find all airlines'.\", \"error\": \"\" }",
+      "token_usage": {
+        "total_tokens": 1990,
+        "prompt_tokens": 871,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1119,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T01:39:03.633266"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT f1.Airline FROM flights f1 WHERE f1.SourceAirport = 'CVO' AND f1.Airline NOT IN (SELECT f2.Airline FROM flights f2 WHERE f2.SourceAirport = 'APG')",
+  "explain": "Added DISTINCT to the SELECT clause to ensure only unique airline names are returned, as implied by 'Find all airlines'.",
+  "error": "",
+  "timestamp": "2026-07-25T01:39:03.634217"
+}

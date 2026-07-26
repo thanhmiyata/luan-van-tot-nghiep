@@ -1,0 +1,69 @@
+{
+  "question_index": 533,
+  "pipeline": "4step",
+  "db_id": "student_transcripts_tracking",
+  "question": "Who are enrolled in 2 degree programs in one semester? List the first name, middle name and last name and the id.",
+  "gold_query": "SELECT T1.first_name ,  T1.middle_name ,  T1.last_name ,  T1.student_id FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id  =  T2.student_id GROUP BY T1.student_id HAVING count(*)  =  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.587,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"first_name\", \"middle_name\", \"last_name\", \"student_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Students\", \"column\": \"middle_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 2},\n    {\"table\": \"Students\", \"column\": \"student_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 3}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Students\", \"reason\": \"to get student details for enrolled programs\"},\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Degree_Programs\", \"reason\": \"to count program enrollments\"}\n  ],\n  \"entities\": {\"tables\": [\"Students\", \"Student_Enrolment\", \"Degree_Programs\"], \"columns\": [\"first_name\", \"middle_name\", \"last_name\", \"student_id\", \"degree_program_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2352,
+        "prompt_tokens": 1998,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 354,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:00:03.751081"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 22.189,
+      "raw_response": "{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Students\", \"Student_Enrolment\", \"Degree_Programs\"], \"column_names_original\": [[\"-1\", \"*\"], [\"0\", \"student_id\"], [\"0\", \"first_name\"], [\"0\", \"middle_name\"], [\"0\", \"last_name\"], [\"1\", \"student_enrolment_id\"], [\"1\", \"degree_program_id\"], [\"1\", \"semester_id\"], [\"1\", \"student_id\"], [\"2\", \"degree_program_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\", \"text\", \"number\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[8, 1], [6, 9]], \"primary_keys\": [1, 5, 9], \"column_sample_values\": [[], [], [\"Timmothy\", \"Hobart\", \"Warren\", \"Jarvis\"], [\"Anna\", \"Lorenz\", \"Violet\", \"Aaliyah\"], [\"Ward\", \"Balistreri\", \"Gleichner\", \"Carroll\"], [], [], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 6872,
+        "prompt_tokens": 1846,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5026,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:00:25.941571"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.596,
+      "raw_response": "{\"sql\": \"SELECT s.first_name, s.middle_name, s.last_name, s.student_id FROM Students s JOIN Student_Enrolment se ON s.student_id = se.student_id GROUP BY s.first_name, s.middle_name, s.last_name, s.student_id HAVING COUNT(DISTINCT se.degree_program_id) = 2\"}",
+      "token_usage": {
+        "total_tokens": 1544,
+        "prompt_tokens": 1463,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 81,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:00:27.539737"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 9.66,
+      "raw_response": "I need to validate the given SQL query against the provided schema, question, and analysis.\n\nHere's the plan:\n1.  **Check SELECT fields and order:** Ensure `s.first_name`, `s.middle_name`, `s.last_name`, `s.student_id` are present and in the correct order.\n2.  **Check JOINs:** Verify `Students` and `Student_Enrolment` are joined correctly on `student_id`.\n3.  **Check GROUP BY:** The `GROUP BY` clause must include all non-aggregated columns in the `SELECT` list.\n4.  **Check HAVING clause:** Ensure the condition `COUNT(DISTINCT se.degree_program_id) = 2` is appropriate for \"enrolled in 2 degree programs\".\n5.  **Check for \"in one semester\" condition:** The original question asks \"Who are enrolled in 2 degree programs *in one semester*?\". The current SQL does not filter by semester. It counts distinct degree programs across all semesters for a student. This is a critical missing piece. I need to add a grouping by semester_id and a condition for that.\n\nLet's re-evaluate the question: \"Who are enrolled in 2 degree programs in one semester? List the first name, middle name and last name and the id.\"\n\nThe current SQL: `SELECT s.first_name, s.middle_name, s.last_name, s.student_id FROM Students s JOIN Student_Enrolment se ON s.student_id = se.student_id GROUP BY s.first_name, s.middle_name, s.last_name, s.student_id HAVING COUNT(DISTINCT se.degree_program_id) = 2`\n\nThis SQL correctly identifies students enrolled in 2 *distinct* degree programs *overall* (across all semesters). It does *not* address the \"in one semester\" constraint.\n\nTo address \"in one semester\", we need to:\n1.  Group by `student_id` AND `semester_id`.\n2.  Then, for each student-semester combination, count the distinct `degree_program_id`.\n3.  If this count is 2, then that student was enrolled in 2 degree programs in that specific semester.\n4.  Finally, we need to select the student details (first_name, middle_name, last_name, student_id) for those students.\n\nCorrected logic for \"in one semester\":\nFirst, find the `student_id` and `semester_id` combinations where a student is enrolled in 2 distinct degree programs within that semester.\n```sql\nSELECT student_id, semester_id\nFROM Student_Enrolment\nGROUP BY student_id, semester_id\nHAVING COUNT(DISTINCT degree_program_id) = 2\n```\nThen, join this result with `Students` to get the student's name and ID. We need `DISTINCT` on the final `SELECT` because a student might be enrolled in 2 degree programs in multiple different semesters, and we only want to list their name once.\n\nRevised SQL structure:\n```sql\nSELECT DISTINCT T1.first_name, T1.middle_name, T1.last_name, T1.student_id\nFROM Students AS T1\nJOIN Student_Enrolment AS T2\n  ON T1.student_id = T2.student_id\nGROUP BY T1.student_id, T1.first_name, T1.middle_name, T1.last_name, T2.semester_id\nHAVING COUNT(DISTINCT T2.degree_program_id) = 2;\n```\nThis looks correct. It groups by student and semester, counts distinct programs per student per semester, filters for 2, and then selects the student's name and ID. The `DISTINCT` in the `SELECT` is important if a student qualifies in multiple semesters, as the question asks \"Who are enrolled...\", implying each student should be listed once. However, by grouping by `T1.student_id, T1.first_name, T1.middle_name, T1.last_name, T2.semester_id`, and then applying `HAVING`, if a student is enrolled in 2 programs in semester A and 2 programs in semester B, they will appear twice in the result of the `GROUP BY` *before* the `SELECT`. To list them only once, the `DISTINCT` in the outer `SELECT` is necessary.\n\nLet's re-verify the columns and aliases.\n`s.first_name` -> `T1.first_name`\n`s.middle_name` -> `T1.middle_name`\n`s.last_name` -> `T1.last_name`\n`s.student_id` -> `T1.student_id`\n`se.student_id` -> `T2.student_id`\n`se.degree_program_id` -> `T2.degree_program_id`\n`se.semester_id` -> `T2.semester_id`\n\nThe `GROUP BY` clause needs to include all non-aggregated columns from the `SELECT` list (`T1.first_name`, `T1.middle_name`, `T1.last_name`, `T1.student_id`) *and* the `T2.semester_id` to apply the \"in one semester\" condition.\n\nFinal check on the generated SQL:\n`SELECT DISTINCT T1.first_name, T1.middle_name, T1.last_name, T1.student_id FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id = T2.student_id GROUP BY T1.student_id, T1.first_name, T1.middle_name, T1.last_name, T2.semester_id HAVING COUNT(DISTINCT T2.degree_program_id) = 2`\n\n1.  **SELECT matches expected_output_fields (content/order):** `first_name`, `middle_name`, `last_name`, `student_id` are present and in order. `DISTINCT` is added, which is appropriate as the question asks \"Who are enrolled...\", implying unique students.\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   No `ORDER BY` (correct).\n    *   Joins: `Students` and `Student_Enrolment` on `student_id` is correct and minimal for this query.\n    *   `COUNT(DISTINCT T2.degree_program_id)` is correct because we are counting distinct degree programs for each student-semester. `COUNT(*)` here would count rows, not distinct programs.\n3.  **Text literals match real values:** No text literals in the query.\n4.  **Column/table names exist; SQL is complete and one line:** All names exist, SQL is complete and will be formatted to one line.\n\nThe main fix is adding `semester_id` to the `GROUP BY` and incorporating `DISTINCT` in the `SELECT` to correctly answer \"in one semester\" and list each student once.{\"sql\": \"SELECT DISTINCT T1.first_name, T1.middle_name, T1.last_name, T1.student_id FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id = T2.student_id GROUP BY T1.student_id, T1.first_name, T1.middle_name, T1.last_name, T2.semester_id HAVING COUNT(DISTINCT T2.degree_program_id) = 2\", \"explain\": \"The original query missed the 'in one semester' condition. The fix involves adding `T2.semester_id` to the GROUP BY clause to ensure that the count of distinct degree programs is performed for each student within a specific semester. `DISTINCT` was added to the SELECT clause to ensure each qualifying student is listed only once, even if they meet the criteria in multiple semesters.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2920,
+        "prompt_tokens": 1124,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1796,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:00:37.200354"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT T1.first_name, T1.middle_name, T1.last_name, T1.student_id FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id = T2.student_id GROUP BY T1.student_id, T1.first_name, T1.middle_name, T1.last_name, T2.semester_id HAVING COUNT(DISTINCT T2.degree_program_id) = 2",
+  "explain": "The original query missed the 'in one semester' condition. The fix involves adding `T2.semester_id` to the GROUP BY clause to ensure that the count of distinct degree programs is performed for each student within a specific semester. `DISTINCT` was added to the SELECT clause to ensure each qualifying student is listed only once, even if they meet the criteria in multiple semesters.",
+  "error": "",
+  "timestamp": "2026-07-25T00:00:37.203098"
+}

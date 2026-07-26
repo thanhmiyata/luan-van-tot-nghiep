@@ -1,0 +1,97 @@
+{
+  "question_index": 618,
+  "pipeline": "6step",
+  "db_id": "tvshow",
+  "question": "What is the maximum and minimum share for the TV series?",
+  "gold_query": "SELECT max(SHARE) , min(SHARE) FROM TV_series;",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.959,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"max(Share)\", \"min(Share)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"TV_series\", \"column\": \"Share\", \"agg\": \"MAX\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"TV_series\", \"column\": \"Share\", \"agg\": \"MIN\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"TV_series\"], \"columns\": [\"Share\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2062,
+        "prompt_tokens": 1832,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 230,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:47:31.168119"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.384,
+      "raw_response": "I need to filter the provided database schema based on the Analyzer output.\nThe goal is to keep only the tables and columns strictly necessary to answer the question: \"What is the maximum and minimum share for the TV series?\".\n\nFrom the Analyzer output:\n- `entities.tables`: `[\"TV_series\"]`\n- `output_fields_detailed`: `[{\"table\": \"TV_series\", \"column\": \"Share\", \"agg\": \"MAX\"}, {\"table\": \"TV_series\", \"column\": \"Share\", \"agg\": \"MIN\"}]`\n\nSteps:\n1.  **Identify required tables**: The `TV_series` table is explicitly mentioned in `entities.tables` and `output_fields_detailed`. No other tables are mentioned.\n2.  **Identify required columns for `TV_series`**:\n    *   `Share` is needed for `MAX` and `MIN` aggregation.\n    *   `id` is the primary key for `TV_series` (column_names_original index 10). Primary keys are always kept.\n3.  **Check for FKs**:\n    *   `TV_series` (table 1) has no outgoing FKs to other tables based on `foreign_keys` which list `[[18,1],[25,1]]`. These refer to `Cartoon.Channel` (col 18) and `TV_Channel.id` (col 1) pointing to `TV_series.id` (col 10). However, the original foreign keys array specifies `[[18,1],[25,1]]`. Let's re-evaluate:\n        *   `column_names_original[18]` is `Cartoon.Channel`\n        *   `column_names_original[1]` is `TV_Channel.id`\n        *   `column_names_original[25]` is `Cartoon.Channel` (this seems like a typo, index 25 is `Cartoon.Channel`, index 18 is `TV_Channel.id`? No, let's map it correctly based on original schema structure).\n\n    Let's map indices to `(table_index, col_index_within_table)`:\n    *   `id` of `TV_Channel` is index 1.\n    *   `id` of `TV_series` is index 10.\n    *   `id` of `Cartoon` is index 19.\n\n    *   `foreign_keys`: `[[18,1],[25,1]]`\n        *   `18`: `Cartoon.Channel`\n        *   `1`: `TV_Channel.id`\n        *   `25`: `Cartoon.Channel` (This is likely `Cartoon.Channel` referencing `TV_Channel.id` twice or a schema error in the foreign_keys array definition itself. Let's assume the first element of each pair is the FK column and the second is the PK column it references.)\n\n    Correct interpretation of `foreign_keys`: `[[FK_col_global_index, PK_col_global_index], ...]`\n    *   `[18, 1]`: `Cartoon.Channel` (global index 18) references `TV_Channel.id` (global index 1).\n    *   `[25, 1]`: `Cartoon.Channel` (global index 25, which is actually the same column as 18, so schema likely lists Cartoon.Channel twice or it means another foreign key from `Cartoon.Channel` to `TV_Channel.id`. Given the column names are `[2,\"Channel\"]` at index 18 and `[2,\"Channel\"]` at index 25, this indicates a problem in the original schema's `column_names_original` where `Channel` is listed twice for `Cartoon` table if we strictly follow `column_names_original` indices. Let's re-check the global indices from the schema:\n        *   `TV_Channel` (table 0): `id` (1), `series_name` (2), ...\n        *   `TV_series` (table 1): `id` (10), `Episode` (11), `Share` (14), `Channel` (17)\n        *   `Cartoon` (table 2): `id` (19), `Title` (20), `Channel` (25)\n\n    The `foreign_keys` list:\n    `[18, 1]`: This implies `TV_series.Channel` (global index 17, `[1,\"Channel\"]`) refers to `TV_Channel.id` (global index 1, `[0,\"id\"]`).\n    No, this is incorrect mapping.\n    Let's re-map global column indices to (table_idx, column_idx_in_table):\n\n    `TV_Channel` (table 0):\n    *   `id` (global index 1) - PK\n    *   `series_name` (2)\n    *   `Country` (3)\n    *   `Language` (4)\n    *   `Content` (5)\n    *   `Pixel_aspect_ratio_PAR` (6)\n    *   `Hight_definition_TV` (7)\n    *   `Pay_per_view_PPV` (8)\n    *   `Package_Option` (9)\n\n    `TV_series` (table 1):\n    *   `id` (global index 10) - PK\n    *   `Episode` (11)\n    *   `Air_Date` (12)\n    *   `Rating` (13)\n    *   `Share` (14)\n    *   `18_49_Rating_Share` (15)\n    *   `Viewers_m` (16)\n    *   `Weekly_Rank` (17)\n    *   `Channel` (global index 18) - This is the FK column `TV_series.Channel` (table 1, col 8). This seems to refer to `TV_Channel.id`.\n\n    `Cartoon` (table 2):\n    *   `id` (global index 19) - PK\n    *   `Title` (20)\n    *   `Directed_by` (21)\n    *   `Written_by` (22)\n    *   `Original_air_date` (23)\n    *   `Production_code` (24)\n    *   `Channel` (global index 25) - This is the FK column `Cartoon.Channel` (table 2, col 6). This also seems to refer to `TV_Channel.id`.\n\n    Now, let's re-evaluate `foreign_keys`:\n    *   `[[18,1],[25,1]]`\n        *   `[18, 1]` means `TV_series.Channel` (global index 18) is a FK referencing `TV_Channel.id` (global index 1).\n        *   `[25, 1]` means `Cartoon.Channel` (global index 25) is a FK referencing `TV_Channel.id` (global index 1).\n\n    The question only involves `TV_series` and its `Share` column. No joins are needed. Therefore, no foreign key columns from `TV_series` to other tables (like `TV_series.Channel`) or from other tables to `TV_series` are needed. The only PK needed is `TV_series.id`.\n\nRequired table: `TV_series` (table_idx = 1)\nRequired columns for `TV_series`:\n*   `id` (global index 10, PK)\n*   `Share` (global index 14)\n\nLet's construct the filtered schema.\n\nOriginal `table_names_original`: `[\"TV_Channel\",\"TV_series\",\"Cartoon\"]`\nOriginal `column_names_original`:\n`[-1,\"*\"]`\n`[0,\"id\"]`\n`[0,\"series_name\"]`\n`[0,\"Country\"]`\n`[0,\"Language\"]`\n`[0,\"Content\"]`\n`[0,\"Pixel_aspect_ratio_PAR\"]`\n`[0,\"Hight_definition_TV\"]`\n`[0,\"Pay_per_view_PPV\"]`\n`[0,\"Package_Option\"]`\n`[1,\"id\"]`             <- Keep (PK for TV_series)\n`[1,\"Episode\"]`\n`[1,\"Air_Date\"]`\n`[1,\"Rating\"]`\n`[1,\"Share\"]`          <- Keep (needed for MIN/MAX)\n`[1,\"18_49_Rating_Share\"]`\n`[1,\"Viewers_m\"]`\n`[1,\"Weekly_Rank\"]`\n`[1,\"Channel\"]`\n`[2,\"id\"]`\n`[2,\"Title\"]`\n`[2,\"Directed_by\"]`\n`[2,\"Written_by\"]`\n`[2,\"Original_air_date\"]`\n`[2,\"Production_code\"]`\n`[2,\"Channel\"]`\n\nThe filtered schema should only contain `TV_series` table and its `id` and `Share` columns.\n\nNew `table_names_original`: `[\"TV_series\"]`\nNew `column_names_original`:\n`[-1,\"*\"]`\n`[0,\"id\"]` (this will be the 'new' table 0, which is TV_series)\n`[0,\"Share\"]`\nNew `column_types`:\nOriginal `column_types` for `id` (global index 10) is `text` (based on original `column_types` array, index 10).\nOriginal `column_types` for `Share` (global index 14) is `number` (based on original `column_types` array, index 14).\n\nNew `primary_keys`:\n`id` of `TV_series` was global index 10. In the new schema, it will be mapped to a new index.\nThe original `primary_keys` listed `[1,10,19]`. This maps to `TV_Channel.id`, `TV_series.id`, `Cartoon.id`.\nOnly `TV_series.id` (original global index 10) is relevant.\nIn the filtered schema, the `TV_series` table will become `table 0`. Its `id` column will be `column 1` (global index, considering `[-1,\"*\"]` as 0).\nSo, new `primary_keys` will be `[1]`.\n\nNew `foreign_keys`: No foreign keys are needed as only one table is involved and no joins are specified. So, `[]`.\n\nLet's re-verify the mapping of `column_names_original` and `column_types` to ensure correctness for the new schema.\nOriginal column index starts from 0 for `[-1,\"*\"]`.\nGlobal index 10: `[1,\"id\"]`, type `text`\nGlobal index 14: `[1,\"Share\"]`, type `number`\n\nFiltered `column_names_original`:\n`[-1,\"*\"]`\n`[0,\"id\"]`  (This is the new TV_series.id)\n`[0,\"Share\"]` (This is the new TV_series.Share)\n\nFiltered `column_types`:\n`text` (for `*`)\n`text` (for `TV_series.id`, original type was text)\n`number` (for `TV_series.Share`, original type was number)\n\nFiltered `primary_keys`:\nThe `id` column of the (new) table 0 (`TV_series`) is the primary key. Its global index will be 1. So, `[1]`.\n\nFiltered `column_sample_values`:\nFor `id` (global index 10): `[\"A Love of a Lifetime\", \"Friendly Skies\", \"Game Three\", \"The Year of the Rabbit\"]` -- wait, this is for episode.\nLet's find the correct sample values for `TV_series.id` and `TV_series.Share`.\nThe `column_sample_values` array has one entry per global column index (including -1,*).\n`column_sample_values[10]` (for `TV_series.id`) is `[]` (empty list). This indicates no sample values given in the input for this specific column.\n`column_sample_values[14]` (for `TV_series.Share`) is `[]` (empty list). This also indicates no sample values given.\n\nSo, the filtered `column_sample_values` will also have `[]` for these.\n\n```json\n{\n  \"db_id\": \"tvshow\",\n  \"table_names_original\": [\"TV_series\"],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"id\"],\n    [0, \"Share\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [1],\n  \"column_sample_values\": [\n    [],\n    [],\n    []\n  ]\n}\n```\n\nLet's double-check the column indices and types based on original global indices.\nOriginal global column indices:\n- `[-1,\"*\"]`: 0 (type: text)\n- `[0,\"id\"]`: 1 (type: text) -> TV_Channel.id\n- `[1,\"id\"]`: 10 (type: text) -> TV_series.id\n- `[1,\"Share\"]`: 14 (type: number) -> TV_series.Share\n\nFiltered schema:\n`table_names_original`: `[\"TV_series\"]` (new index 0)\n\n`column_names_original`:\n`[-1,\"*\"]` (global index 0, type \"text\")\n`[0,\"id\"]` (global index 1, type \"text\", this maps to original TV_series.id, which was type text)\n`[0,\"Share\"]` (global index 2, type \"number\", this maps to original TV_series.Share, which was type number)\n\n`column_types`:\n`text` (for `*`)\n`text` (for `TV_series.id`)\n`number` (for `TV_series.Share`)\n\n`primary_keys`: `[1]` (global index of the new `TV_series.id` column). This is correct.\n\n`foreign_keys`: `[]` (No joins needed, so no FKs are necessary). Correct.\n\n`column_sample_values`:\nOriginal `column_sample_values` array size is 26.\n`column_sample_values[0]` is `[]` (for `*`)\n`column_sample_values[10]` is `[]` (for `TV_series.id`)\n`column_sample_values[14]` is `[]` (for `TV_series.Share`)\nSo, the filtered `column_sample_values` array should reflect these:\n`[[],[],[]]`\n\nThe structure looks correct.```json\n{\n  \"db_id\": \"tvshow\",\n  \"table_names_original\": [\n    \"TV_series\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"id\"],\n    [0, \"Share\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4823,
+        "prompt_tokens": 1233,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3590,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:47:48.571776"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.481,
+      "raw_response": "{ \"steps\": [ \"No join needed. The question only involves a single table: TV_series.\", \"The columns involved are: Share.\", \"Use the MAX() and MIN() aggregate functions to find the maximum and minimum share respectively.\", \"There is no sorting (ORDER BY) or grouping (GROUP BY) necessary as the query concerns aggregate functions only.\", \"There are no filters to apply.\", \"The set operation type is NONE, no set operations are needed.\" ] }",
+      "token_usage": {
+        "total_tokens": 1439,
+        "prompt_tokens": 1298,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 141,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:47:52.091939"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.195,
+      "raw_response": "{\"sql\": \"SELECT MAX(Share), MIN(Share) FROM TV_series\"}",
+      "token_usage": {
+        "total_tokens": 1752,
+        "prompt_tokens": 1724,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 28,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:47:53.311479"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.749,
+      "raw_response": "{\"sql\": \"SELECT MAX(Share), MIN(Share) FROM TV_series\", \"notes\": \"Initial SQL aligned with expected output fields for a single table. No modifications necessary, as all requirements and analysis are already met.\", \"diagnostics\": [\"No joins needed; single table TV_series used as required.\", \"MAX and MIN aggregation functions applied correctly to Share column.\", \"No sorting, grouping, or filters needed or present, fitting the expected plan.\"]}",
+      "token_usage": {
+        "total_tokens": 1405,
+        "prompt_tokens": 1300,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 105,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:47:56.074525"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.301,
+      "raw_response": "I need to act as a Final Validator. I will go through the 6-step validation checklist, comparing the provided SQL, Question, Schema, and Analysis.\n\n**Given SQL:** `SELECT MAX(Share), MIN(Share) FROM TV_series`\n**Expected Output Fields:** `[\"max(Share)\", \"min(Share)\"]`\n**Analysis Details for Output Fields:**\n- `{\"table\": \"TV_series\", \"column\": \"Share\", \"agg\": \"MAX\", \"alias\": null, \"order_index\": 0}`\n- `{\"table\": \"TV_series\", \"column\": \"Share\", \"agg\": \"MIN\", \"alias\": null, \"order_index\": 1}`\n\n**Validation Steps:**\n\n1.  **SELECT = expected_output_fields (content/order):**\n    *   The SQL `SELECT MAX(Share), MIN(Share)` matches the expected output fields `[\"max(Share)\", \"min(Share)\"]` in content and order. No alias is specified in the analysis, and none is used in the SQL. This is correct.\n\n2.  **For counts / extremum patterns:**\n    *   This query uses `MAX()` and `MIN()`, which are appropriate for \"maximum and minimum share\". No `COUNT(*)` is involved. The pattern is correct.\n\n3.  **No unnecessary joins; correct PK/FK; single_table_ok:**\n    *   `single_table_ok` is `true`. The SQL only accesses `TV_series`, so no joins are present or necessary. This is correct.\n\n4.  **Remove ORDER BY unless required:**\n    *   The analysis does not require an `ORDER BY` clause, and the SQL does not have one. This is correct.\n\n5.  **Names exist in schema; SQL complete, single line, no comments:**\n    *   `TV_series` and `Share` exist in the schema. The SQL is complete, single-line, and has no comments. This is correct.\n\n6.  **CRITICAL Final Pattern Checks:**\n    *   **Self-Join Validation:** `self_join_hint` is `false`. No self-join is used, which is correct.\n    *   **Set Operation Validation:** `set_operation_type` is `NONE`. No set operation is used, which is correct.\n    *   **WHERE Condition Validation:** No `WHERE` clause is present in the SQL or suggested by the analysis. `where_condition_type` is `EQUALS` but no filters are defined. `null_handling` is `UNKNOWN`. This is correct as no filtering is required.\n    *   **GROUP BY Validation:** No `GROUP BY` is present, and none is needed since it's a simple aggregate over the entire table. This is correct.\n    *   **ORDER BY Validation:** Not applicable, as there's no `ORDER BY`.\n    *   **DISTINCT Validation:** Not applicable, as no `DISTINCT` is used or needed for `MAX`/`MIN` over the whole table.\n\nAll checks pass. The SQL is correct and matches the analysis perfectly.{\"sql\": \"SELECT MAX(Share), MIN(Share) FROM TV_series\", \"explain\": \"The SQL query correctly retrieves the maximum and minimum values of the 'Share' column from the 'TV_series' table, matching the expected output fields and analysis without any issues.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1961,
+        "prompt_tokens": 1224,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 737,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:48:00.396212"
+    }
+  ],
+  "final_sql": "SELECT MAX(Share), MIN(Share) FROM TV_series",
+  "explain": "The SQL query correctly retrieves the maximum and minimum values of the 'Share' column from the 'TV_series' table, matching the expected output fields and analysis without any issues.",
+  "error": "",
+  "timestamp": "2026-07-24T20:48:00.398102"
+}
