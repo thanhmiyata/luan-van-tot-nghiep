@@ -1,0 +1,350 @@
+question_analysis_task:
+  description: >
+    6-step: Analyzer. Produce a typed semantic contract before schema filtering.
+
+    Inputs:
+    - Question: {question}
+    - Raw Schema (semantic table_names/column_names plus executable *_original names,
+      named_foreign_keys, sample values, and question_value_matches): ```{raw_db_schema}```
+
+    Requirements:
+    1) Use semantic names only to understand meaning. In every structured table/column
+       field, copy the matching executable `table_names_original` /
+       `column_names_original` identifier exactly. Never invent, translate, or
+       execute a semantic display label.
+    2) Classify each mentioned field as OUTPUT or ENTITY_CARRIER/FILTER before
+       building `output_fields_detailed`. That list is authoritative for SELECT and
+       contains only fields explicitly requested for display, in order. A field
+       identifying the row/entity is not also an output unless the Question
+       explicitly asks to return it. Generic example: “For the item called X,
+       which options are offered?” outputs the option field only; the name field
+       bound to X is ENTITY_CARRIER/FILTER.
+    3) Populate `required_tables` and `required_columns` with the safe semantic superset needed for projection, predicates, grouping, ranking, and joins.
+    4) Set `single_table_ok=true` only when one table contains every required column. Use named_foreign_keys; never infer a join from similar names or ID-looking columns.
+    5) Treat question_value_matches and column sample values as authoritative
+       database evidence. Prefer the longest complete match and never split it.
+       For low-cardinality indicator columns, copy the positive sentinel actually
+       present in samples: T/F -> "T", Y/N -> "Y", and 1/0 -> the observed 1 value.
+       A declared bool type alone is not evidence for SQL TRUE; never translate
+       T, Y, or 1 to TRUE. If no positive sentinel is evidenced, add LOW_CONFIDENCE
+       rather than inventing one.
+    6) Classify predicate scope before Boolean/set logic:
+       - SAME_ROW: all conditions hold on one row; use AND/OR/BETWEEN.
+       - RELATED_ROWS: one entity has multiple related rows; use separate EXISTS, INTERSECT, or independent aggregate branches when combining joins would change multiplicity.
+       - INDEPENDENT_BRANCHES: separate result sets; use UNION/INTERSECT/EXCEPT only when the set meaning is explicit.
+       Tag filters/group_by/having with scope_id and branch_id. Fill set_operation.branches with each independent branch's tables and columns.
+    7) Related-row negation ("without", "never", "do not have") requires NOT EXISTS, NOT IN, or EXCEPT on the entity key; joined-row `<>` is not equivalent.
+    8) For "per/for each/by/different X", include X in output_fields_detailed and group_by only when X is requested as output.
+    9) Unmatched/zero-row retention is false by default: set
+       `null_handling="INNER_JOIN"`. Set `null_handling="LEFT_JOIN"` only when an
+       exact Question span explicitly requests all entities including those with
+       none/zero/no match. Words such as “all”, “each”, or “per” alone do not
+       request zero groups.
+    10) Represent "the row with highest/lowest Y, return X" as extreme_row: project X, rank by Y, LIMIT 1. Do not add the ranking aggregate to SELECT unless requested.
+    11) Generic "how many/number of/count of" uses {"agg":"COUNT","column":"*"} and distinct=false. COUNT_DISTINCT requires explicit different/distinct/unique wording. Exception: "how many people live/reside/living in ..." over city/country population measures uses {"agg":"SUM","column":"Population"} — never COUNT(*).
+    12) Minimum/lowest, maximum/highest, and average are aggregate operands when describing numeric thresholds. Use {"kind":"SCALAR_AGGREGATE","agg":"MIN|MAX|AVG","table":"t","column":"c"} with value_type=SUBQUERY; never bind those words as literals.
+    13) Resolve ambiguous outputs by exact lexical column match, then a single table covering all outputs, then shortest declared FK distance to filter/rank tables. Distinguish "make" from "maker".
+    14) Build coverage_units: one entry for every requested output, entity carrier,
+        literal,
+        comparison, negation, grouping, ranking, and set relation. Preserve the
+        exact supporting question span. These units are later audited against SQL.
+    15) Add risk_flags for related-row negation, set operation, ambiguous schema
+        link, grouping/HAVING, scalar subquery, extreme row, or low confidence.
+    16) Before returning, verify that every independent condition in the original Question appears in filters, predicate_scope, set_operation, having, scalar_comparisons, and coverage_units.
+    17) Distinguish aggregate-value questions from extreme-row questions:
+        "minimum/lightest/maximum/highest <measure> of ..." projects
+        MIN/MAX(<measure>). It does not request the name/make/entity unless the
+        Question explicitly asks "which/name/id".
+    18) Prefer a rank/filter column in the same event/fact table as the requested
+        output and other filters. Do not join a generic history/ranking table when
+        a more specific column such as winner/loser/entity rank or rank points is
+        already present on that fact row.
+    19) When question_value_matches contains a longer canonical database value
+        containing the Question's named token, bind the longer value and its
+        column unless the Question explicitly asks for the short code.
+
+    Return ONLY raw JSON:
+    {
+      "intent": "COUNT|LIST|MAX_MIN|AGGREGATION|BOOLEAN|OTHER",
+      "complexity": "EASY|MEDIUM|HARD",
+      "expected_output_fields": ["field1", "field2"],
+      "field_order_critical": true,
+      "single_table_ok": true,
+      "required_tables": ["t"],
+      "required_columns": [{"table": "t", "column": "c", "purpose": "OUTPUT|FILTER|GROUP|ORDER|JOIN"}],
+      "output_fields_detailed": [{"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "alias": null, "order_index": 0}],
+      "distinct": false,
+      "filters": [{"scope_id": "s1", "branch_id": "b1", "table": "t", "column": "c", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "literal_or_SCALAR_AGGREGATE_object", "value_type": "NUMBER|STRING|DATE|OTHER|SUBQUERY"}],
+      "literal_bindings": [{"literal": "v", "table": "t", "column": "c", "evidence": "QUESTION|SAMPLE_VALUE|QUESTION_EXACT_DB_MATCH"}],
+      "predicate_scope": [{"scope_id": "s1", "scope": "SAME_ROW|RELATED_ROWS|INDEPENDENT_BRANCHES", "logic": "AND|OR|BETWEEN|EXISTS|NOT_EXISTS", "branch_ids": ["b1"], "reason": "short reason"}],
+      "group_by": [{"branch_id": "b1", "table": "t", "column": "c"}],
+      "having": [{"branch_id": "b1", "table": "t", "column": "c", "agg": "COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "operator": "=|<>|>|<|>=|<=", "value": 1}],
+      "order_by": [{"table": "t", "column": "c", "direction": "ASC|DESC"}],
+      "set_operation": {"operator": "NONE|UNION|INTERSECT|EXCEPT", "branches": [], "reason": ""},
+      "extreme_row": null,
+      "scalar_comparisons": [{"table": "t", "column": "c", "operator": ">|<|>=|<=|=|<>", "value": {"kind": "SCALAR_AGGREGATE", "agg": "MIN|MAX|AVG", "table": "t", "column": "c"}}],
+      "coverage_units": [{"kind": "OUTPUT|ENTITY_CARRIER|LITERAL|PREDICATE|NEGATION|GROUP|ORDER|SET_OPERATION", "question_span": "exact span", "table": "t", "column": "c", "required": true}],
+      "risk_flags": ["RELATED_ROW_NEGATION|SET_OPERATION|AMBIGUOUS_SCHEMA|OUTPUT_ROLE_AMBIGUITY|GROUPING|SCALAR_SUBQUERY|EXTREME_ROW|LOW_CONFIDENCE"],
+      "join_hints": [{"from_table": "a", "to_table": "b", "reason": "why join"}],
+      "entities": {"tables": ["t1"], "columns": ["c1"], "values": ["v1"]},
+      "null_handling": "INNER_JOIN|LEFT_JOIN",
+      "confidence": 0.95
+    }
+  expected_output: >
+    Typed semantic-contract JSON with real identifiers and explicit predicate scope.
+  agent: question_analyzer
+
+select_needed_schema_task:
+  description: >
+    Rank schema relevance while preserving every endpoint and bridge needed for joins.
+
+    Inputs:
+    - Question: {question}
+    - Original Schema: ```{raw_db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Named FK Graph: ```{named_fk_graph}```
+
+    Steps:
+    1) Use semantic table_names/column_names to understand meaning, but return only
+       executable table_names_original/column_names_original.
+    2) Start from analysis.required_tables and every table referenced by outputs, filters, literal bindings, group_by, having, order_by, scalar_comparisons, and extreme_row.
+    3) Keep every required column plus PK/FK columns of retained tables.
+    4) Retain intermediate bridge tables/columns on a shortest declared-FK connection between endpoints.
+    5) Put plausible ambiguous alternatives in backup_table_names_original rather
+       than silently dropping them. Explain ambiguity briefly in ambiguity_notes.
+    6) Copy only names present in Original Schema. Do not calculate replacement indices or invent relationships.
+    7) Prefer a safe superset over dropping a required or bridge column. main.py deterministically rebuilds indices and FK metadata.
+
+    Return ONLY names-only raw JSON:
+    {
+      "table_names_original": ["real_table"],
+      "column_names_original": ["real_column"],
+      "backup_table_names_original": ["plausible_alternative"],
+      "ambiguity_notes": ["short evidence-based note"]
+    }.
+  expected_output: >
+    Filtered schema names preserving endpoint and bridge connectivity.
+  agent: schema_selector
+
+query_planning_task:
+  description: >
+    6-step: Query Planner. Translate the typed contract into a minimal executable strategy.
+
+    Inputs:
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Deterministic Join Plan: ```{join_plan}```
+
+    Planning rules:
+    1) Use only exact executable `*_original` identifiers from Schema in every plan
+       field/expression. Semantic labels are explanatory text, never SQL names.
+       The original Question outranks an inconsistent Analysis field.
+    2) Preserve output_fields_detailed order. ENTITY_CARRIER/FILTER, grouping, and
+       ranking fields are not SELECT outputs unless independently requested.
+    3) State "no join needed" when one table covers all required fields. Otherwise use only the subset of Deterministic Join Plan needed for the query/branch. Each allowed_edges list contains alternatives; select the semantic edge instead of combining all alternatives.
+    4) Generic count is COUNT(*). COUNT(column) requires explicit null-sensitive wording; COUNT DISTINCT requires explicit distinct/different/unique wording.
+    5) SAME_ROW uses AND/OR/BETWEEN. RELATED_ROWS with independent counts/existence must use separate EXISTS, aggregate subqueries, or INTERSECT so joins do not multiply rows.
+    6) Use one SELECT with OR when projection and join graph are shared. Use UNION only for incompatible result branches and INTERSECT for independent result/existence conditions.
+    7) Related-row negation uses NOT EXISTS, NOT IN, or EXCEPT on the entity key.
+    8) Group by the stable entity PK/FK when a displayed label is functionally dependent on it. Do not group solely by a potentially non-unique name.
+    9) Render SCALAR_AGGREGATE thresholds as SELECT MIN/MAX/AVG(column) FROM the declared table. Never quote aggregate words.
+    10) INNER JOIN is mandatory unless Analysis has `null_handling="LEFT_JOIN"`
+        backed by an explicit unmatched/none/zero Question span. “All”, “each”,
+        and “per” alone do not justify LEFT JOIN or zero-count groups.
+    11) Copy low-cardinality indicator sentinels exactly from Analysis/sample
+        evidence; never replace "T", "Y", or 1 with SQL TRUE.
+    12) Treat a numeric column containing four-digit years as an integer year.
+        Compare it directly; never wrap it in STRFTIME/DATE/DATETIME.
+    13) For a singular requested entity with most/least/highest/lowest, preserve
+        ORDER BY the requested expression plus LIMIT 1. Do not replace it with a
+        tie-returning HAVING MIN/MAX subquery unless the Question requests all ties.
+    14) For anti-usage questions, anchor the result at the entity directly used by
+        the named child table. Do not move one FK upstream to a reference-domain
+        table unless the Question asks for every possible reference code.
+    15) Verify that the plan covers every condition and contains no unrequested output field, table, LEFT JOIN, or ORDER BY.
+
+    Return ONLY raw JSON:
+    {
+      "steps": ["minimal ordered step"],
+      "select": [{"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "order_index": 0}],
+      "joins": [{"from_table": "a", "to_table": "b", "condition": "declared FK equality"}],
+      "predicates": [{"scope_id": "s1", "branch_id": "b1", "expression": "typed predicate"}],
+      "group_by": [{"table": "t", "column": "stable key"}],
+      "having": [],
+      "order_by": [],
+      "set_operation": {"operator": "NONE|UNION|INTERSECT|EXCEPT", "branches": []},
+      "limit": null,
+      "warnings": [],
+      "risk_flags": []
+    }
+  expected_output: >
+    Minimal typed query plan consistent with the question, analysis, and declared FK graph.
+  agent: query_planner
+
+generate_sql_task:
+  description: >
+    6-step: SQL Expert. Generate one executable SQLite candidate per invocation.
+
+    Inputs:
+    - Question: "{question}"
+    - Executable Schema: ```{db_schema}```
+    - Analysis (planned mode only): ```{question_analysis}```
+    - Query Plan / invocation mode: ```{query_plan}```
+    - Deterministic Join Plan (planned mode only): ```{join_plan}```
+
+    Invocation policy:
+    - DIRECT mode: when Query Plan has
+      `status="WITHHELD_FROM_DIRECT_CANDIDATE"`, ignore Analysis and Join Plan
+      completely. Derive SQL independently from only the original Question and
+      Executable Schema (including declared original-name FKs and sample values).
+      Return direct_sql and leave planned_sql empty.
+    - PLANNED mode: otherwise consume Question, Executable Schema, Analysis,
+      Query Plan, and Join Plan. Return planned_sql and leave direct_sql empty.
+    Never copy one candidate into both fields in a single invocation.
+
+    Core rules:
+    1) SQL identifiers must be copied exactly from `table_names_original` and
+       `column_names_original`. Never emit a human-readable semantic label when
+       it differs from the executable original identifier.
+    2) SELECT only fields requested for display. ENTITY_CARRIER/FILTER, literal,
+       grouping, and ranking columns are not outputs unless separately requested.
+       In direct mode infer this from the Question; in planned mode verify the
+       contract against the Question.
+    3) Preserve the longest value match. Copy low-cardinality sentinels exactly
+       from samples/Analysis; never rewrite "T", "Y", or 1 as SQL TRUE.
+    4) Generic count is COUNT(*); COUNT(column)/DISTINCT requires explicit evidence.
+    5) Use only declared FK joins and only required branches. Related-row negation
+       uses NOT EXISTS/NOT IN/EXCEPT; prevent 1:N duplicate expansion.
+    6) For a singular extreme row, ORDER BY the rank expression and LIMIT 1.
+       When ranking by a COUNT aggregate, ORDER BY count(*) (or the same
+       COUNT expression), never an invented alias such as number_of_X /
+       num_tv_channels that is not declared in SELECT.
+    7) INNER JOIN is default. LEFT JOIN is allowed only for an exact Question span
+       requesting unmatched/none/zero entities; “all/each/per” is insufficient.
+    8) Before adding a JOIN, check whether one table already contains the requested
+       output, filters, and a question-specific rank column. A specific fact-row
+       column outranks a generic history/ranking table.
+    9) Numeric four-digit year columns use direct numeric comparison; never call
+       STRFTIME/DATE/DATETIME on a column declared as number.
+    10) Use the longest semantically matching question_value_match. If a named
+        token is contained in a longer canonical database value, filter on that
+        canonical value and column.
+    11) When listing an entity through a 1:N join, add DISTINCT if the projection
+        can repeat. Do not add DISTINCT to scalar aggregates or already unique rows.
+    12) For "not used by <child>", start from the entity directly referenced by
+        that child and anti-join the child; do not shift the output upstream to a
+        reference lookup table.
+    13) Return one read-only, single-line SQLite SELECT/CTE statement.
+
+    Return ONLY raw JSON:
+    {
+      "direct_sql": "<Question+Schema candidate>",
+      "planned_sql": "<Query-Plan candidate>",
+      "disagreement_reason": "empty if structurally equivalent"
+    }.
+  expected_output: >
+    One independently generated direct or planned SQL candidate.
+  agent: sql_expert
+
+refine_sql_task:
+  description: >
+    6-step: SQL Refiner/Arbiter. Select or repair two Generator candidates.
+
+    Inputs:
+    - Direct SQL: "{direct_sql}"
+    - Planned SQL: "{planned_sql}"
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Query Plan: ```{query_plan}```
+    - Deterministic Join Plan: ```{join_plan}```
+    - Deterministic Constraint Report: ```{constraint_report}```
+    - Direct Semantic Report: ```{direct_semantic_report}```
+    - Planned Semantic Report: ```{planned_semantic_report}```
+    - Risk Reasons: ```{risk_reasons}```
+
+    Checklist:
+    0) Equivalent signatures are not sufficient for acceptance. Independently
+       re-read the Question and Schema before preserving either candidate.
+    1) Fatal deterministic checks are authoritative. Semantic reports are evidence,
+       not ground truth; re-read the Question before selecting.
+    2) The original Question outranks Analysis and Query Plan. Re-read it for missing conditions and unrequested SELECT fields.
+    3) SELECT must contain exactly requested outputs. Remove ENTITY_CARRIER/FILTER
+       leakage; a column used to identify a row is not output without an explicit
+       display request.
+    4) Never change COUNT(*) to COUNT(column)/COUNT DISTINCT without explicit null-sensitive/distinct wording.
+    5) Preserve the longest question_value_match and scalar aggregate subqueries.
+    6) Use only executable `*_original` identifiers and necessary declared-FK
+       joins. INNER JOIN is default. Reject LEFT JOIN/zero groups unless an exact
+       Question span explicitly requests unmatched entities; “all/each/per” alone
+       is insufficient.
+    7) Keep independent related-row aggregates/existence branches separate to avoid multiplicity errors.
+    8) Preserve exact low-cardinality sentinels and correct OR/set-operation,
+       negation, grouping-key, extreme-row, and field-order semantics. Never
+       translate "T", "Y", or 1 to SQL TRUE.
+    9) Direct SQL is the anchor. Do not change an executable aggregate projection
+       into an entity row, and do not replace singular ORDER BY ... LIMIT 1 with a
+       tie-aware HAVING/subquery, unless the Question explicitly requests the
+       alternative semantics.
+    10) Analysis/Plan-only OUTPUT_FIELD, REQUIRED_TABLE, HAVING, or ORDER
+        disagreement is not sufficient evidence to overwrite Direct SQL. Require
+        support from the original Question plus executable Schema/value evidence.
+    11) Numeric year columns must use direct numeric comparison. Prefer the
+        longest canonical database value for a named literal, and add DISTINCT
+        when a 1:N join can duplicate a listed entity.
+    12) Return one executable, read-only, single-line SQLite statement and concise diagnostics.
+
+    Return ONLY raw JSON:
+    {"sql": "...", "selected_candidate": "direct|planned|repaired", "notes": "specific correction or preserved", "diagnostics": []}.
+  expected_output: >
+    Refined SQL with only evidence-backed changes.
+  agent: sql_refiner
+
+validate_sql_task:
+  description: >
+    6-step: Final Validator. Make only evidence-backed final corrections.
+
+    Inputs:
+    - SQL: "{sql}"
+    - Direct SQL: "{direct_sql}"
+    - Planned SQL: "{planned_sql}"
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Query Plan: ```{query_plan}```
+    - Deterministic Join Plan: ```{join_plan}```
+    - Deterministic Constraint Report: ```{constraint_report}```
+    - Semantic Constraint Report: ```{semantic_report}```
+
+    Validate:
+    0) Preserve the input only when both deterministic and semantic reports have
+       no violations. SQLite executability alone is not semantic correctness.
+    1) Fatal deterministic checks are authoritative for empty, non-read-only, multiple-statement, nonexistent-identifier, and SQLite syntax errors.
+    2) The original Question outranks Analysis/Plan. If no fatal error exists, preserve SQL unless one specific semantic violation is identified.
+    3) Change only the responsible identifier/expression. Every replacement must exist in Schema.
+    4) Use only the required subset of Deterministic Join Plan and the semantically matching alternative edge.
+    5) SELECT must equal requested output content/order. Remove
+       ENTITY_CARRIER/FILTER leakage. Check COUNT, scope/branches, literal bindings,
+       set operations, negation, scalar comparisons, grouping, and extreme_row.
+    6) Never change COUNT(*) to COUNT(column)/COUNT DISTINCT without explicit null-sensitive/distinct wording. Never split the longest question_value_match.
+    7) Use only executable `*_original` identifiers. Do not add tables or joins
+       unless a Question output/predicate/relationship requires them. Reject LEFT
+       JOIN and zero groups unless an exact span requests unmatched/none/zero
+       entities; “all/each/per” is insufficient.
+    8) Preserve low-cardinality sample sentinels exactly; never translate "T",
+       "Y", or 1 to SQL TRUE. Verify every stated Question condition even if
+       Analysis or Plan omitted it.
+    9) Preserve an executable Direct aggregate projection or singular
+       ORDER BY ... LIMIT 1 anchor unless the original Question explicitly
+       requests an entity row or all tied rows.
+    10) Numeric four-digit year columns use direct numeric comparison. Resolve a
+        short named token to the longest matching canonical DB value/column, and
+        enforce DISTINCT when a 1:N join duplicates the requested listed entity.
+    11) Return one read-only, single-line SQLite statement. Set error="" for executable SQL and return JSON directly with no prose.
+
+    Return ONLY raw JSON:
+    {"sql": "...", "explain": "brief factual note", "error": ""}.
+  expected_output: >
+    Final validated SQL JSON.
+  agent: sql_validator

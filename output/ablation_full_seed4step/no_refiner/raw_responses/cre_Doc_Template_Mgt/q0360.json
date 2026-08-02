@@ -1,0 +1,341 @@
+{
+  "question_index": 360,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Count the number of paragraphs in the document named 'Summer Show'.",
+  "gold_query": "SELECT count(*) FROM Paragraphs AS T1 JOIN Documents AS T2 ON T1.document_ID  =  T2.document_ID WHERE T2.document_name  =  'Summer Show'",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Paragraphs\", \"column\": \"Paragraph_ID\", \"agg\": \"COUNT\", \"alias\": \"count\", \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"Documents\", \"column\": \"Document_Name\", \"operator\": \"=\", \"value\": \"Summer Show\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Paragraphs\", \"to_table\": \"Documents\", \"reason\": \"Paragraphs are linked to Documents via Document_ID\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_Name\", \"Document_ID\", \"Paragraph_ID\"], \"values\": [\"Summer Show\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:29.298394"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\"db_id\":\"cre_Doc_Template_Mgt\",\"table_names_original\":[\"Documents\",\"Paragraphs\"],\"column_names_original\":[[-1,\"*\"],[0,\"Document_ID\"],[0,\"Document_Name\"],[1,\"Paragraph_ID\"],[1,\"Document_ID\"]],\"column_types\":[\"text\",\"number\",\"text\",\"number\",\"number\"],\"foreign_keys\":[[4,1]],\"primary_keys\":[1,3],\"column_sample_values\":[[],[],[\"Introduction of OS\",\"Understanding DB\",\"Summer Show\",\"Robbin CV\"],[],[]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:51:29.301933"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 5.06,
+      "raw_response": "```json\n{\n  \"steps\": [\"Join Documents and Paragraphs tables\", \"Filter on Document_Name = 'Summer Show'\", \"Count the number of matching Paragraphs\"],\n  \"select\": [{\"table\": \"Paragraphs\", \"column\": \"*\", \"agg\": \"COUNT\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"condition\": \"Paragraphs.Document_ID = Documents.Document_ID\"}],\n  \"predicates\": [{\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"Documents.Document_Name = 'Summer Show'\"}],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}\n```",
+      "token_usage": {
+        "total_tokens": 2529,
+        "prompt_tokens": 2092,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 437,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:34.375561"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) AS count FROM Paragraphs INNER JOIN Documents ON Paragraphs.Document_ID = Documents.Document_ID WHERE Documents.Document_Name = 'Summer Show'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:34.377074",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as count"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "inner join documents on paragraphs.document_id = documents.document_id"
+              ],
+              "where": [
+                "where documents.document_name = 'summer show'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "join paragraphs on paragraphs.document_id = documents.document_id"
+              ],
+              "where": [
+                "where documents.document_name = 'summer show'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.192,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT COUNT(*) FROM Documents JOIN Paragraphs ON Paragraphs.Document_ID = Documents.Document_ID WHERE Documents.Document_Name = 'Summer Show'\", \"disagreement_reason\": \"empty if structurally equivalent\"}",
+      "token_usage": {
+        "total_tokens": 2390,
+        "prompt_tokens": 2331,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 59,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:35.580724",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as count"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "inner join documents on paragraphs.document_id = documents.document_id"
+              ],
+              "where": [
+                "where documents.document_name = 'summer show'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "join paragraphs on paragraphs.document_id = documents.document_id"
+              ],
+              "where": [
+                "where documents.document_name = 'summer show'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:51:35.589540"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.003,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) AS count FROM Paragraphs INNER JOIN Documents ON Paragraphs.Document_ID = Documents.Document_ID WHERE Documents.Document_Name = 'Summer Show'\", \"explain\": \"The SQL correctly selects the count of paragraphs in documents named 'Summer Show' using an INNER JOIN on Document_ID and filtering on Document_Name.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2342,
+        "prompt_tokens": 2260,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 82,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:37.613402",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*) as count"
+          ],
+          "tables": [
+            "documents",
+            "paragraphs"
+          ],
+          "joins": [
+            "inner join documents on paragraphs.document_id = documents.document_id"
+          ],
+          "where": [
+            "where documents.document_name = 'summer show'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: paragraphs"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*) as count"
+          ],
+          "tables": [
+            "documents",
+            "paragraphs"
+          ],
+          "joins": [
+            "inner join documents on paragraphs.document_id = documents.document_id"
+          ],
+          "where": [
+            "where documents.document_name = 'summer show'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: paragraphs"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) AS count FROM Paragraphs INNER JOIN Documents ON Paragraphs.Document_ID = Documents.Document_ID WHERE Documents.Document_Name = 'Summer Show'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:51:37.625288"
+}

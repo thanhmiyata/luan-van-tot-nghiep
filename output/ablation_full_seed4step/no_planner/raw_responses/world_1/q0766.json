@@ -1,0 +1,273 @@
+{
+  "question_index": 766,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "world_1",
+  "question": "What is the total number of people living in the nations that do not use English?",
+  "gold_query": "SELECT sum(Population) FROM country WHERE Name NOT IN (SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T2.Language  =  \"English\")",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"total_population\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Population\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Population\", \"agg\": \"SUM\", \"alias\": \"total_population\", \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"<>\", \"value\": \"English\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"English\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"NOT_EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter to exclude countries with English as a language\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"Join to filter languages used by the country\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Language\", \"Population\"], \"values\": [\"English\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:10:39.784192"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have analyzed the question and the provided schema analysis. I need to identify the necessary tables and columns to answer the question \"What is the total number of people living in the nations that do not use English?\".\n\n1.  **Identify Required Tables:** The `analysis.required_tables` specifies `country` and `countrylanguage`.\n2.  **Identify Required Columns:**\n    *   From `analysis.required_columns`:\n        *   `country.Population` (purpose: OUTPUT)\n        *   `country.Code` (purpose: JOIN)\n        *   `countrylanguage.CountryCode` (purpose: JOIN)\n        *   `countrylanguage.Language` (purpose: FILTER)\n3.  **Identify PK/FK for Retained Tables:**\n    *   `country` table: Primary Key is `Code` (as per `primary_keys` [index 8 refers to `country.Code`]). This is already included as a required join column.\n    *   `countrylanguage` table: The `primary_keys` list shows `23` as a PK, which corresponds to `countrylanguage.CountryCode`. However, `countrylanguage` typically has a composite PK like `(CountryCode, Language)`. Regardless, `CountryCode` is required for the join, and `Language` is required for the filter. Both are included.\n    *   Foreign Key relationship: `countrylanguage.CountryCode` (index 23) references `country.Code` (index 8). Both columns are already identified as required.\n4.  **Identify Bridge Tables/Columns:** The tables `country` and `countrylanguage` are directly connected via the `CountryCode` column. No intermediate bridge tables are needed.\n5.  **Construct the Final Schema:**\n    *   **Table Names:** `country`, `countrylanguage`\n    *   **Column Names (with their original table index):**\n        *   `[-1, \"*\"]` (always kept)\n        *   `[2, \"Code\"]` (from `country` table, index 2)\n        *   `[2, \"Population\"]` (from `country` table, index 2)\n        *   `[3, \"CountryCode\"]` (from `countrylanguage` table, index 3)\n        *   `[3, \"Language\"]` (from `countrylanguage` table, index 3)\n\nThis set of tables and columns is minimal and sufficient to answer the question, preserving all necessary join paths and data points.```json\n{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[\"-1\", \"*\"], [\"2\", \"Code\"], [\"2\", \"Population\"], [\"3\", \"CountryCode\"], [\"3\", \"Language\"]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:10:39.786538"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:10:39.787494"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT SUM(country.Population) AS total_population FROM country WHERE NOT EXISTS (SELECT 1 FROM countrylanguage WHERE country.Code = countrylanguage.CountryCode AND countrylanguage.Language = 'English')\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:10:39.788333",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "sum(country.population) as total_population"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where country.code = countrylanguage.countrycode and countrylanguage.language = 'english'",
+                "where not exists(select 1 from countrylanguage where country.code = countrylanguage.countrycode and countrylanguage.language = 'english')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "sum(country.population) as total_population"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where country.code = countrylanguage.countrycode and countrylanguage.language = 'english'",
+                "where not exists(select 1 from countrylanguage where country.code = countrylanguage.countrycode and countrylanguage.language = 'english')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:10:39.788339",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "sum(country.population) as total_population"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where country.code = countrylanguage.countrycode and countrylanguage.language = 'english'",
+                "where not exists(select 1 from countrylanguage where country.code = countrylanguage.countrycode and countrylanguage.language = 'english')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "sum(country.population) as total_population"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where country.code = countrylanguage.countrycode and countrylanguage.language = 'english'",
+                "where not exists(select 1 from countrylanguage where country.code = countrylanguage.countrycode and countrylanguage.language = 'english')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Candidates are structurally equivalent and semantic audits pass; kept Direct.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:10:39.794610"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:10:39.796769",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "sum(country.population) as total_population"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [],
+          "where": [
+            "where country.code = countrylanguage.countrycode and countrylanguage.language = 'english'",
+            "where not exists(select 1 from countrylanguage where country.code = countrylanguage.countrycode and countrylanguage.language = 'english')"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT SUM(country.Population) AS total_population FROM country WHERE NOT EXISTS(SELECT 1 FROM countrylanguage WHERE country.Code = countrylanguage.CountryCode AND countrylanguage.Language = 'English')",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:10:39.799382"
+}

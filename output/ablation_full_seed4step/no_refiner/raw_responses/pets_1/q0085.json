@@ -1,0 +1,337 @@
+{
+  "question_index": 85,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "pets_1",
+  "question": "Find the average age of students who do not have any pet .",
+  "gold_query": "select avg(age) from student where stuid not in (select stuid from has_pet)",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"AVG(Age)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"Age\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Student\", \"column\": \"StuID\", \"operator\": \"NOT IN\", \"value\": \"(SELECT StuID FROM Has_Pet)\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"reason\": \"to exclude students with pets\"}],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\"], \"columns\": [\"Age\", \"StuID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:10:04.867248"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"pets_1\",\n  \"table_names_original\": [\n    \"Student\",\n    \"Has_Pet\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"StuID\"\n    ],\n    [\n      0,\n      \"Age\"\n    ],\n    [\n      1,\n      \"StuID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      2,\n      0\n    ]\n  ],\n  \"primary_keys\": [\n    0\n  ],\n  \"column_sample_values\": []\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:10:04.870554"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.916,
+      "raw_response": "{\n  \"steps\": [\n    \"Identify the target aggregation AVG(Age) from the Student table\",\n    \"Filter out students who have pets by asserting Student.StuID NOT IN (SELECT Has_Pet.StuID FROM Has_Pet)\",\n    \"No explicit join needed as subquery handles relation check\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"Student\",\n      \"column\": \"Age\",\n      \"agg\": \"AVG\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [],\n  \"predicates\": [\n    {\n      \"scope_id\": \"main\",\n      \"branch_id\": \"main\",\n      \"expression\": \"Student.StuID NOT IN (SELECT Has_Pet.StuID FROM Has_Pet)\"\n    }\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3380,
+        "prompt_tokens": 2130,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1250,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:10:11.802999"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT AVG(Age) FROM Student WHERE StuID NOT IN (SELECT StuID FROM Has_Pet)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:10:11.805709",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where not stuid in (select stuid from has_pet)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where not stuid in (select stuid from has_pet)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.686,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT AVG(Age) FROM Student WHERE StuID NOT IN (SELECT StuID FROM Has_Pet)\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2334,
+        "prompt_tokens": 2281,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 53,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T03:10:13.513590",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where not stuid in (select stuid from has_pet)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where not stuid in (select stuid from has_pet)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:10:13.523533"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.214,
+      "raw_response": "{\n  \"sql\": \"SELECT AVG(Age) FROM Student WHERE NOT StuID IN (SELECT StuID FROM Has_Pet)\",\n  \"explain\": \"The query is semantically correct and passes all deterministic and semantic validation checks without violations.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3129,
+        "prompt_tokens": 2086,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1043,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:10:19.761291",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(age)"
+          ],
+          "tables": [
+            "has_pet",
+            "student"
+          ],
+          "joins": [],
+          "where": [
+            "where not stuid in (select stuid from has_pet)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: has_pet",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(age)"
+          ],
+          "tables": [
+            "has_pet",
+            "student"
+          ],
+          "joins": [],
+          "where": [
+            "where not stuid in (select stuid from has_pet)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: has_pet",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT AVG(Age) FROM Student WHERE NOT StuID IN (SELECT StuID FROM Has_Pet)",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:10:19.772633"
+}

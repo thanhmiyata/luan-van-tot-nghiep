@@ -1,0 +1,379 @@
+{
+  "question_index": 266,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "employee_hire_evaluation",
+  "question": "Find the cities that have more than one employee under age 30.",
+  "gold_query": "SELECT city FROM employee WHERE age  <  30 GROUP BY city HAVING count(*)  >  1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"City\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"employee\", \"column\": \"City\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"employee\", \"column\": \"Age\", \"operator\": \"<\", \"value\": \"30\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [{\"table\": \"employee\", \"column\": \"City\"}],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"employee\"], \"columns\": [\"City\", \"Age\"], \"values\": [\"30\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:22:53.333130"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema to include only the necessary tables and columns for the query: \"Find the cities that have more than one employee under age 30.\"\n\n1.  **Identify required tables**: From the `Analysis`, the `employee` table is listed in `entities.tables` and is used for `output_fields_detailed`, `filters`, and `group_by`. No other tables are mentioned or needed to link `employee` to itself.\n2.  **Identify required columns from `employee` table**:\n    *   `City`: For output and group by. (column index 4 in original schema)\n    *   `Age`: For filter (`Age < 30`). (column index 3 in original schema)\n    *   `Employee_ID`: This column is implicitly needed for the \"more than one employee\" part, as we need to count employees within each city. Also, it's the Primary Key (PK) of the `employee` table, and PKs of kept tables should generally be preserved. (column index 1 in original schema)\n3.  **Preserve PK/FKs**:\n    *   The `employee` table's PK is `Employee_ID` (original index 1). This must be kept.\n    *   No FKs within the `employee` table itself, and no other tables are being kept, so no FKs need to be preserved for joins between kept tables.\n4.  **Construct the new schema**:\n    *   `db_id`: Remains the same.\n    *   `table_names_original`: Only `employee` (index 0).\n    *   `column_names_original`: Select `Employee_ID`, `Age`, `City` from `employee`, along with the mandatory `*` column.\n        *   Original indices: `*` (-1), `Employee_ID` (1), `Age` (3), `City` (4).\n        *   New mapping:\n            *   `[-1,\"*\"]` -> `[-1,\"*\"]` (new index 0 for `*`)\n            *   `[0,\"Employee_ID\"]` (original index 1) -> `[0,\"Employee_ID\"]` (new index 1)\n            *   `[0,\"Age\"]` (original index 3) -> `[0,\"Age\"]` (new index 2)\n            *   `[0,\"City\"]` (original index 4) -> `[0,\"City\"]` (new index 3)\n    *   `column_types`: Map types based on the selected columns and their original types.\n        *   `*`: `text`\n        *   `Employee_ID` (original index 1): `number`\n        *   `Age` (original index 3): `number`\n        *   `City` (original index 4): `text`\n    *   `foreign_keys`: Empty, as only one table is kept and no cross-table joins are needed.\n    *   `primary_keys`: `Employee_ID` is the PK. Its new index is 1. So, `[1]`.\n    *   `column_sample_values`: Filter and re-index samples corresponding to the kept columns.\n        *   `*`: `[]`\n        *   `Employee_ID`: `[]` (original was `[]`)\n        *   `Age`: `[]` (original was `[]`)\n        *   `City`: `[\"Bristol\",\"Bath\",\"Wasps\",\"Sale\"]` (original was at index 4)```json\n{\n  \"db_id\": \"employee_hire_evaluation\",\n  \"table_names_original\": [\n    \"employee\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Employee_ID\"\n    ],\n    [\n      0,\n      \"Age\"\n    ],\n    [\n      0,\n      \"City\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [\n      \"Bristol\",\n      \"Bath\",\n      \"Wasps\",\n      \"Sale\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:22:53.335456"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:22:53.336687"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:22:53.337679",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "city"
+              ],
+              "tables": [
+                "employee"
+              ],
+              "joins": [],
+              "where": [
+                "where age < 30"
+              ],
+              "group_by": [
+                "group by city"
+              ],
+              "having": [
+                "having count(*) > 1"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "city"
+              ],
+              "tables": [
+                "employee"
+              ],
+              "joins": [],
+              "where": [
+                "where age < 30"
+              ],
+              "group_by": [
+                "group by city"
+              ],
+              "having": [
+                "having count(*) > 1"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:22:53.337689",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "city"
+              ],
+              "tables": [
+                "employee"
+              ],
+              "joins": [],
+              "where": [
+                "where age < 30"
+              ],
+              "group_by": [
+                "group by city"
+              ],
+              "having": [
+                "having count(*) > 1"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "city"
+              ],
+              "tables": [
+                "employee"
+              ],
+              "joins": [],
+              "where": [
+                "where age < 30"
+              ],
+              "group_by": [
+                "group by city"
+              ],
+              "having": [
+                "having count(*) > 1"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.071,
+      "raw_response": "{\n  \"sql\": \"SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1\",\n  \"selected_candidate\": \"direct\",\n  \"notes\": \"Both candidates are valid, identical, and correctly answer the question.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 2941,
+        "prompt_tokens": 2420,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 521,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:22:56.429248",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "city"
+          ],
+          "tables": [
+            "employee"
+          ],
+          "joins": [],
+          "where": [
+            "where age < 30"
+          ],
+          "group_by": [
+            "group by city"
+          ],
+          "having": [
+            "having count(*) > 1"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.427,
+      "raw_response": "{\n  \"sql\": \"SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1\",\n  \"explain\": \"The query is semantically and deterministically valid, correctly identifying cities with more than one employee under age 30.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2506,
+        "prompt_tokens": 2046,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 460,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:22:59.885770",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "city"
+          ],
+          "tables": [
+            "employee"
+          ],
+          "joins": [],
+          "where": [
+            "where age < 30"
+          ],
+          "group_by": [
+            "group by city"
+          ],
+          "having": [
+            "having count(*) > 1"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "city"
+          ],
+          "tables": [
+            "employee"
+          ],
+          "joins": [],
+          "where": [
+            "where age < 30"
+          ],
+          "group_by": [
+            "group by city"
+          ],
+          "having": [
+            "having count(*) > 1"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:22:59.897269"
+}

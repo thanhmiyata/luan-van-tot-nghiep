@@ -1,0 +1,407 @@
+{
+  "question_index": 24,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "concert_singer",
+  "question": "Show the stadium name and capacity with most number of concerts in year 2014 or after.",
+  "gold_query": "SELECT T2.name ,  T2.capacity FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id  =  T2.stadium_id WHERE T1.year  >=  2014 GROUP BY T2.stadium_id ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\", \"Capacity\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"stadium\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"stadium\", \"column\": \"Capacity\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [\n    {\"table\": \"concert\", \"column\": \"Year\", \"operator\": \">=\", \"value\": \"2014\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [\n    {\"table\": \"stadium\", \"column\": \"Stadium_ID\"}\n  ],\n  \"order_by\": [\n    {\"table\": null, \"column\": \"concert_count\", \"direction\": \"DESC\"}\n  ],\n  \"join_hints\": [\n    {\"from_table\": \"concert\", \"to_table\": \"stadium\", \"reason\": \"concert uses stadium\"}\n  ],\n  \"entities\": {\"tables\": [\"stadium\", \"concert\"], \"columns\": [\"Name\", \"Capacity\", \"Year\"], \"values\": [\"2014\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:48:22.120525"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"concert_singer\",\n  \"table_names_original\": [\n    \"stadium\",\n    \"concert\"\n  ],\n  \"column_names_original\": [\n    [0, \"Stadium_ID\"],\n    [0, \"Name\"],\n    [0, \"Capacity\"],\n    [1, \"concert_ID\"],\n    [1, \"Stadium_ID\"],\n    [1, \"Year\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [4, 0]\n  ],\n  \"primary_keys\": [\n    0,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"Stark's Park\",\n      \"Somerset Park\",\n      \"Bayview Stadium\",\n      \"Hampden Park\"\n    ],\n    [],\n    [],\n    [\n      \"1\",\n      \"2\",\n      \"10\",\n      \"9\"\n    ],\n    [\n      \"2014\",\n      \"2015\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:48:22.123383"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:48:22.124769"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT stadium.Name, stadium.Capacity FROM stadium JOIN concert ON stadium.Stadium_ID = concert.Stadium_ID WHERE concert.Year >= 2014 GROUP BY stadium.Stadium_ID ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:48:22.125907",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "stadium.name",
+                "stadium.capacity"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "join concert on stadium.stadium_id = concert.stadium_id"
+              ],
+              "where": [
+                "where concert.year >= 2014"
+              ],
+              "group_by": [
+                "group by stadium.stadium_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "stadium.name",
+                "stadium.capacity"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "join concert on stadium.stadium_id = concert.stadium_id"
+              ],
+              "where": [
+                "where concert.year >= 2014"
+              ],
+              "group_by": [
+                "group by stadium.stadium_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:48:22.125915",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "stadium.name",
+                "stadium.capacity"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "join concert on stadium.stadium_id = concert.stadium_id"
+              ],
+              "where": [
+                "where concert.year >= 2014"
+              ],
+              "group_by": [
+                "group by stadium.stadium_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "stadium.name",
+                "stadium.capacity"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "join concert on stadium.stadium_id = concert.stadium_id"
+              ],
+              "where": [
+                "where concert.year >= 2014"
+              ],
+              "group_by": [
+                "group by stadium.stadium_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 15.012,
+      "raw_response": "{\"sql\": \"SELECT stadium.Name, stadium.Capacity FROM stadium JOIN concert ON stadium.Stadium_ID = concert.Stadium_ID WHERE concert.Year >= 2014 GROUP BY stadium.Stadium_ID ORDER BY COUNT(*) DESC LIMIT 1\", \"selected_candidate\": \"direct\", \"notes\": \"Both direct and",
+      "token_usage": {
+        "total_tokens": 4887,
+        "prompt_tokens": 2843,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:48:37.160235",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "stadium.name",
+            "stadium.capacity"
+          ],
+          "tables": [
+            "concert",
+            "stadium"
+          ],
+          "joins": [
+            "join concert on stadium.stadium_id = concert.stadium_id"
+          ],
+          "where": [
+            "where concert.year >= 2014"
+          ],
+          "group_by": [
+            "group by stadium.stadium_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.374,
+      "raw_response": "{\n  \"sql\": \"SELECT stadium.Name, stadium.Capacity FROM stadium JOIN concert ON stadium.Stadium_ID = concert.Stadium_ID WHERE concert.Year >= 2014 GROUP BY stadium.Stadium_ID ORDER BY COUNT(*) DESC LIMIT 1\",\n  \"explain\": \"The input SQL is valid and fulfills all semantic and schema requirements.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3051,
+        "prompt_tokens": 2468,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 583,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:48:41.565747",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "stadium.name",
+            "stadium.capacity"
+          ],
+          "tables": [
+            "concert",
+            "stadium"
+          ],
+          "joins": [
+            "join concert on stadium.stadium_id = concert.stadium_id"
+          ],
+          "where": [
+            "where concert.year >= 2014"
+          ],
+          "group_by": [
+            "group by stadium.stadium_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "stadium.name",
+            "stadium.capacity"
+          ],
+          "tables": [
+            "concert",
+            "stadium"
+          ],
+          "joins": [
+            "join concert on stadium.stadium_id = concert.stadium_id"
+          ],
+          "where": [
+            "where concert.year >= 2014"
+          ],
+          "group_by": [
+            "group by stadium.stadium_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT stadium.Name, stadium.Capacity FROM stadium JOIN concert ON stadium.Stadium_ID = concert.Stadium_ID WHERE concert.Year >= 2014 GROUP BY stadium.Stadium_ID ORDER BY COUNT(*) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T02:48:41.581175"
+}

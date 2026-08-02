@@ -1,0 +1,69 @@
+{
+  "question_index": 817,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "What are the country codes of the different countries, and what are the languages spoken by the greatest percentage of people for each?",
+  "gold_query": "SELECT LANGUAGE ,  CountryCode ,  max(Percentage) FROM countrylanguage GROUP BY CountryCode",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.513,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Code\", \"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"country\", \"column\": \"Code\"}],\n  \"order_by\": [{\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"to link countries with their languages using CountryCode\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Code\", \"Language\", \"Percentage\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1234,
+        "prompt_tokens": 978,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 256,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:59:35.314905"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 20.418,
+      "raw_response": "{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[-1, \"*\"], [0, \"Code\"], [1, \"CountryCode\"], [1, \"Language\"], [1, \"Percentage\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\", \"number\"], \"foreign_keys\": [[2, 1]], \"primary_keys\": [1, 2]}",
+      "token_usage": {
+        "total_tokens": 5511,
+        "prompt_tokens": 844,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4667,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:59:55.734653"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.678,
+      "raw_response": "{\"sql\": \"SELECT c.Code, cl.Language FROM country c JOIN countrylanguage cl ON c.Code = cl.CountryCode WHERE cl.Percentage = (SELECT MAX(cl2.Percentage) FROM countrylanguage cl2 WHERE cl2.CountryCode = cl.CountryCode)\"}",
+      "token_usage": {
+        "total_tokens": 1076,
+        "prompt_tokens": 936,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 140,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:59:57.415855"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.297,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, ensuring it meets all the specified criteria.\n\nHere's the plan:\n1.  **Check SELECT clause:** Verify that `SELECT c.Code, cl.Language` matches `expected_output_fields` (`[\"Code\", \"Language\"]`) in content and order.\n2.  **Check Joins:**\n    *   `JOIN countrylanguage cl ON c.Code = cl.CountryCode`: This join is correct (`country.Code` is PK, `countrylanguage.CountryCode` is FK).\n    *   No unnecessary joins.\n3.  **Check WHERE clause:**\n    *   `WHERE cl.Percentage = (SELECT MAX(cl2.Percentage) FROM countrylanguage cl2 WHERE cl2.CountryCode = cl.CountryCode)`: This subquery correctly identifies the language with the maximum percentage for *each* country.\n4.  **Check ORDER BY:** The analysis `order_by` suggests `[{\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"direction\": \"DESC\"}]`, but the question doesn't explicitly ask for ordering. The current SQL does not have an `ORDER BY` clause, which is generally good unless explicitly asked. The validation criteria states \"remove ORDER BY unless asked\". The question asks \"What are the country codes... and what are the languages...\", which doesn't imply an order. So, no `ORDER BY` is correct.\n5.  **Check Column/Table Names:** `country`, `countrylanguage`, `Code`, `CountryCode`, `Language`, `Percentage` all exist in the schema.\n6.  **SQL completeness and formatting:** Ensure it's a single line and complete.\n\nLet's break down the `SELECT` clause and `expected_output_fields` again.\n`expected_output_fields`: `[\"Code\", \"Language\"]`\n`SQL SELECT`: `c.Code, cl.Language`\nThis matches perfectly in content and order.\n\nThe SQL correctly uses a correlated subquery to find the language with the highest percentage for each country. This is a common and correct pattern for this type of problem.\n\nNo issues found. The SQL seems correct and adheres to all validation rules.{\n \"sql\": \"SELECT c.Code, cl.Language FROM country c JOIN countrylanguage cl ON c.Code = cl.CountryCode WHERE cl.Percentage = (SELECT MAX(cl2.Percentage) FROM countrylanguage cl2 WHERE cl2.CountryCode = cl.CountryCode)\",\n \"explain\": \"The SELECT clause matches the expected output fields and order. The join is correct using PK/FK. The WHERE clause correctly identifies the language with the maximum percentage for each country using a correlated subquery. No unnecessary ORDER BY is present as it was not explicitly requested. All table and column names exist in the schema. The SQL is complete and on one line.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1389,
+        "prompt_tokens": 767,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 622,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:00:00.715479"
+    }
+  ],
+  "final_sql": "SELECT c.Code, cl.Language FROM country c JOIN countrylanguage cl ON c.Code = cl.CountryCode WHERE cl.Percentage = (SELECT MAX(cl2.Percentage) FROM countrylanguage cl2 WHERE cl2.CountryCode = cl.CountryCode)",
+  "explain": "The SELECT clause matches the expected output fields and order. The join is correct using PK/FK. The WHERE clause correctly identifies the language with the maximum percentage for each country using a correlated subquery. No unnecessary ORDER BY is present as it was not explicitly requested. All table and column names exist in the schema. The SQL is complete and on one line.",
+  "error": "",
+  "timestamp": "2026-07-24T00:00:00.717592"
+}

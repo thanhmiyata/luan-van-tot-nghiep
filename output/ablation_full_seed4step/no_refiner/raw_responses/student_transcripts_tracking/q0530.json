@@ -1,0 +1,365 @@
+{
+  "question_index": 530,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "student_transcripts_tracking",
+  "question": "For each semester, what is the name and id of the one with the most students registered?",
+  "gold_query": "SELECT T1.semester_name ,  T1.semester_id FROM Semesters AS T1 JOIN Student_Enrolment AS T2 ON T1.semester_id  =  T2.semester_id GROUP BY T1.semester_id ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"semester_name\", \"semester_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Semesters\", \"column\": \"semester_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Semesters\", \"column\": \"semester_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Semesters\", \"column\": \"semester_id\"}],\n  \"order_by\": [{\"table\": \"Student_Enrolment\", \"column\": \"COUNT(student_id)\", \"direction\": \"DESC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Semesters\", \"reason\": \"to associate enrollments with semesters\"}\n  ],\n  \"entities\": {\"tables\": [\"Semesters\", \"Student_Enrolment\"], \"columns\": [\"semester_id\", \"semester_name\", \"student_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:42.131633"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n\"db_id\": \"student_transcripts_tracking\",\n\"table_names_original\": [\n\"Semesters\",\n\"Student_Enrolment\"\n],\n\"column_names_original\": [\n[-1, \"*\"],\n[0, \"semester_id\"],\n[0, \"semester_name\"],\n[1, \"student_enrolment_id\"],\n[1, \"semester_id\"],\n[1, \"student_id\"]\n],\n\"column_types\": [\n\"text\",\n\"number\",\n\"text\",\n\"number\",\n\"number\",\n\"number\"\n],\n\"foreign_keys\": [\n[4, 1]\n],\n\"primary_keys\": [\n1,\n3\n],\n\"column_sample_values\": [\n[],\n[],\n[\n\"spring 2010\",\n\"summer 2010\",\n\"fall 2010\",\n\"winter 2010\"\n],\n[],\n[],\n[]\n]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:11:42.135629"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 9.466,
+      "raw_response": "{\n  \"steps\": [\n    \"Join Semesters and Student_Enrolment on semester_id.\",\n    \"Select semester_name and semester_id.\",\n    \"Count the number of student_id in Student_Enrolment table for each semester.\",\n    \"Group by semester_id and semester_name.\",\n    \"Order the result by COUNT(*) DESC within each group.\",\n    \"Select the top result per semester using a subquery.\"\n  ],\n  \"select\": [\n    {\"table\": \"Semesters\", \"column\": \"semester_name\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"Semesters\", \"column\": \"semester_id\", \"agg\": \"NONE\", \"order_index\": 1}\n  ],\n  \"joins\": [\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Semesters\", \"condition\": \"Student_Enrolment.semester_id = Semesters.semester_id\"}\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\"table\": \"Semesters\", \"column\": \"semester_id\"},\n    {\"table\": \"Semesters\", \"column\": \"semester_name\"}\n  ],\n  \"having\": [],\n  \"order_by\": [\n    {\"table\": \"Student_Enrolment\", \"column\": \"COUNT(*)\", \"direction\": \"DESC\"}\n  ],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 4381,
+        "prompt_tokens": 3813,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 568,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:51.618042"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT s.semester_name, s.semester_id FROM Semesters s JOIN Student_Enrolment se ON s.semester_id = se.semester_id GROUP BY s.semester_id, s.semester_name ORDER BY COUNT(se.student_id) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:51.621988",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s.semester_name",
+                "s.semester_id"
+              ],
+              "tables": [
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [
+                "join student_enrolment as se on s.semester_id = se.semester_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s.semester_id, s.semester_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(se.student_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s0.semester_name",
+                "s0.semester_id"
+              ],
+              "tables": [
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [
+                "inner join student_enrolment as s1 on s0.semester_id = s1.semester_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s0.semester_id, s0.semester_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(s1.student_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.591,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT s0.semester_name, s0.semester_id FROM Semesters AS s0 INNER JOIN Student_Enrolment AS s1 ON s0.semester_id = s1.semester_id GROUP BY s0.semester_id, s0.semester_name ORDER BY COUNT(s1.student_id) DESC LIMIT 1\", \"disagreement_reason\": \"\"}",
+      "token_usage": {
+        "total_tokens": 4254,
+        "prompt_tokens": 4160,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 94,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:53.231564",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s.semester_name",
+                "s.semester_id"
+              ],
+              "tables": [
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [
+                "join student_enrolment as se on s.semester_id = se.semester_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s.semester_id, s.semester_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(se.student_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s0.semester_name",
+                "s0.semester_id"
+              ],
+              "tables": [
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [
+                "inner join student_enrolment as s1 on s0.semester_id = s1.semester_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s0.semester_id, s0.semester_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(s1.student_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:11:53.245858"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.546,
+      "raw_response": "{\"sql\": \"SELECT s.semester_name, s.semester_id FROM Semesters AS s JOIN Student_Enrolment AS se ON s.semester_id = se.semester_id GROUP BY s.semester_id, s.semester_name ORDER BY COUNT(se.student_id) DESC LIMIT 1\", \"explain\": \"The SQL correctly joins Semesters with Student_Enrolment on semester_id, groups by semester_id and semester_name, orders by the number of enrollments in descending order, and limits the result to one. There are no errors in both deterministic and semantic reports.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 4054,
+        "prompt_tokens": 3920,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 134,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:54.813983",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "s.semester_name",
+            "s.semester_id"
+          ],
+          "tables": [
+            "semesters",
+            "student_enrolment"
+          ],
+          "joins": [
+            "join student_enrolment as se on s.semester_id = se.semester_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by s.semester_id, s.semester_name"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(se.student_id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "s.semester_name",
+            "s.semester_id"
+          ],
+          "tables": [
+            "semesters",
+            "student_enrolment"
+          ],
+          "joins": [
+            "join student_enrolment as se on s.semester_id = se.semester_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by s.semester_id, s.semester_name"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(se.student_id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT s.semester_name, s.semester_id FROM Semesters AS s JOIN Student_Enrolment AS se ON s.semester_id = se.semester_id GROUP BY s.semester_id, s.semester_name ORDER BY COUNT(se.student_id) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:11:54.827615"
+}

@@ -1,0 +1,407 @@
+{
+  "question_index": 97,
+  "pipeline": "6step",
+  "run_signature": "ac7fb161ec76b03cd381",
+  "db_id": "car_1",
+  "question": "Find the model of the car whose weight is below the average weight.",
+  "gold_query": "SELECT T1.model FROM CAR_NAMES AS T1 JOIN CARS_DATA AS T2 ON T1.MakeId  =  T2.Id WHERE T2.Weight  <  (SELECT avg(Weight) FROM CARS_DATA)",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Model\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"model_list\", \"cars_data\"],\n  \"required_columns\": [\n    {\"table\": \"model_list\", \"column\": \"Model\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"cars_data\", \"column\": \"Weight\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"model_list\", \"column\": \"Model\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [{\n    \"scope_id\": \"s1\",\n    \"branch_id\": \"b1\",\n    \"table\": \"cars_data\",\n    \"column\": \"Weight\",\n    \"operator\": \"<\",\n    \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"AVG\", \"table\": \"cars_data\", \"column\": \"Weight\"},\n    \"value_type\": \"SUBQUERY\"\n  }],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter weight below average weight\"}],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [{\"table\": \"cars_data\", \"column\": \"Weight\", \"operator\": \"<\", \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"AVG\", \"table\": \"cars_data\", \"column\": \"Weight\"}}],\n  \"join_hints\": [{\"from_table\": \"model_list\", \"to_table\": \"cars_data\", \"reason\": \"Use Weight to filter and select Model\"}],\n  \"entities\": {\"tables\": [\"model_list\", \"cars_data\"], \"columns\": [\"Model\", \"Weight\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-27T00:52:09.100357"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"model_list\", \"car_names\", \"cars_data\"], \"column_names_original\": [[\"model_list\", \"ModelId\"], [\"model_list\", \"Model\"], [\"car_names\", \"MakeId\"], [\"car_names\", \"Model\"], [\"cars_data\", \"Id\"], [\"cars_data\", \"Weight\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T00:52:09.103493"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 8.933,
+      "raw_response": "{\n  \"steps\": [\n    \"Join model_list to car_names on Model and car_names to cars_data on MakeId = Id.\",\n    \"Filter rows where cars_data.Weight is less than the average cars_data.Weight.\",\n    \"Select model_list.Model.\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"model_list\",\n      \"column\": \"Model\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"model_list\",\n      \"to_table\": \"car_names\",\n      \"condition\": \"car_names.Model = model_list.Model\"\n    },\n    {\n      \"from_table\": \"car_names\",\n      \"to_table\": \"cars_data\",\n      \"condition\": \"cars_data.Id = car_names.MakeId\"\n    }\n  ],\n  \"predicates\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"expression\": \"cars_data.Weight < (SELECT AVG(cars_data.Weight) FROM cars_data)\"\n    }\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 4724,
+        "prompt_tokens": 2697,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2027,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T00:52:18.051801"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 1,
+      "elapsed_seconds": 1.867,
+      "raw_response": "{\n  \"direct_sql\": \"SELECT c.\\\"Model\\\" FROM \\\"model_list\\\" c JOIN \\\"car_names\\\" cn ON cn.\\\"Model\\\" = c.\\\"Model\\\" JOIN \\\"cars_data\\\" cd ON cd.\\\"Id\\\" = cn.\\\"MakeId\\\" WHERE cd.\\\"Weight\\\" < (SELECT AVG(\\\"Weight\\\") FROM \\\"cars_data\\\")\",\n  \"planned_sql\": \"\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2200,
+        "prompt_tokens": 2100,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 100,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-27T00:52:19.941609",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "c.\"model\""
+              ],
+              "tables": [
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join \"car_names\" as cn on cn.\"model\" = c.\"model\"",
+                "join \"cars_data\" as cd on cd.\"id\" = cn.\"makeid\""
+              ],
+              "where": [
+                "where cd.\"weight\" < (select avg(\"weight\") from \"cars_data\")"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "c.\"model\""
+              ],
+              "tables": [
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join \"car_names\" as cn on cn.\"model\" = c.\"model\"",
+                "join \"cars_data\" as cd on cd.\"id\" = cn.\"makeid\""
+              ],
+              "where": [
+                "where cd.\"weight\" < (select avg(\"weight\") from \"cars_data\")"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 9.58,
+      "raw_response": "{\"direct_sql\": \"SELECT T1.Model FROM model_list AS T",
+      "token_usage": {
+        "total_tokens": 3678,
+        "prompt_tokens": 2914,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 764,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T00:52:29.538736",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "c.\"model\""
+              ],
+              "tables": [
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join \"car_names\" as cn on cn.\"model\" = c.\"model\"",
+                "join \"cars_data\" as cd on cd.\"id\" = cn.\"makeid\""
+              ],
+              "where": [
+                "where cd.\"weight\" < (select avg(\"weight\") from \"cars_data\")"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "c.\"model\""
+              ],
+              "tables": [
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join \"car_names\" as cn on cn.\"model\" = c.\"model\"",
+                "join \"cars_data\" as cd on cd.\"id\" = cn.\"makeid\""
+              ],
+              "where": [
+                "where cd.\"weight\" < (select avg(\"weight\") from \"cars_data\")"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 12.217,
+      "raw_response": "{\"sql\": \"SELECT c.\\\"Model\\\" FROM \\\"model_list\\\" AS c JOIN \\\"car_names\\\" AS cn ON cn.\\\"Model\\\" = c.\\\"Model\\\" JOIN \\\"cars_data\\\" AS cd ON cd.\\\"Id\\\" = cn.\\\"MakeId\\\" WHERE cd.\\\"Weight\\\" < (SELECT AVG(\\\"Weight\\\") FROM \\\"cars_data\\\")\", \"selected_candidate\": \"direct\", \"notes\": \"Direct candidate is valid and passes all",
+      "token_usage": {
+        "total_tokens": 5511,
+        "prompt_tokens": 3467,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T00:52:41.775337",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "c.\"model\""
+          ],
+          "tables": [
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join \"car_names\" as cn on cn.\"model\" = c.\"model\"",
+            "join \"cars_data\" as cd on cd.\"id\" = cn.\"makeid\""
+          ],
+          "where": [
+            "where cd.\"weight\" < (select avg(\"weight\") from \"cars_data\")"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names",
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 9.622,
+      "raw_response": "{\"sql\": \"SELECT c.\\\"Model\\\" FROM \\\"model_list\\\" AS c JOIN \\\"car_names\\\" AS cn ON cn.\\\"Model\\\" = c.\\\"Model\\\" JOIN \\\"cars_data\\\" AS cd ON cd.\\\"Id\\\" = cn.\\\"MakeId\\\" WHERE cd.\\\"Weight\\\" < (SELECT AVG(\\\"Weight\\\") FROM \\\"cars_data\\\")\", \"explain\": \"The query is semantically correct, adheres to all schema constraints, and passes both deterministic and semantic reports without violations.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 5093,
+        "prompt_tokens": 3054,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2039,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T00:52:51.415283",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "c.\"model\""
+          ],
+          "tables": [
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join \"car_names\" as cn on cn.\"model\" = c.\"model\"",
+            "join \"cars_data\" as cd on cd.\"id\" = cn.\"makeid\""
+          ],
+          "where": [
+            "where cd.\"weight\" < (select avg(\"weight\") from \"cars_data\")"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "c.\"model\""
+          ],
+          "tables": [
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join \"car_names\" as cn on cn.\"model\" = c.\"model\"",
+            "join \"cars_data\" as cd on cd.\"id\" = cn.\"makeid\""
+          ],
+          "where": [
+            "where cd.\"weight\" < (select avg(\"weight\") from \"cars_data\")"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT c.\"Model\" FROM \"model_list\" AS c JOIN \"car_names\" AS cn ON cn.\"Model\" = c.\"Model\" JOIN \"cars_data\" AS cd ON cd.\"Id\" = cn.\"MakeId\" WHERE cd.\"Weight\" < (SELECT AVG(\"Weight\") FROM \"cars_data\")",
+  "explain": "The query is semantically correct, adheres to all schema constraints, and passes both deterministic and semantic reports without violations.",
+  "error": "",
+  "timestamp": "2026-07-27T00:52:51.431915",
+  "hybrid_seed_from_4step": {
+    "seed_root": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/nl2sql_4step",
+    "seeded_steps": [
+      "question_analysis",
+      "schema_selector"
+    ],
+    "source_question_index": 97,
+    "source_db_id": "car_1"
+  }
+}

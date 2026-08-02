@@ -1,0 +1,253 @@
+{
+  "question_index": 518,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "student_transcripts_tracking",
+  "question": "How many different departments offer degrees?",
+  "gold_query": "SELECT count(DISTINCT department_id) FROM Degree_Programs",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"COUNT(DISTINCT department_id)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Degree_Programs\", \"column\": \"department_id\", \"agg\": \"COUNT_DISTINCT\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Degree_Programs\", \"to_table\": \"Departments\", \"reason\": \"related by department_id for filtering degrees offered\"}],\n  \"entities\": {\"tables\": [\"Degree_Programs\", \"Departments\"], \"columns\": [\"department_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:10.020852"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema to answer the question \"How many different departments offer degrees?\".\n1.  **Identify the core output**: The analysis states `COUNT(DISTINCT department_id)` from `Degree_Programs`. This means `Degree_Programs.department_id` is essential.\n2.  **Identify necessary tables**:\n    *   `Degree_Programs` is needed because `department_id` comes from it.\n    *   `Degree_Programs.department_id` (original index 19) is a foreign key referring to `Departments.department_id` (original index 14). To preserve this foreign key relationship as per the instructions, the `Departments` table must also be included, along with its primary key `department_id`.\n3.  **Identify necessary columns**:\n    *   From `Degree_Programs`: `department_id` (original index 19) for the COUNT DISTINCT. `degree_program_id` (original index 18) as the primary key for `Degree_Programs`.\n    *   From `Departments`: `department_id` (original index 14) as the primary key for `Departments` and the target of the foreign key from `Degree_Programs`.\n4.  **Re-index columns and tables**: Create new indices for the kept tables and columns.\n    *   **Tables**:\n        *   `Departments` (original index 2) -> new table index 0\n        *   `Degree_Programs` (original index 3) -> new table index 1\n    *   **Columns**:\n        *   `[-1, \"*\"]` -> new column index 0\n        *   `Departments.department_id` (original index 14) -> new column index 1 (table 0)\n        *   `Degree_Programs.degree_program_id` (original index 18) -> new column index 2 (table 1)\n        *   `Degree_Programs.department_id` (original index 19) -> new column index 3 (table 1)\n5.  **Update `column_types`, `foreign_keys`, `primary_keys`, `column_sample_values`**:\n    *   `column_types`: Based on the types of the selected columns (all `number` for the relevant columns). The `[-1,\"*\"]` entry usually has `text` or `number` as a placeholder, I'll use `text` as in the original `column_types` list where `[-1,\"*\"]` would be the first element.\n    *   `foreign_keys`: The original `[19,14]` becomes `[3,1]` in the new indexing.\n    *   `primary_keys`: Original `14` becomes `1`, original `18` becomes `2`. So `[1,2]`.\n    *   `column_sample_values`: Keep empty lists for the corresponding new column indices, mirroring the original schema for these specific PK/FK columns.\n\nThis approach ensures that all columns and tables directly used in the query's output and all necessary PK/FK relationships are preserved, adhering to the \"safe small superset\" principle.```json\n{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Departments\", \"Degree_Programs\"], \"column_names_original\": [[\"-1\", \"*\"], [\"0\", \"department_id\"], [\"1\", \"degree_program_id\"], [\"1\", \"department_id\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [], [], []]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:11:10.023281"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:11:10.024454"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT department_id) FROM Degree_Programs\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:10.025448",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct department_id)"
+              ],
+              "tables": [
+                "degree_programs"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct department_id)"
+              ],
+              "tables": [
+                "degree_programs"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:11:10.025453",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct department_id)"
+              ],
+              "tables": [
+                "degree_programs"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct department_id)"
+              ],
+              "tables": [
+                "degree_programs"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:11:10.028799"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:11:10.030199",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(distinct department_id)"
+          ],
+          "tables": [
+            "degree_programs"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT department_id) FROM Degree_Programs",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:11:10.031932"
+}

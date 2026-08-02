@@ -1,0 +1,367 @@
+{
+  "question_index": 43,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "concert_singer",
+  "question": "Find the number of concerts happened in the stadium with the highest capacity .",
+  "gold_query": "select count(*) from concert where stadium_id = (select stadium_id from stadium order by capacity desc limit 1)",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"concert_count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"concert\", \"column\": \"concert_ID\", \"agg\": \"COUNT\", \"alias\": \"concert_count\", \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"stadium\", \"column\": \"Capacity\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"concert\", \"to_table\": \"stadium\", \"reason\": \"concert occurs in a stadium\"}],\n  \"entities\": {\"tables\": [\"concert\", \"stadium\"], \"columns\": [\"Capacity\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:58:11.841295"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\nThe question asks to \"Find the number of concerts happened in the stadium with the highest capacity\".\nThe analysis identifies the following:\n-   **Tables**: `concert`, `stadium`\n-   **Output**: `COUNT(concert.concert_ID)`\n-   **Filter/Order By**: `stadium.Capacity` (to find the highest capacity stadium)\n-   **Join**: `concert` and `stadium` via `Stadium_ID`.\n\nTherefore, the essential tables are `stadium` and `concert`.\nThe essential columns are:\n1.  `stadium.Stadium_ID` (PK and FK for join)\n2.  `stadium.Capacity` (for identifying the highest capacity)\n3.  `concert.concert_ID` (for counting)\n4.  `concert.Stadium_ID` (FK for join)\n\nI will also include the `[-1, \"*\"]` entry as it's standard for schema representation.\n\nI will perform the following steps:\n1.  Identify all columns (and their original global indices) that are required.\n2.  Create a new `column_names_original` list containing only these required columns.\n3.  Build a mapping from original global indices to new global indices.\n4.  Filter `table_names_original` to include only `stadium` and `concert`.\n5.  Reconstruct `column_types`, `primary_keys`, `foreign_keys`, and `column_sample_values` using the new indices.\n\n**1. Required Columns (and their original global indices):**\n-   `[-1, \"*\"]`: Original index 0\n-   `stadium.Stadium_ID`: Original index 1 (table 0, col \"Stadium_ID\")\n-   `stadium.Capacity`: Original index 4 (table 0, col \"Capacity\")\n-   `concert.concert_ID`: Original index 15 (table 2, col \"concert_ID\")\n-   `concert.Stadium_ID`: Original index 18 (table 2, col \"Stadium_ID\")\n\n**2. New `column_names_original` and index mapping:**\nOriginal global index | New global index | Column Name\n---------------------|------------------|---------------------------\n0                    | 0                | `[-1, \"*\"]`\n1                    | 1                | `[0, \"Stadium_ID\"]`\n4                    | 2                | `[0, \"Capacity\"]`\n15                   | 3                | `[2, \"concert_ID\"]`\n18                   | 4                | `[2, \"Stadium_ID\"]`\n\n`filtered_column_names_original = [[-1, \"*\"], [0, \"Stadium_ID\"], [0, \"Capacity\"], [2, \"concert_ID\"], [2, \"Stadium_ID\"]]`\n\n**3. Filter `table_names_original`:**\n`filtered_table_names_original = [\"stadium\", \"concert\"]`\n\n**4. Reconstruct `column_types`:**\nOriginal types at corresponding original indices:\n-   Index 0: \"text\"\n-   Index 1: \"number\"\n-   Index 4: \"number\"\n-   Index 15: \"number\"\n-   Index 18: \"text\"\n`filtered_column_types = [\"text\", \"number\", \"number\", \"number\", \"text\"]`\n\n**5. Reconstruct `primary_keys`:**\nOriginal PKs: `[1, 8, 15, 20]`\nRelevant PKs are `1` (stadium.Stadium_ID) and `15` (concert.concert_ID).\nUsing the mapping:\n-   Original index 1 -> New index 1\n-   Original index 15 -> New index 3\n`filtered_primary_keys = [1, 3]`\n\n**6. Reconstruct `foreign_keys`:**\nOriginal FKs: `[[18,1], [21,8], [20,15]]`\nThe relevant FK for the join is `[18,1]` (`concert.Stadium_ID` references `stadium.Stadium_ID`).\nUsing the mapping:\n-   FK column original index 18 -> New index 4\n-   Referenced PK column original index 1 -> New index 1\n`filtered_foreign_keys = [[4, 1]]`\n\n**7. Reconstruct `column_sample_values`:**\nOriginal samples at corresponding original indices:\n-   Index 0: `[]`\n-   Index 1: `[]`\n-   Index 4: `[]`\n-   Index 15: `[]`\n-   Index 18: `[\"1\",\"2\",\"10\",\"9\"]`\n`filtered_column_sample_values = [[], [], [], [], [\"1\",\"2\",\"10\",\"9\"]]`\n\n```json\n{\n  \"db_id\": \"concert_singer\",\n  \"table_names_original\": [\n    \"stadium\",\n    \"concert\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Stadium_ID\"\n    ],\n    [\n      0,\n      \"Capacity\"\n    ],\n    [\n      2,\n      \"concert_ID\"\n    ],\n    [\n      2,\n      \"Stadium_ID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    [\n      \"1\",\n      \"2\",\n      \"10\",\n      \"9\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:58:11.843486"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 8.113,
+      "raw_response": "{\n  \"steps\": [\n    \"Join concert table with stadium table on Stadium_ID.\",\n    \"Group by stadium.Stadium_ID to aggregate concerts per stadium.\",\n    \"Order the grouped results by stadium.Capacity in descending order.\",\n    \"Apply LIMIT 1 to select the stadium with the highest capacity and return the count of concerts using COUNT(*).\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"concert\",\n      \"column\": \"*\",\n      \"agg\": \"COUNT\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"concert\",\n      \"to_table\": \"stadium\",\n      \"condition\": \"concert.Stadium_ID = stadium.Stadium_ID\"\n    }\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\n      \"table\": \"stadium\",\n      \"column\": \"Stadium_ID\"\n    }\n  ],\n  \"having\": [],\n  \"order_by\": [\n    {\n      \"table\": \"stadium\",\n      \"column\": \"Capacity\",\n      \"direction\": \"DESC\"\n    }\n  ],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3753,
+        "prompt_tokens": 2200,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1553,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:58:19.973097"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) AS concert_count FROM concert JOIN stadium ON concert.Stadium_ID = stadium.Stadium_ID WHERE stadium.Capacity = (SELECT MAX(Capacity) FROM stadium)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:58:19.975782",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as concert_count"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "join stadium on concert.stadium_id = stadium.stadium_id"
+              ],
+              "where": [
+                "where stadium.capacity = (select max(capacity) from stadium)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "inner join stadium on concert.stadium_id = stadium.stadium_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by stadium.stadium_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by stadium.capacity desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 2.141,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT COUNT(*) FROM concert INNER JOIN stadium ON concert.Stadium_ID = stadium.Stadium_ID GROUP BY stadium.Stadium_ID ORDER BY stadium.Capacity DESC LIMIT 1\", \"disagreement_reason\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2431,
+        "prompt_tokens": 2369,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 62,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:58:22.139473",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as concert_count"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "join stadium on concert.stadium_id = stadium.stadium_id"
+              ],
+              "where": [
+                "where stadium.capacity = (select max(capacity) from stadium)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "inner join stadium on concert.stadium_id = stadium.stadium_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by stadium.stadium_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by stadium.capacity desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:58:22.152179"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 10.107,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) FROM concert INNER JOIN stadium ON concert.Stadium_ID = stadium.Stadium_ID GROUP BY stadium.Stadium_ID ORDER BY stadium.Capacity DESC LIMIT 1\", \"explain\": \"The input SQL passed both deterministic and semantic validation reports without any violations, so it is preserved as valid.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 4372,
+        "prompt_tokens": 2460,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1912,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:58:32.280868",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*)"
+          ],
+          "tables": [
+            "concert",
+            "stadium"
+          ],
+          "joins": [
+            "inner join stadium on concert.stadium_id = stadium.stadium_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by stadium.stadium_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by stadium.capacity desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: concert",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*)"
+          ],
+          "tables": [
+            "concert",
+            "stadium"
+          ],
+          "joins": [
+            "inner join stadium on concert.stadium_id = stadium.stadium_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by stadium.stadium_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by stadium.capacity desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: concert",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) FROM concert INNER JOIN stadium ON concert.Stadium_ID = stadium.Stadium_ID GROUP BY stadium.Stadium_ID ORDER BY stadium.Capacity DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T02:58:32.294185"
+}

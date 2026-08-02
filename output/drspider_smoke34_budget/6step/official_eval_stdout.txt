@@ -1,0 +1,87 @@
+extra pred: select teacher.first_name, teacher.last_name, count(*) from teacher join course_arrange on teacher.Teacher_ID = course_arrange.Teacher_ID group by teacher.Teacher_ID
+extra gold: SELECT teacher.first_name , teacher.last_name , count(*) FROM course_arrange JOIN teacher ON course_arrange.Teacher_ID = teacher.Teacher_ID GROUP BY teacher.first_name , teacher.last_name
+
+extra pred: select distinct a.semester_id from Student_Enrolment as a join Degree_Programs as b on a.degree_program_id = b.degree_program_id where (b.is_bachelor = "T") and a.semester_id in (select semester_id from Student_Enrolment join Degree_Programs on Student_Enrolment.degree_program_id = Degree_Programs.degree_program_id where is_master = "T")
+extra gold: SELECT DISTINCT Student_Enrolment.semester_id FROM Degree_Programs JOIN Student_Enrolment ON Degree_Programs.degree_program_id = Student_Enrolment.degree_program_id WHERE Degree_Programs.is_master = "T" INTERSECT SELECT DISTINCT Student_Enrolment.semester_id FROM Degree_Programs JOIN Student_Enrolment ON Degree_Programs.degree_program_id = Student_Enrolment.degree_program_id WHERE Degree_Programs.is_bachelor = "T"
+
+medium pred: select City, cntry from airports where apt_name = "Alton" or City = "Alton" or AirportCode = "and"
+medium gold: SELECT airports.City , airports.cntry FROM airports WHERE airports.apt_name = "Alton"
+
+hard pred: select category_cipher from Ref_Template_Types where not category_cipher in (select T1.template_kind_codification from Templates as T1 join Documents as T2 on T1.Template_ID = T2.Template_ID)
+hard gold: SELECT Templates.template_kind_codification FROM Templates EXCEPT SELECT Templates.template_kind_codification FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID
+
+medium pred: select Name from singer where born_date in (1948, 1949)
+medium gold: SELECT singer.Name FROM singer WHERE singer.born_date = 1948 or singer.born_date = 1949
+
+hard pred: select winner_name from matches where tourney_name = "Australian Open" order by winner_rank asc limit 1
+hard gold: SELECT winner_name FROM matches WHERE tourney_name = 'Australian Open' ORDER BY winner_rank_points DESC LIMIT 1
+
+hard pred: select Name from stadium where not Stadium_ID in (select Stadium_ID from concert where Year = 2014)
+hard gold: SELECT name FROM stadium EXCEPT SELECT T2.name FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id = T2.stadium_id WHERE T1.year = 2014
+
+hard pred: select Template_Type_Code from Ref_Template_Types where not Template_Type_Code in (select T1.Template_Type_Code from Templates as T1 inner join Documents as T2 on T1.Template_ID = T2.Template_ID)
+hard gold: SELECT template_type_code FROM Templates EXCEPT SELECT template_type_code FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id = T2.template_id
+
+easy pred: select distinct Year from cars_data where Weight < 4000 and Weight > 3000
+easy gold: select distinct year from cars_data where weight between 3000 and 4000
+
+hard pred: select Students.first_name from Students left join Addresses on Students.current_address_id = Addresses.address_id or Students.permanent_address_id = Addresses.address_id where Addresses.country = "Haiti" or Students.cell_mobile_number = "09700166582"
+hard gold: select t1.first_name from students as t1 join addresses as t2 on t1.permanent_address_id = t2.address_id where t2.country = 'haiti' or t1.cell_mobile_number = '09700166582'
+
+medium pred: select Ref_Template_Types.Template_Type_Code, count(*) from Ref_Template_Types join Templates on Templates.Template_Type_Code = Ref_Template_Types.Template_Type_Code join Documents on Documents.Template_ID = Templates.Template_ID group by Ref_Template_Types.Template_Type_Code
+medium gold: SELECT T1.template_type_code , count(*) FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id = T2.template_id GROUP BY T1.template_type_code
+
+medium pred: select count(*) from car_makers inner join countries on car_makers.Country = countries.CountryId where countries.CountryName = "france"
+medium gold: SELECT count(*) FROM CAR_MAKERS AS T1 JOIN COUNTRIES AS T2 ON T1.Country = T2.CountryId WHERE T2.CountryName = 'france'
+
+extra pred: select model_list.Model from model_list inner join car_makers on model_list.Maker = car_makers.Id where car_makers.Maker <> "ford" and model_list.ModelId in (select car_names.Model from car_names inner join cars_data on car_names.MakeId = cars_data.Id where cars_data.Weight < 3500)
+extra gold: SELECT DISTINCT T1.model FROM MODEL_LIST AS T1 JOIN CAR_NAMES AS T2 ON T1.Model = T2.Model JOIN CARS_DATA AS T3 ON T2.MakeId = T3.Id JOIN CAR_MAKERS AS T4 ON T1.Maker = T4.Id WHERE T3.weight < 3500 AND T4.FullName != 'Ford Motor Company'
+
+easy pred: select Documents.Document_ID from Documents join Paragraphs on Documents.Document_ID = Paragraphs.Document_ID group by Documents.Document_ID having count(*) >= 3
+easy gold: SELECT document_id FROM Paragraphs GROUP BY document_id HAVING count(*) >= 3
+
+easy pred: select id from TV_Channel where Country in (select Country from TV_Channel group by Country having count(*) < 2)
+easy gold: SELECT id FROM tv_channel GROUP BY country HAVING count(*) < 2
+
+                     easy                 medium               hard                 extra                all                 
+count                8                    14                   6                    6                    34                  
+=====================   EXECUTION ACCURACY     =====================
+execution            1.000                1.000                0.833                0.833                0.941               
+
+====================== EXACT MATCHING ACCURACY =====================
+exact match          0.625                0.714                0.167                0.500                0.559               
+
+---------------------PARTIAL MATCHING ACCURACY----------------------
+select               1.000                1.000                1.000                1.000                1.000               
+select(no AGG)       1.000                1.000                1.000                1.000                1.000               
+where                0.500                0.833                1.000                1.000                0.786               
+where(no OP)         0.500                0.833                1.000                1.000                0.786               
+group(no Having)     1.000                1.000                0.000                0.667                0.857               
+group                1.000                1.000                0.000                0.667                0.857               
+order                1.000                1.000                0.000                1.000                0.857               
+and/or               1.000                0.923                0.833                0.833                0.906               
+IUEN                 0.000                0.000                0.000                0.000                0.000               
+keywords             0.857                0.909                0.500                1.000                0.875               
+---------------------- PARTIAL MATCHING RECALL ----------------------
+select               1.000                0.857                0.333                0.667                0.765               
+select(no AGG)       1.000                0.857                0.333                0.667                0.765               
+where                0.667                0.625                0.667                0.500                0.611               
+where(no OP)         0.667                0.625                0.667                0.500                0.611               
+group(no Having)     0.667                1.000                0.000                0.667                0.750               
+group                0.667                1.000                0.000                0.667                0.750               
+order                1.000                1.000                0.000                1.000                0.857               
+and/or               0.875                0.923                1.000                1.000                0.935               
+IUEN                 0.000                0.000                0.000                0.000                0.000               
+keywords             0.857                0.769                0.167                0.667                0.656               
+---------------------- PARTIAL MATCHING F1 --------------------------
+select               1.000                0.923                0.500                0.800                0.867               
+select(no AGG)       1.000                0.923                0.500                0.800                0.867               
+where                0.571                0.714                0.800                0.667                0.688               
+where(no OP)         0.571                0.714                0.800                0.667                0.688               
+group(no Having)     0.800                1.000                1.000                0.667                0.800               
+group                0.800                1.000                1.000                0.667                0.800               
+order                1.000                1.000                1.000                1.000                0.857               
+and/or               0.933                0.923                0.909                0.909                0.921               
+IUEN                 1.000                1.000                1.000                1.000                1.000               
+keywords             0.857                0.833                0.250                0.800                0.750               
+

@@ -1,0 +1,292 @@
+{
+  "question_index": 847,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "orchestra",
+  "question": "What are the names of conductors who have conducted orchestras founded after the year 2008?",
+  "gold_query": "SELECT T1.Name FROM conductor AS T1 JOIN orchestra AS T2 ON T1.Conductor_ID  =  T2.Conductor_ID WHERE Year_of_Founded  >  2008",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"conductor\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"orchestra\", \"column\": \"Year_of_Founded\", \"operator\": \">\", \"value\": \"2008\", \"value_type\": \"NUMBER\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"orchestra\", \"to_table\": \"conductor\", \"reason\": \"Identify conductors of orchestras founded after 2008 via Conductor_ID\"}],\n  \"entities\": {\"tables\": [\"conductor\", \"orchestra\"], \"columns\": [\"Name\", \"Year_of_Founded\"], \"values\": [\"2008\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:15:32.488624"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the original schema to include only the tables and columns necessary to answer the question: \"What are the names of conductors who have conducted orchestras founded after the year 2008?\".\n\nBased on the analysis:\n1.  **Output**: `conductor.Name`\n2.  **Filter**: `orchestra.Year_of_Founded > 2008`\n3.  **Join**: `orchestra` and `conductor` via `Conductor_ID`. This means we need `orchestra.Conductor_ID` and `conductor.Conductor_ID`.\n\n**Tables to keep**: `conductor` (table_id 0) and `orchestra` (table_id 1).\n\n**Columns to keep (with their original indices and types)**:\n-   `[-1, \"*\"]` (index 0, type \"text\") - Always included.\n-   `conductor.Conductor_ID` (original index 1, type \"number\") - PK, and part of the join.\n-   `conductor.Name` (original index 2, type \"text\") - Required for output.\n-   `orchestra.Orchestra_ID` (original index 6, type \"number\") - PK of `orchestra` table.\n-   `orchestra.Conductor_ID` (original index 8, type \"number\") - FK, part of the join.\n-   `orchestra.Year_of_Founded` (original index 10, type \"number\") - Required for the filter condition.\n\nNow, I will construct the new schema components:\n\n1.  **`db_id`**: \"orchestra\" (remains the same)\n2.  **`table_names_original`**: `[\"conductor\", \"orchestra\"]` (only tables 0 and 1 are needed, so they retain their original names and order)\n3.  **`column_names_original`**: Re-map the selected columns with new sequential indices, starting from 0 for `*`.\n    -   `[-1, \"*\"]` (new index 0)\n    -   `[0, \"Conductor_ID\"]` (new index 1, original index 1)\n    -   `[0, \"Name\"]` (new index 2, original index 2)\n    -   `[1, \"Orchestra_ID\"]` (new index 3, original index 6)\n    -   `[1, \"Conductor_ID\"]` (new index 4, original index 8)\n    -   `[1, \"Year_of_Founded\"]` (new index 5, original index 10)\n4.  **`column_types`**: Based on the re-mapped `column_names_original` and their original types.\n    -   \"text\" (`*`)\n    -   \"number\" (`Conductor_ID` from `conductor`)\n    -   \"text\" (`Name` from `conductor`)\n    -   \"number\" (`Orchestra_ID` from `orchestra`)\n    -   \"number\" (`Conductor_ID` from `orchestra`)\n    -   \"number\" (`Year_of_Founded` from `orchestra`)\n5.  **`foreign_keys`**: Only `orchestra.Conductor_ID` (original index 8) referencing `conductor.Conductor_ID` (original index 1) is needed.\n    -   New index for original 8 is 4.\n    -   New index for original 1 is 1.\n    -   So, `[[4, 1]]`\n6.  **`primary_keys`**: `conductor.Conductor_ID` (original index 1) and `orchestra.Orchestra_ID` (original index 6).\n    -   New index for original 1 is 1.\n    -   New index for original 6 is 3.\n    -   So, `[1, 3]`\n7.  **`column_sample_values`**: Filtered based on the new `column_names_original` order.\n    -   Original 0 (`*`): `[]` -> new `[]`\n    -   Original 1 (`conductor.Conductor_ID`): `[]` -> new `[]`\n    -   Original 2 (`conductor.Name`): `[\"Antal Doráti\",\"Igor Stravinsky\",\"Colin Davis\",\"Paul Jorgensen\"]` -> new `[\"Antal Doráti\",\"Igor Stravinsky\",\"Colin Davis\",\"Paul Jorgensen\"]`\n    -   Original 6 (`orchestra.Orchestra_ID`): `[]` -> new `[]`\n    -   Original 8 (`orchestra.Conductor_ID`): `[]` -> new `[]`\n    -   Original 10 (`orchestra.Year_of_Founded`): `[]` -> new `[]`\n    -   Result: `[[], [], [\"Antal Doráti\", \"Igor Stravinsky\", \"Colin Davis\", \"Paul Jorgensen\"], [], [], []]`\n\nThis covers all necessary components while preserving the required PK/FK relationships for the join.{\"db_id\":\"orchestra\",\"table_names_original\":[\"conductor\",\"orchestra\"],\"column_names_original\":[[-1,\"*\"],[0,\"Conductor_ID\"],[0,\"Name\"],[1,\"Orchestra_ID\"],[1,\"Conductor_ID\"],[1,\"Year_of_Founded\"]],\"column_types\":[\"text\",\"number\",\"text\",\"number\",\"number\",\"number\"],\"foreign_keys\":[[4,1]],\"primary_keys\":[1,3],\"column_sample_values\":[[],[],[\"Antal Doráti\",\"Igor Stravinsky\",\"Colin Davis\",\"Paul Jorgensen\"],[],[],[]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:15:32.490355"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.293,
+      "raw_response": "{\n  \"steps\": [\n    \"Join conductor and orchestra on Conductor_ID.\",\n    \"Filter records where orchestra.Year_of_Founded > 2008.\",\n    \"Select the conductor.Name column.\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"conductor\",\n      \"column\": \"Name\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"conductor\",\n      \"to_table\": \"orchestra\",\n      \"condition\": \"orchestra.Conductor_ID = conductor.Conductor_ID\"\n    }\n  ],\n  \"predicates\": [\n    {\n      \"scope_id\": \"global\",\n      \"branch_id\": \"main\",\n      \"expression\": \"orchestra.Year_of_Founded > 2008\"\n    }\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3503,
+        "prompt_tokens": 2242,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1261,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:15:38.797532"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Name FROM conductor JOIN orchestra ON conductor.Conductor_ID = orchestra.Conductor_ID WHERE Year_of_Founded > 2008\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:15:38.800229",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+              ],
+              "where": [
+                "where year_of_founded > 2008"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "conductor.name"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "inner join orchestra on orchestra.conductor_id = conductor.conductor_id"
+              ],
+              "where": [
+                "where orchestra.year_of_founded > 2008"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.34,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT conductor.Name FROM conductor INNER JOIN orchestra ON orchestra.Conductor_ID = conductor.Conductor_ID WHERE orchestra.Year_of_Founded > 2008\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2432,
+        "prompt_tokens": 2365,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 67,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T03:15:40.162564",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+              ],
+              "where": [
+                "where year_of_founded > 2008"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "conductor.name"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "inner join orchestra on orchestra.conductor_id = conductor.conductor_id"
+              ],
+              "where": [
+                "where orchestra.year_of_founded > 2008"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:15:40.172581"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:15:40.176118",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "conductor",
+            "orchestra"
+          ],
+          "joins": [
+            "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+          ],
+          "where": [
+            "where year_of_founded > 2008"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT Name FROM conductor JOIN orchestra ON conductor.Conductor_ID = orchestra.Conductor_ID WHERE Year_of_Founded > 2008",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:15:40.179908"
+}

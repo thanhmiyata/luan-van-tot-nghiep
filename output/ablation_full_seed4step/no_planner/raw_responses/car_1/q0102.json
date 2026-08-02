@@ -1,0 +1,405 @@
+{
+  "question_index": 102,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "car_1",
+  "question": "What is the maker of the carr produced in the earliest year and what year was it?",
+  "gold_query": "SELECT T2.Make ,  T1.Year FROM CARS_DATA AS T1 JOIN CAR_NAMES AS T2 ON T1.Id  =  T2.MakeId WHERE T1.Year  =  (SELECT min(YEAR) FROM CARS_DATA);",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Maker\", \"Year\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"car_makers\", \"cars_data\"],\n  \"required_columns\": [\n    {\"table\": \"car_makers\", \"column\": \"Maker\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"cars_data\", \"column\": \"Year\", \"purpose\": \"OUTPUT|ORDER\"},\n    {\"table\": \"cars_data\", \"column\": \"Id\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_names\", \"column\": \"MakeId\", \"purpose\": \"JOIN\"},\n    {\"table\": \"model_list\", \"column\": \"Model\", \"purpose\": \"JOIN\"},\n    {\"table\": \"model_list\", \"column\": \"Maker\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"purpose\": \"JOIN\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"car_makers\", \"column\": \"Maker\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"cars_data\", \"column\": \"Year\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Selecting based on the minimum Year\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"cars_data\", \"column\": \"Year\", \"direction\": \"ASC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": {\n    \"use_as\": \"RESULT_ROW\",\n    \"table\": \"cars_data\",\n    \"column\": \"Year\",\n    \"direction\": \"ASC\"\n  },\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"cars_data\", \"to_table\": \"car_names\", \"reason\": \"Join to associate car models\"},\n    {\"from_table\": \"car_names\", \"to_table\": \"model_list\", \"reason\": \"Join to associate makers with models\"},\n    {\"from_table\": \"model_list\", \"to_table\": \"car_makers\", \"reason\": \"Join to associate maker with its details\"}\n  ],\n  \"entities\": {\"tables\": [\"car_makers\", \"cars_data\"], \"columns\": [\"Maker\", \"Year\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:01.802559"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"car_makers\", \"model_list\", \"car_names\", \"cars_data\"], \"column_names_original\": [[0, \"Id\"], [0, \"Maker\"], [1, \"Maker\"], [1, \"Model\"], [2, \"MakeId\"], [2, \"Model\"], [3, \"Id\"], [3, \"Year\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:29:01.806087"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:29:01.807330"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT car_makers.Maker, cars_data.Year FROM cars_data JOIN car_names ON cars_data.Id = car_names.MakeId JOIN model_list ON car_names.Model = model_list.Model JOIN car_makers ON model_list.Maker = car_makers.Id ORDER BY cars_data.Year ASC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:01.808413",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.maker",
+                "cars_data.year"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join car_makers on model_list.maker = car_makers.id",
+                "join car_names on cars_data.id = car_names.makeid",
+                "join model_list on car_names.model = model_list.model"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by cars_data.year asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names, model_list"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.maker",
+                "cars_data.year"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join car_makers on model_list.maker = car_makers.id",
+                "join car_names on cars_data.id = car_names.makeid",
+                "join model_list on car_names.model = model_list.model"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by cars_data.year asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names, model_list"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:29:01.808420",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.maker",
+                "cars_data.year"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join car_makers on model_list.maker = car_makers.id",
+                "join car_names on cars_data.id = car_names.makeid",
+                "join model_list on car_names.model = model_list.model"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by cars_data.year asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names, model_list"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.maker",
+                "cars_data.year"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "join car_makers on model_list.maker = car_makers.id",
+                "join car_names on cars_data.id = car_names.makeid",
+                "join model_list on car_names.model = model_list.model"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by cars_data.year asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names, model_list"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.646,
+      "raw_response": "{\n  \"sql\": \"SELECT car_makers.Maker, cars_data.Year FROM cars_data JOIN car_names ON cars_data.Id = car_names.MakeId JOIN model_list ON car_names.Model = model_list.Model JOIN car_makers ON model_list.Maker = car_makers.Id ORDER BY cars_data.Year ASC LIMIT 1\",\n  \"selected_candidate\": \"direct\",\n  \"notes\": \"Selected the Direct candidate as both deterministic and semantic checks passed and the SQL matches the Question requirements.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 3311,
+        "prompt_tokens": 3195,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 116,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:03.475838",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "car_makers.maker",
+            "cars_data.year"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join car_makers on model_list.maker = car_makers.id",
+            "join car_names on cars_data.id = car_names.makeid",
+            "join model_list on car_names.model = model_list.model"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by cars_data.year asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names, model_list"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.621,
+      "raw_response": "{\n  \"sql\": \"SELECT car_makers.Maker, cars_data.Year FROM cars_data JOIN car_names ON cars_data.Id = car_names.MakeId JOIN model_list ON car_names.Model = model_list.Model JOIN car_makers ON model_list.Maker = car_makers.Id ORDER BY cars_data.Year ASC LIMIT 1\",\n  \"explain\": \"The SQL query is valid according to both deterministic and semantic checks. It correctly selects the earliest car year and its maker without overjoining or introducing unnecessary parameters. The result respects both the question's requirement and expected output order.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3008,
+        "prompt_tokens": 2873,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 135,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:05.132917",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "car_makers.maker",
+            "cars_data.year"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join car_makers on model_list.maker = car_makers.id",
+            "join car_names on cars_data.id = car_names.makeid",
+            "join model_list on car_names.model = model_list.model"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by cars_data.year asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names, model_list"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "car_makers.maker",
+            "cars_data.year"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join car_makers on model_list.maker = car_makers.id",
+            "join car_names on cars_data.id = car_names.makeid",
+            "join model_list on car_names.model = model_list.model"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by cars_data.year asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names, model_list"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT car_makers.Maker, cars_data.Year FROM cars_data JOIN car_names ON cars_data.Id = car_names.MakeId JOIN model_list ON car_names.Model = model_list.Model JOIN car_makers ON model_list.Maker = car_makers.Id ORDER BY cars_data.Year ASC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:29:05.142428"
+}

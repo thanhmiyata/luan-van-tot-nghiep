@@ -1,0 +1,425 @@
+{
+  "question_index": 152,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "car_1",
+  "question": "What are the different models created by either the car maker General Motors or weighed more than 3500?",
+  "gold_query": "SELECT DISTINCT T2.Model FROM CAR_NAMES AS T1 JOIN MODEL_LIST AS T2 ON T1.Model  =  T2.Model JOIN CAR_MAKERS AS T3 ON T2.Maker  =  T3.Id JOIN CARS_DATA AS T4 ON T1.MakeId  =  T4.Id WHERE T3.FullName  =  'General Motors' OR T4.weight  >  3500;",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Model\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"model_list\", \"car_makers\", \"cars_data\"],\n  \"required_columns\": [\n    {\"table\": \"model_list\", \"column\": \"Model\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"model_list\", \"column\": \"Maker\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"FullName\", \"purpose\": \"FILTER\"},\n    {\"table\": \"cars_data\", \"column\": \"Id\", \"purpose\": \"JOIN\"},\n    {\"table\": \"cars_data\", \"column\": \"Weight\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"model_list\", \"column\": \"Model\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": true,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"FullName\", \"operator\": \"=\", \"value\": \"General Motors\", \"value_type\": \"STRING\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"table\": \"cars_data\", \"column\": \"Weight\", \"operator\": \">\", \"value\": 3500, \"value_type\": \"NUMBER\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"General Motors\", \"table\": \"car_makers\", \"column\": \"FullName\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"INDEPENDENT_BRANCHES\", \"logic\": \"OR\", \"branch_ids\": [\"b1\", \"b2\"], \"reason\": \"Different conditions for car maker and weight.\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"model_list\", \"to_table\": \"car_makers\", \"reason\": \"Join to filter car model list by car maker\"},\n    {\"from_table\": \"model_list\", \"to_table\": \"cars_data\", \"reason\": \"Join to access car weight\"}\n  ],\n  \"entities\": {\"tables\": [\"model_list\", \"car_makers\", \"cars_data\"], \"columns\": [\"Model\", \"FullName\", \"Weight\"], \"values\": [\"General Motors\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:31:23.862605"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the original schema to include only the tables and columns necessary to answer the question, based on the provided analysis.\n\n1.  **Identify Required Tables:** From `analysis.required_tables`, the core tables are `model_list`, `car_makers`, and `cars_data`.\n2.  **Identify Required Columns for Output/Filters:**\n    *   `model_list.Model` (output)\n    *   `car_makers.FullName` (filter)\n    *   `cars_data.Weight` (filter)\n3.  **Identify Required Columns for Joins:**\n    *   `model_list.Maker` (to join with `car_makers.Id`)\n    *   `car_makers.Id` (to join with `model_list.Maker`)\n    *   `cars_data.Id` (to join with `car_names.MakeId`)\n4.  **Identify Bridge Tables and Their Columns:** The `named_foreign_keys` show the following path for `model_list` to `cars_data`:\n    *   `model_list.Model` -> `car_names.Model`\n    *   `car_names.MakeId` -> `cars_data.Id` (Note: the `named_foreign_keys` shows `cars_data.Id` as foreign key referencing `car_names.MakeId`, which is a bit unusual if `cars_data.Id` is also its PK. Let's confirm with `primary_keys` and `foreign_keys`. `cars_data.Id` (index 16) is a PK. `car_names.MakeId` (index 13) is a PK. `foreign_keys` entry `[16,13]` means `cars_data.Id` is a FK referencing `car_names.MakeId`. This implies that `cars_data` entries are linked to `car_names` entries. This is the correct interpretation of the provided FK definition, so `car_names` is indeed a bridge.\n    *   Therefore, `car_names` is a necessary bridge table.\n    *   Columns to keep from `car_names`: `Model` (FK to `model_list.Model`) and `MakeId` (FK source for `cars_data.Id` and also PK for `car_names`).\n5.  **Include Primary Keys of all retained tables:**\n    *   `model_list`: `ModelId` (PK index 10)\n    *   `car_makers`: `Id` (PK index 6)\n    *   `car_names`: `MakeId` (PK index 13)\n    *   `cars_data`: `Id` (PK index 16)\n\n**Consolidate and list unique column names for each table:**\n\n*   **`model_list`**:\n    *   `Model` (Output, FK participant)\n    *   `Maker` (FK participant)\n    *   `ModelId` (Primary Key)\n*   **`car_makers`**:\n    *   `Id` (Primary Key, FK participant)\n    *   `FullName` (Filter)\n*   **`car_names`**: (Bridge table)\n    *   `MakeId` (Primary Key, FK participant)\n    *   `Model` (FK participant)\n*   **`cars_data`**:\n    *   `Id` (Primary Key, FK participant)\n    *   `Weight` (Filter)\n\nFinal list of tables and columns to be included in the filtered schema.\n\n```json\n{\"table_names_original\": [\"model_list\", \"car_makers\", \"car_names\", \"cars_data\"], \"column_names_original\": [[-1, \"*\"], [3, \"ModelId\"], [3, \"Maker\"], [3, \"Model\"], [2, \"Id\"], [2, \"FullName\"], [4, \"MakeId\"], [4, \"Model\"], [5, \"Id\"], [5, \"Weight\"]]}\n```\n\nAdjusting for the requested format (names only, no indices for columns except the table index, and no `[-1, \"*\"]`):\n\n`table_names_original`: `[\"model_list\", \"car_makers\", \"car_names\", \"cars_data\"]`\n\n`column_names_original`:\n*   `model_list`: `[\"ModelId\", \"Maker\", \"Model\"]`\n*   `car_makers`: `[\"Id\", \"FullName\"]`\n*   `car_names`: `[\"MakeId\", \"Model\"]`\n*   `cars_data`: `[\"Id\", \"Weight\"]`\n\nCombining into the requested `[[table_idx, column_name], ...]` format:\n`model_list` is table index 3 in original.\n`car_makers` is table index 2 in original.\n`car_names` is table index 4 in original.\n`cars_data` is table index 5 in original.\n\nSo:\n`[3, \"ModelId\"]`, `[3, \"Maker\"]`, `[3, \"Model\"]`\n`[2, \"Id\"]`, `[2, \"FullName\"]`\n`[4, \"MakeId\"]`, `[4, \"Model\"]`\n`[5, \"Id\"]`, `[5, \"Weight\"]`\n\nThe `[-1, \"*\"]` is typically for all columns and not part of the filtered schema itself. I should omit it.```json\n{\"table_names_original\": [\"car_makers\", \"model_list\", \"car_names\", \"cars_data\"], \"column_names_original\": [[2, \"Id\"], [2, \"FullName\"], [3, \"ModelId\"], [3, \"Maker\"], [3, \"Model\"], [4, \"MakeId\"], [4, \"Model\"], [5, \"Id\"], [5, \"Weight\"]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:31:23.866484"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:31:23.867922"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT model_list.Model FROM model_list LEFT JOIN car_makers ON model_list.Maker = car_makers.Id LEFT JOIN car_names ON car_names.Model = model_list.Model LEFT JOIN cars_data ON cars_data.Id = car_names.MakeId WHERE car_makers.FullName = 'General Motors' OR cars_data.Weight > 3500\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:31:23.869080",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "left join car_makers on model_list.maker = car_makers.id",
+                "left join car_names on car_names.model = model_list.model",
+                "left join cars_data on cars_data.id = car_names.makeid"
+              ],
+              "where": [
+                "where car_makers.fullname = 'general motors' or cars_data.weight > 3500"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "left join car_makers on model_list.maker = car_makers.id",
+                "left join car_names on car_names.model = model_list.model",
+                "left join cars_data on cars_data.id = car_names.makeid"
+              ],
+              "where": [
+                "where car_makers.fullname = 'general motors' or cars_data.weight > 3500"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:31:23.869088",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "left join car_makers on model_list.maker = car_makers.id",
+                "left join car_names on car_names.model = model_list.model",
+                "left join cars_data on cars_data.id = car_names.makeid"
+              ],
+              "where": [
+                "where car_makers.fullname = 'general motors' or cars_data.weight > 3500"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "cars_data",
+                "model_list"
+              ],
+              "joins": [
+                "left join car_makers on model_list.maker = car_makers.id",
+                "left join car_names on car_names.model = model_list.model",
+                "left join cars_data on cars_data.id = car_names.makeid"
+              ],
+              "where": [
+                "where car_makers.fullname = 'general motors' or cars_data.weight > 3500"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_names",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.057,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT model_list.Model FROM model_list JOIN car_makers ON model_list.Maker = car_makers.Id JOIN car_names ON car_names.Model = model_list.Model JOIN cars_data ON cars_data.Id = car_names.MakeId WHERE car_makers.FullName = 'General Motors' OR cars_data.Weight > 3500\", \"selected_candidate\": \"repaired\", \"notes\": \"Removed unjustified LEFT JOINs and replaced them with INNER JOINs to match the semantic requirement since unmatched rows are not requested by the question.\", \"diagnostics\": [\"Removed unjustified LEFT JOINs\", \"Replaced with INNER JOINs\"]}",
+      "token_usage": {
+        "total_tokens": 3632,
+        "prompt_tokens": 3491,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 141,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:31:25.949526",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "model_list.model"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join car_makers on model_list.maker = car_makers.id",
+            "join car_names on car_names.model = model_list.model",
+            "join cars_data on cars_data.id = car_names.makeid"
+          ],
+          "where": [
+            "where car_makers.fullname = 'general motors' or cars_data.weight > 3500"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names",
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.699,
+      "raw_response": "{\n  \"sql\": \"SELECT DISTINCT model_list.Model FROM model_list JOIN car_makers ON model_list.Maker = car_makers.Id JOIN car_names ON car_names.Model = model_list.Model JOIN cars_data ON cars_data.Id = car_names.MakeId WHERE car_makers.FullName = 'General Motors' OR cars_data.Weight > 3500\",\n  \"explain\": \"Both deterministic and semantic validation checks passed. The SQL correctly retrieves distinct models by the specified conditions with proper joins and no left join issues.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3198,
+        "prompt_tokens": 3075,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 123,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:31:27.680906",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "model_list.model"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join car_makers on model_list.maker = car_makers.id",
+            "join car_names on car_names.model = model_list.model",
+            "join cars_data on cars_data.id = car_names.makeid"
+          ],
+          "where": [
+            "where car_makers.fullname = 'general motors' or cars_data.weight > 3500"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "model_list.model"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "cars_data",
+            "model_list"
+          ],
+          "joins": [
+            "join car_makers on model_list.maker = car_makers.id",
+            "join car_names on car_names.model = model_list.model",
+            "join cars_data on cars_data.id = car_names.makeid"
+          ],
+          "where": [
+            "where car_makers.fullname = 'general motors' or cars_data.weight > 3500"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_names",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT DISTINCT model_list.Model FROM model_list JOIN car_makers ON model_list.Maker = car_makers.Id JOIN car_names ON car_names.Model = model_list.Model JOIN cars_data ON cars_data.Id = car_names.MakeId WHERE car_makers.FullName = 'General Motors' OR cars_data.Weight > 3500",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:31:27.702293"
+}

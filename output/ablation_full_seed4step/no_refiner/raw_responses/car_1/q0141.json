@@ -1,0 +1,359 @@
+{
+  "question_index": 141,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "car_1",
+  "question": "Which model has the most version(make) of cars?",
+  "gold_query": "SELECT Model FROM CAR_NAMES GROUP BY Model ORDER BY count(*) DESC LIMIT 1;",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Model\", \"COUNT\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"model_list\", \"car_names\"],\n  \"required_columns\": [\n    {\"table\": \"model_list\", \"column\": \"Model\", \"purpose\": \"OUTPUT|GROUP\"},\n    {\"table\": \"car_names\", \"column\": \"Model\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_names\", \"column\": \"Make\", \"purpose\": \"AGGREGATE|OUTPUT\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"model_list\", \"column\": \"Model\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"car_names\", \"column\": \"Make\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"To get the count of versions for each model\"}],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"model_list\", \"column\": \"Model\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"car_names\", \"column\": \"Make\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": {\n    \"use_as\": \"RESULT_ROW\"\n  },\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"model_list\", \"to_table\": \"car_names\", \"reason\": \"model_list.Model is the reference for car_names.Model\"}],\n  \"entities\": {\"tables\": [\"model_list\", \"car_names\"], \"columns\": [\"Model\", \"Make\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:38:32.546718"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"model_list\", \"car_names\"], \"column_names_original\": [[-1, \"*\"], [3, \"ModelId\"], [3, \"Model\"], [4, \"MakeId\"], [4, \"Model\"], [4, \"Make\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:38:32.549873"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.304,
+      "raw_response": "{\n  \"steps\": [\"Join tables on Model column\", \"Count Make per Model and order by count descending\", \"Select top result\"],\n  \"select\": [\n    {\"table\": \"model_list\", \"column\": \"Model\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"car_names\", \"column\": \"Make\", \"agg\": \"COUNT\", \"order_index\": 1}\n  ],\n  \"joins\": [\n    {\"from_table\": \"car_names\", \"to_table\": \"model_list\", \"condition\": \"car_names.Model = model_list.Model\"}\n  ],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"model_list\", \"column\": \"Model\"}],\n  \"having\": [],\n  \"order_by\": [\n    {\"table\": \"car_names\", \"column\": \"Make\", \"direction\": \"DESC\"}\n  ],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2412,
+        "prompt_tokens": 2183,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 229,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:38:35.869433"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT model_list.Model, COUNT(car_names.Make) FROM model_list JOIN car_names ON model_list.Model = car_names.Model GROUP BY model_list.Model ORDER BY COUNT(car_names.Make) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:38:35.871475",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model",
+                "count(car_names.make)"
+              ],
+              "tables": [
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "join car_names on model_list.model = car_names.model"
+              ],
+              "where": [],
+              "group_by": [
+                "group by model_list.model"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(car_names.make) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model",
+                "count(car_names.make)"
+              ],
+              "tables": [
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "inner join car_names on car_names.model = model_list.model"
+              ],
+              "where": [],
+              "group_by": [
+                "group by model_list.model"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(car_names.make) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 2.131,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT model_list.Model, COUNT(car_names.Make) FROM model_list INNER JOIN car_names ON car_names.Model = model_list.Model GROUP BY model_list.Model ORDER BY COUNT(car_names.Make) DESC LIMIT 1\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2530,
+        "prompt_tokens": 2449,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 81,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:38:38.020507",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model",
+                "count(car_names.make)"
+              ],
+              "tables": [
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "join car_names on model_list.model = car_names.model"
+              ],
+              "where": [],
+              "group_by": [
+                "group by model_list.model"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(car_names.make) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "model_list.model",
+                "count(car_names.make)"
+              ],
+              "tables": [
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "inner join car_names on car_names.model = model_list.model"
+              ],
+              "where": [],
+              "group_by": [
+                "group by model_list.model"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(car_names.make) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:38:38.030187"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.301,
+      "raw_response": "{\"sql\": \"SELECT model_list.Model, COUNT(car_names.Make) FROM model_list JOIN car_names ON model_list.Model = car_names.Model GROUP BY model_list.Model ORDER BY COUNT(car_names.Make) DESC LIMIT 1\", \"explain\": \"Both deterministic and semantic constraint checks passed without any violations, and the SQL correctly matches the question's requirements.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2748,
+        "prompt_tokens": 2661,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 87,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:38:39.351204",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "model_list.model",
+            "count(car_names.make)"
+          ],
+          "tables": [
+            "car_names",
+            "model_list"
+          ],
+          "joins": [
+            "join car_names on model_list.model = car_names.model"
+          ],
+          "where": [],
+          "group_by": [
+            "group by model_list.model"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(car_names.make) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "model_list.model",
+            "count(car_names.make)"
+          ],
+          "tables": [
+            "car_names",
+            "model_list"
+          ],
+          "joins": [
+            "join car_names on model_list.model = car_names.model"
+          ],
+          "where": [],
+          "group_by": [
+            "group by model_list.model"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(car_names.make) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT model_list.Model, COUNT(car_names.Make) FROM model_list JOIN car_names ON model_list.Model = car_names.Model GROUP BY model_list.Model ORDER BY COUNT(car_names.Make) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:38:39.362727"
+}

@@ -1,0 +1,97 @@
+{
+  "question_index": 748,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "What are the names of nations where both English and French are official languages?",
+  "gold_query": "SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T2.Language  =  \"English\" AND T2.IsOfficial  =  \"T\" INTERSECT SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T2.Language  =  \"French\" AND T2.IsOfficial  =  \"T\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.22,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"=\", \"value\": \"English\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"=\", \"value\": \"T\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"=\", \"value\": \"French\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"=\", \"value\": \"T\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"to combine country names with language information\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Name\", \"Language\", \"IsOfficial\"], \"values\": [\"English\", \"French\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"INTERSECT\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"IN\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1784,
+        "prompt_tokens": 1419,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 365,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:25:58.889914"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 20.938,
+      "raw_response": "```json\n{\n  \"db_id\": \"world_1\",\n  \"table_names_original\": [\n    \"country\",\n    \"countrylanguage\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Code\"],\n    [0, \"Name\"],\n    [1, \"CountryCode\"],\n    [1, \"Language\"],\n    [1, \"IsOfficial\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [3, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 5956,
+        "prompt_tokens": 972,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4984,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:26:19.850550"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.723,
+      "raw_response": "{ \"steps\": [ \"1. Identify the minimal tables required: The tables needed are 'country' and 'countrylanguage' because we need to get the country names and their official languages.\", \"2. Determine if a join is needed: A join is needed between 'country' and 'countrylanguage' using the foreign key 'CountryCode' in 'countrylanguage' that refers to the primary key 'Code' in 'country'.\", \"3. Set up the WHERE condition to ensure only rows that have both 'English' and 'French' as official languages are selected. Since 'IsOfficial' must be 'T', we will use INTERSECT to simulate 'both A and B' logic.\", \"4. Construct the first SELECT to find countries where English is an official language: SELECT 'CountryCode' FROM 'countrylanguage' WHERE 'Language' = 'English' AND 'IsOfficial' = 'T'.\", \"5. Construct the second SELECT to find countries where French is an official language: SELECT 'CountryCode' FROM 'countrylanguage' WHERE 'Language' = 'French' AND 'IsOfficial' = 'T'.\", \"6. Use INTERSECT to determine countries that meet both conditions: Combine results from both SELECT statements with INTERSECT.\", \"7. Return the country names: Join the set of 'CountryCode's from INTERSECT with the 'country' table to get the 'Name'. SELECT 'Name' FROM 'country' WHERE 'Code' IN ( INTERSECT result ).\" ] }",
+      "token_usage": {
+        "total_tokens": 1718,
+        "prompt_tokens": 1394,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 324,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:26:24.595742"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.277,
+      "raw_response": "{\"sql\": \"SELECT Name FROM country WHERE Code IN (SELECT CountryCode FROM countrylanguage WHERE Language = 'English' AND IsOfficial = 'T' INTERSECT SELECT CountryCode FROM countrylanguage WHERE Language = 'French' AND IsOfficial = 'T')\"}",
+      "token_usage": {
+        "total_tokens": 1991,
+        "prompt_tokens": 1924,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 67,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:26:25.895288"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.197,
+      "raw_response": "{\"sql\": \"SELECT Name FROM country WHERE Code IN (SELECT CountryCode FROM countrylanguage WHERE Language = 'English' AND IsOfficial = 'T' INTERSECT SELECT CountryCode FROM countrylanguage WHERE Language = 'French' AND IsOfficial = 'T')\", \"notes\": \"The initial SQL was already correctly structured to find countries where both English and French are official languages using INTERSECT, which aligns perfectly with the expected output fields and plan. No unnecessary joins or ORDER BYs exist.\", \"diagnostics\": [\"SQL matches expected output fields exactly with the use of INTERSECT to ensure both language conditions are met.\", \"No additional joins or GROUP BYs are necessary, as the necessary logic is achieved via subqueries and INTERSECT.\"]}",
+      "token_usage": {
+        "total_tokens": 1845,
+        "prompt_tokens": 1680,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 165,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:26:31.116034"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.736,
+      "raw_response": "{\"sql\": \"SELECT Name FROM country WHERE Code IN (SELECT CountryCode FROM countrylanguage WHERE Language = 'English' AND IsOfficial = 'T' INTERSECT SELECT CountryCode FROM countrylanguage WHERE Language = 'French' AND IsOfficial = 'T')\", \"explain\": \"The SQL query correctly identifies countries where both English and French are official languages by using an INTERSECT subquery to find common CountryCodes, then joining back to the country table to retrieve their names. All validation checks passed, including SELECT fields, set operation type, and join logic.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2106,
+        "prompt_tokens": 1381,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 725,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:26:34.872604"
+    }
+  ],
+  "final_sql": "SELECT Name FROM country WHERE Code IN (SELECT CountryCode FROM countrylanguage WHERE Language = 'English' AND IsOfficial = 'T' INTERSECT SELECT CountryCode FROM countrylanguage WHERE Language = 'French' AND IsOfficial = 'T')",
+  "explain": "The SQL query correctly identifies countries where both English and French are official languages by using an INTERSECT subquery to find common CountryCodes, then joining back to the country table to retrieve their names. All validation checks passed, including SELECT fields, set operation type, and join logic.",
+  "error": "",
+  "timestamp": "2026-07-24T00:26:34.874795"
+}

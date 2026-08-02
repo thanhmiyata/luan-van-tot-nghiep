@@ -1,0 +1,97 @@
+{
+  "question_index": 82,
+  "pipeline": "6step",
+  "db_id": "pets_1",
+  "question": "What is the first name and gender of the all the students who have more than one pet?",
+  "gold_query": "SELECT T1.fname ,  T1.sex FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid GROUP BY T1.stuid HAVING count(*)  >  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.331,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Fname\", \"Sex\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"Fname\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Student\", \"column\": \"Sex\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Student\", \"column\": \"StuID\"}],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"reason\": \"relate students with their pets\"},\n    {\"from_table\": \"Has_Pet\", \"to_table\": \"Has_Pet\", \"reason\": \"self-join to count multiple pets for the same student\"}\n  ],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\"], \"columns\": [\"Fname\", \"Sex\", \"StuID\"], \"values\": []},\n  \"self_join_hint\": true,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1794,
+        "prompt_tokens": 1480,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 314,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:05:36.138598"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.952,
+      "raw_response": "```json\n{\n  \"db_id\": \"pets_1\",\n  \"table_names_original\": [\n    \"Student\",\n    \"Has_Pet\"\n  ],\n  \"column_names_original\": [\n    [0, \"StuID\"],\n    [0, \"Fname\"],\n    [0, \"Sex\"],\n    [1, \"StuID\"],\n    [1, \"PetID\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [3, 0]\n  ],\n  \"primary_keys\": [\n    0\n  ],\n  \"column_sample_values\": [\n    [],\n    [\"Linda\",\"Tracy\",\"Shiela\",\"Dinesh\"],\n    [\"F\",\"M\"],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4743,
+        "prompt_tokens": 908,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3835,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:05:53.111255"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.054,
+      "raw_response": "{ \"steps\": [ { \"action\": \"Identify minimal tables\", \"explanation\": \"We need information from both the 'Student' and 'Has_Pet' tables to find students with more than one pet.\", \"tables\": [\"Student\", \"Has_Pet\"] }, { \"action\": \"Specify joins\", \"explanation\": \"Join the 'Student' table with the 'Has_Pet' table to relate students with their pets. Use FK-PK relation on StuID.\", \"joins\": [{ \"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"using\": \"StuID\" }] }, { \"action\": \"Plan the self-join\", \"explanation\": \"Use a self-join on 'Has_Pet' to count multiple pets for the same student without using a subquery with HAVING.\", \"self_joins\": [{ \"table\": \"Has_Pet\", \"alias1\": \"T1\", \"alias2\": \"T2\", \"on_condition\": \"T1.StuID = T2.StuID AND T1.PetID <> T2.PetID\" }] }, { \"action\": \"Select fields\", \"explanation\": \"Select 'Fname' and 'Sex' from the 'Student' table as required in output.\", \"fields\": [\"Student.Fname\", \"Student.Sex\"] }, { \"action\": \"Constrain results\", \"explanation\": \"Assert more than one pet by ensuring distinct pet pairs are found for each student.\", \"conditions\": [\"Self-join on Has_Pet verifies multiple pets per student\"] }, { \"action\": \"Finalize\", \"explanation\": \"Since ORDER BY is not required, conclude plan without further modification.\", \"order_by\": [] } ] }",
+      "token_usage": {
+        "total_tokens": 1810,
+        "prompt_tokens": 1438,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 372,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:05:57.187351"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.271,
+      "raw_response": "{\"sql\": \"SELECT Student.Fname, Student.Sex FROM Student JOIN Has_Pet AS T1 ON Student.StuID = T1.StuID JOIN Has_Pet AS T2 ON T1.StuID = T2.StuID AND T1.PetID <> T2.PetID\"}",
+      "token_usage": {
+        "total_tokens": 2195,
+        "prompt_tokens": 2118,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 77,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:05:58.477939"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.594,
+      "raw_response": "{\"sql\": \"SELECT Student.Fname, Student.Sex FROM Student JOIN Has_Pet T1 ON Student.StuID = T1.StuID JOIN Has_Pet T2 ON T1.StuID = T2.StuID AND T1.PetID <> T2.PetID\", \"notes\": \"The refined SQL correctly uses a self-join on the Has_Pet table to find students with more than one pet, joining by StuID and ensuring different PetID in the two aliases. The fields Fname and Sex are selected as expected. No unnecessary joins or orders are present.\", \"diagnostics\": [\"Matched SELECT fields with expected output order\", \"Appropriate use of self-join to determine multiple pets\", \"SQL aligned with plan steps without unnecessary grouping or ordering\"]}",
+      "token_usage": {
+        "total_tokens": 1914,
+        "prompt_tokens": 1741,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 173,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:06:01.092789"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 18.918,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT Student.Fname, Student.Sex FROM Student JOIN Has_Pet T1 ON Student.StuID = T1.StuID JOIN Has_Pet T2 ON T1.StuID = T2.StuID AND T1.PetID <> T2.PetID\", \"explain\": \"Added DISTINCT to the SELECT clause to ensure unique rows in the output, as the self-join can produce duplicate student entries if a student has more than two pets.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 5297,
+        "prompt_tokens": 1402,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3895,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T16:06:20.033091"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT Student.Fname, Student.Sex FROM Student JOIN Has_Pet T1 ON Student.StuID = T1.StuID JOIN Has_Pet T2 ON T1.StuID = T2.StuID AND T1.PetID <> T2.PetID",
+  "explain": "Added DISTINCT to the SELECT clause to ensure unique rows in the output, as the self-join can produce duplicate student entries if a student has more than two pets.",
+  "error": "",
+  "timestamp": "2026-07-24T16:06:20.034876"
+}

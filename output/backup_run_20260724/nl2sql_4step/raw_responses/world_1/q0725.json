@@ -1,0 +1,69 @@
+{
+  "question_index": 725,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "Give the average life expectancy for countries in Africa which are republics?",
+  "gold_query": "SELECT avg(LifeExpectancy) FROM country WHERE Continent  =  \"Africa\" AND GovernmentForm  =  \"Republic\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.731,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"average_life_expectancy\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"LifeExpectancy\", \"agg\": \"AVG\", \"alias\": \"average_life_expectancy\", \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Africa\", \"value_type\": \"STRING\"},\n    {\"table\": \"country\", \"column\": \"GovernmentForm\", \"operator\": \"=\", \"value\": \"Republic\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"country\"], \"columns\": [\"LifeExpectancy\", \"Continent\", \"GovernmentForm\"], \"values\": [\"Africa\", \"Republic\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1212,
+        "prompt_tokens": 967,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 245,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:24:45.667445"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 15.247,
+      "raw_response": "Thought: I need to filter the original schema to include only the necessary tables and columns based on the provided question and analysis.\n\n1.  **Identify required tables**: The `analysis` explicitly mentions `country` in `entities.tables` and in `output_fields_detailed` and `filters`. So, only the `country` table is needed.\n    *   Original `country` table index: 2\n\n2.  **Identify required columns from `country` table**:\n    *   `LifeExpectancy` (for `AVG` output) - original index 15\n    *   `Continent` (for filter `Continent = 'Africa'`) - original index 10\n    *   `GovernmentForm` (for filter `GovernmentForm = 'Republic'`) - original index 19\n    *   `Code` (Primary Key for `country` table, good practice to keep) - original index 8\n\n3.  **Map original table/column indices to new filtered indices**:\n    *   New `table_names_original`: `[\"country\"]` (original `country` at index 2 becomes new index 0)\n    *   New `column_names_original` and `column_types`:\n        *   `country.Code` (original index 8, type `text`) -> new `[0, \"Code\"]`, new column index 0, type `text`\n        *   `country.Continent` (original index 10, type `text`) -> new `[0, \"Continent\"]`, new column index 1, type `text`\n        *   `country.LifeExpectancy` (original index 15, type `number`) -> new `[0, \"LifeExpectancy\"]`, new column index 2, type `number`\n        *   `country.GovernmentForm` (original index 19, type `text`) -> new `[0, \"GovernmentForm\"]`, new column index 3, type `text`\n\n4.  **Identify Primary Keys (PKs)**:\n    *   The PK `country.Code` (original index 8) is kept. In the new schema, this corresponds to column index 0. So, `primary_keys`: `[0]`.\n\n5.  **Identify Foreign Keys (FKs)**:\n    *   The query is a single-table query on `country`. No joins are required. Therefore, no foreign keys are needed. `foreign_keys`: `[]`.\n\n6.  **Construct the final filtered schema JSON.**{\"db_id\": \"world_1\", \"table_names_original\": [\"country\"], \"column_names_original\": [[0, \"Code\"], [0, \"Continent\"], [0, \"LifeExpectancy\"], [0, \"GovernmentForm\"]], \"column_types\": [\"text\", \"text\", \"number\", \"text\"], \"foreign_keys\": [], \"primary_keys\": [0]}",
+      "token_usage": {
+        "total_tokens": 4112,
+        "prompt_tokens": 812,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3300,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:25:00.924780"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.076,
+      "raw_response": "{\"sql\": \"SELECT AVG(LifeExpectancy) AS average_life_expectancy FROM country WHERE Continent = 'Africa' AND GovernmentForm = 'Republic'\"}",
+      "token_usage": {
+        "total_tokens": 942,
+        "prompt_tokens": 897,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 45,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:25:03.015223"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.685,
+      "raw_response": "I need to validate the provided SQL against the given schema and analysis, following the 4-step checklist.\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   `expected_output_fields`: `[\"average_life_expectancy\"]`\n    *   SQL `SELECT`: `AVG(LifeExpectancy) AS average_life_expectancy`\n    *   The content and alias match. `COUNT` is not used, so `DISTINCT` check is not applicable. This check passes.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK:**\n    *   The SQL does not have `ORDER BY`.\n    *   The SQL does not have `JOIN`s, which is minimal and correct given `single_table_ok: false` in analysis but also `table_names_original: [\"country\"]` indicating only one relevant table for the query. The analysis indicates `single_table_ok: false` but then only lists one table and no join hints, which is contradictory. However, the query itself only involves one table, and all columns are from that single table. It implies no joins are *needed* for this specific query. This check passes.\n\n3.  **Column/table names exist; SQL is complete and one line:**\n    *   `country` table exists.\n    *   `LifeExpectancy` column exists in `country`.\n    *   `Continent` column exists in `country`.\n    *   `GovernmentForm` column exists in `country`.\n    *   SQL is complete and one line. This check passes.\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable:**\n    *   No issues found.\n\nThe SQL is correct as provided.{\n \"sql\": \"SELECT AVG(LifeExpectancy) AS average_life_expectancy FROM country WHERE Continent = 'Africa' AND GovernmentForm = 'Republic'\",\n \"explain\": \"The SQL query correctly calculates the average life expectancy for countries in Africa with a 'Republic' government form, matching the expected output fields, column names, and filtering conditions from the analysis and schema.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1167,
+        "prompt_tokens": 695,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 472,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:25:05.717711"
+    }
+  ],
+  "final_sql": "SELECT AVG(LifeExpectancy) AS average_life_expectancy FROM country WHERE Continent = 'Africa' AND GovernmentForm = 'Republic'",
+  "explain": "The SQL query correctly calculates the average life expectancy for countries in Africa with a 'Republic' government form, matching the expected output fields, column names, and filtering conditions from the analysis and schema.",
+  "error": "",
+  "timestamp": "2026-07-23T23:25:05.719711"
+}

@@ -1,0 +1,69 @@
+{
+  "question_index": 333,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Show all template type codes with less than three templates.",
+  "gold_query": "SELECT template_type_code FROM Templates GROUP BY template_type_code HAVING count(*)  <  3",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 1.73,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [\n    {\"table\": \"Templates\", \"column\": \"Template_Type_Code\"}\n  ],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Ref_Template_Types\", \"to_table\": \"Templates\", \"reason\": \"filter template type codes with less than three templates\"}\n  ],\n  \"entities\": {\"tables\": [\"Ref_Template_Types\", \"Templates\"], \"columns\": [\"Template_Type_Code\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1499,
+        "prompt_tokens": 1283,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 216,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:33:14.165644"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 15.894,
+      "raw_response": "Thought: I need to filter the original schema to include only the tables and columns required by the question \"Show all template type codes with less than three templates.\" and the provided analysis.\n\n1.  **Identify relevant tables:** From `analysis.entities.tables`, `Ref_Template_Types` and `Templates` are needed. The join hint also confirms these two tables.\n2.  **Identify required columns for `Ref_Template_Types`:**\n    *   `Template_Type_Code`: This is the output field (`output_fields_detailed`) and also involved in the join with `Templates`. It's also a PK. (Original index 1)\n3.  **Identify required columns for `Templates`:**\n    *   `Template_ID`: Needed for counting templates (`COUNT(Template_ID)` for the 'less than three templates' condition). It's also a PK. (Original index 3)\n    *   `Template_Type_Code`: Needed for the `GROUP BY` clause and the join condition with `Ref_Template_Types`. (Original index 5)\n4.  **Preserve PK/FK relationships:**\n    *   The join is between `Ref_Template_Types.Template_Type_Code` (original PK index 1) and `Templates.Template_Type_Code` (original FK index 5). This FK relationship `[[5,1]]` must be preserved.\n    *   PKs to preserve: `Ref_Template_Types.Template_Type_Code` (original 1), `Templates.Template_ID` (original 3).\n\n**Schema Reconstruction:**\n\n*   **`db_id`**: `cre_Doc_Template_Mgt` remains the same.\n*   **`table_names_original`**: `[\"Ref_Template_Types\", \"Templates\"]`.\n*   **`column_names_original`**: I will list the `[-1, \"*\"]` entry first, then the selected columns for `Ref_Template_Types` (table 0), followed by `Templates` (table 1).\n    *   `[-1, \"*\"]` (always present, new index 0)\n    *   `[0, \"Template_Type_Code\"]` (from `Ref_Template_Types`, original index 1, new index 1)\n    *   `[1, \"Template_ID\"]` (from `Templates`, original index 3, new index 2)\n    *   `[1, \"Template_Type_Code\"]` (from `Templates`, original index 5, new index 3)\n*   **`column_types`**: Based on the selected columns' original types.\n    *   `text` (for `Ref_Template_Types.Template_Type_Code`)\n    *   `number` (for `Templates.Template_ID`)\n    *   `text` (for `Templates.Template_Type_Code`)\n*   **`primary_keys`**: Map original PK indices to new indices.\n    *   Original PK `1` (`Ref_Template_Types.Template_Type_Code`) becomes new index `1`.\n    *   Original PK `3` (`Templates.Template_ID`) becomes new index `2`.\n    *   So, `[1, 2]`.\n*   **`foreign_keys`**: Map original FK indices to new indices.\n    *   Original FK `[[5, 1]]` (Templates.Template_Type_Code referencing Ref_Template_Types.Template_Type_Code)\n    *   `5` (Templates.Template_Type_Code) becomes new index `3`.\n    *   `1` (Ref_Template_Types.Template_Type_Code) becomes new index `1`.\n    *   So, `[[3, 1]]`.\n*   **`column_sample_values`**: Extract sample values for the selected columns in their new order.\n    *   `[]` (for `*`)\n    *   `[\"AD\", \"BK\", \"CV\", \"PP\"]` (for `Ref_Template_Types.Template_Type_Code`)\n    *   `[]` (for `Templates.Template_ID`)\n    *   `[\"PP\", \"BK\", \"PPT\", \"AD\"]` (for `Templates.Template_Type_Code`){\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Ref_Template_Types\", \"Templates\"], \"column_names_original\": [[-1, \"*\"], [0, \"Template_Type_Code\"], [1, \"Template_ID\"], [1, \"Template_Type_Code\"]], \"column_types\": [\"text\", \"number\", \"text\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [\"AD\", \"BK\", \"CV\", \"PP\"], [], [\"PP\", \"BK\", \"PPT\", \"AD\"]]}",
+      "token_usage": {
+        "total_tokens": 4144,
+        "prompt_tokens": 865,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3279,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:33:30.060692"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.289,
+      "raw_response": "{\"sql\": \"SELECT Ref_Template_Types.Template_Type_Code FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code GROUP BY Ref_Template_Types.Template_Type_Code HAVING COUNT(*) < 3\"}",
+      "token_usage": {
+        "total_tokens": 1330,
+        "prompt_tokens": 1222,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 108,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:33:32.352016"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.127,
+      "raw_response": "I need to validate the provided SQL against the given criteria and the analysis.\n\n1.  **SELECT matches expected_output_fields:**\n    *   `expected_output_fields`: `[\"Template_Type_Code\"]`\n    *   `SELECT`: `Ref_Template_Types.Template_Type_Code`\n    *   Matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   `JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code`: This join is necessary to count templates per type. The join condition is `Ref_Template_Types.Template_Type_Code` (PK in Ref_Template_Types, FK in Templates) to `Templates.Template_Type_Code`. This is correct based on schema `foreign_keys\":[[3,1]]` where 3 is `Templates.Template_Type_Code` and 1 is `Ref_Template_Types.Template_Type_Code`.\n    *   `GROUP BY Ref_Template_Types.Template_Type_Code`: This is correct for counting templates per type. The analysis suggests `GROUP BY Templates.Template_Type_Code`, but grouping by `Ref_Template_Types.Template_Type_Code` is functionally equivalent and often preferred to group by the table from which the SELECTed column originates, especially if `Template_Type_Code` in `Templates` might have NULLs or be less reliable as a grouping key than the definitive type code from `Ref_Template_Types`. In this specific schema, both are valid and likely lead to the same result. Let's stick with the SQL's choice as it's not incorrect.\n    *   `HAVING COUNT(*) < 3`: This correctly implements \"less than three templates\". `COUNT(*)` is appropriate here.\n    *   No `ORDER BY` is present, which is correct as none was requested.\n\n3.  **Text literals match real values, column/table names exist, SQL complete, one line.**\n    *   All table and column names (`Ref_Template_Types`, `Templates`, `Template_Type_Code`) exist in the schema.\n    *   SQL is complete and on one line. No comments.\n    *   No text literals are used in the query.\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable.**\n    *   The SQL appears to be correct and aligns with the question and schema.\n\nNo corrections are needed.```json\n{\n \"sql\": \"SELECT Ref_Template_Types.Template_Type_Code FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code GROUP BY Ref_Template_Types.Template_Type_Code HAVING COUNT(*) < 3\",\n \"explain\": \"The SQL query correctly selects template type codes, joins the necessary tables to count templates per type, groups by template type code, and filters groups with less than three templates using `HAVING COUNT(*) < 3`. All column and table names are valid, and the joins are appropriate for the schema.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1545,
+        "prompt_tokens": 850,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 695,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:33:36.481037"
+    }
+  ],
+  "final_sql": "SELECT Ref_Template_Types.Template_Type_Code FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code GROUP BY Ref_Template_Types.Template_Type_Code HAVING COUNT(*) < 3",
+  "explain": "The SQL query correctly selects template type codes, joins the necessary tables to count templates per type, groups by template type code, and filters groups with less than three templates using `HAVING COUNT(*) < 3`. All column and table names are valid, and the joins are appropriate for the schema.",
+  "error": "",
+  "timestamp": "2026-07-25T04:33:36.482769"
+}

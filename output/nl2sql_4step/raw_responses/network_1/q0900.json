@@ -1,0 +1,69 @@
+{
+  "question_index": 900,
+  "pipeline": "4step",
+  "db_id": "network_1",
+  "question": "Show name of all students who have some friends and also are liked by someone else.",
+  "gold_query": "SELECT T2.name FROM Friend AS T1 JOIN Highschooler AS T2 ON T1.student_id  =  T2.id INTERSECT SELECT T2.name FROM Likes AS T1 JOIN Highschooler AS T2 ON T1.liked_id  =  T2.id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.557,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Highschooler\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Friend\", \"to_table\": \"Highschooler\", \"reason\": \"to find if student has friends\"},\n    {\"from_table\": \"Likes\", \"to_table\": \"Highschooler\", \"reason\": \"to find if student is liked by someone\"}\n  ],\n  \"entities\": {\"tables\": [\"Highschooler\", \"Friend\", \"Likes\"], \"columns\": [\"name\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1168,
+        "prompt_tokens": 948,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 220,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:00:26.873534"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.164,
+      "raw_response": "```json\n{\n  \"db_id\": \"network_1\",\n  \"table_names_original\": [\n    \"Highschooler\",\n    \"Friend\",\n    \"Likes\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"ID\"\n    ],\n    [\n      0,\n      \"name\"\n    ],\n    [\n      1,\n      \"student_id\"\n    ],\n    [\n      1,\n      \"friend_id\"\n    ],\n    [\n      2,\n      \"student_id\"\n    ],\n    [\n      2,\n      \"liked_id\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ],\n    [\n      3,\n      1\n    ],\n    [\n      5,\n      1\n    ],\n    [\n      6,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Jordan\",\n      \"Gabriel\",\n      \"Tiffany\",\n      \"Cassandra\"\n    ],\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4586,
+        "prompt_tokens": 702,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3884,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:00:44.038389"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.365,
+      "raw_response": "{\"sql\": \"SELECT Highschooler.name FROM Highschooler JOIN Friend ON Highschooler.ID = Friend.student_id JOIN Likes ON Highschooler.ID = Likes.liked_id\"}",
+      "token_usage": {
+        "total_tokens": 1165,
+        "prompt_tokens": 1117,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 48,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:00:45.404853"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.289,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\n\n1.  **Check SELECT clause**:\n    *   Expected output fields: `[\"name\"]`.\n    *   Current SELECT: `Highschooler.name`.\n    *   Matches.\n\n2.  **Check Joins**:\n    *   Question: \"Show name of all students who have some friends and also are liked by someone else.\"\n    *   The query needs `Highschooler` for `name`.\n    *   It needs `Friend` to check for friends. The join condition `Highschooler.ID = Friend.student_id` is correct (a student is a friend if their ID is in `Friend.student_id`).\n    *   It needs `Likes` to check if liked by someone. The join condition `Highschooler.ID = Likes.liked_id` is correct (a student is liked if their ID is in `Likes.liked_id`).\n    *   The joins are minimal and on correct PK/FK.\n    *   No unnecessary `ORDER BY`.\n\n3.  **Check Column/Table Names & Completeness**:\n    *   `Highschooler`, `Friend`, `Likes` exist.\n    *   `Highschooler.ID` exists (`ID` is column 1 in `Highschooler`).\n    *   `Friend.student_id` exists (`student_id` is column 3 in `Friend`).\n    *   `Likes.liked_id` exists (`liked_id` is column 6 in `Likes`).\n    *   SQL is complete and one line.\n\n4.  **Check for duplicates**:\n    *   The question asks for the \"name of all students\". If a student has multiple friends or is liked by multiple people, they might appear multiple times due to the joins. To get each student's name only once, `DISTINCT` should be used.\n\nThe current query `SELECT Highschooler.name FROM Highschooler JOIN Friend ON Highschooler.ID = Friend.student_id JOIN Likes ON Highschooler.ID = Likes.liked_id` will return duplicate names if a student has multiple friends *and* is liked by multiple people, or if they have multiple friends and are liked by one person (or vice versa). To ensure each student's name appears only once, `DISTINCT` is necessary for the `SELECT Highschooler.name`.\n\nLet's refine the query to include `DISTINCT`.\n\nCorrected SQL: `SELECT DISTINCT T1.name FROM Highschooler AS T1 JOIN Friend AS T2 ON T1.ID = T2.student_id JOIN Likes AS T3 ON T1.ID = T3.liked_id`\nAdding table aliases for readability is a good practice and doesn't change functionality.{\n \"sql\": \"SELECT DISTINCT T1.name FROM Highschooler AS T1 JOIN Friend AS T2 ON T1.ID = T2.student_id JOIN Likes AS T3 ON T1.ID = T3.liked_id\",\n \"explain\": \"Added DISTINCT to the SELECT clause to ensure each student's name appears only once, as a student might have multiple friends or be liked by multiple people, leading to duplicate names with the original joins. Added table aliases for clarity.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1503,
+        "prompt_tokens": 786,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 717,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:00:49.694840"
+    }
+  ],
+  "final_sql": "SELECT DISTINCT T1.name FROM Highschooler AS T1 JOIN Friend AS T2 ON T1.ID = T2.student_id JOIN Likes AS T3 ON T1.ID = T3.liked_id",
+  "explain": "Added DISTINCT to the SELECT clause to ensure each student's name appears only once, as a student might have multiple friends or be liked by multiple people, leading to duplicate names with the original joins. Added table aliases for clarity.",
+  "error": "",
+  "timestamp": "2026-07-24T18:00:49.696508"
+}

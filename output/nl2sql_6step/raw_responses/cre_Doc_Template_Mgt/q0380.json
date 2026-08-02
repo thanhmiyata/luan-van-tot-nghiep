@@ -1,0 +1,97 @@
+{
+  "question_index": 380,
+  "pipeline": "6step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "What are the ids of documents that contain the paragraph text 'Brazil' and 'Ireland'?",
+  "gold_query": "SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Brazil' INTERSECT SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Ireland'",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.683,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Document_ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Paragraphs\", \"column\": \"Paragraph_Text\", \"operator\": \"LIKE\", \"value\": \"%Brazil%\", \"value_type\": \"STRING\"},\n    {\"table\": \"Paragraphs\", \"column\": \"Paragraph_Text\", \"operator\": \"LIKE\", \"value\": \"%Ireland%\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Paragraphs\", \"to_table\": \"Documents\", \"reason\": \"to filter documents by paragraph text\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\", \"Paragraph_Text\"], \"values\": [\"Brazil\", \"Ireland\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"INTERSECT\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"LIKE\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2023,
+        "prompt_tokens": 1724,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 299,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:37:37.590135"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 9.0,
+      "raw_response": "Thought: The user wants to filter the database schema based on the provided NL2SQL analysis. I need to identify the minimal set of tables and columns required to answer the question, ensuring all necessary PK/FK relationships for joins are preserved.\n\nHere's my plan:\n1.  **Identify Required Tables:**\n    *   `expected_output_fields`: \"Document_ID\" from `Documents` table.\n    *   `filters`: \"Paragraph_Text\" from `Paragraphs` table.\n    *   `entities.tables`: `Documents`, `Paragraphs`.\n    *   All these point to `Documents` and `Paragraphs`.\n\n2.  **Identify Required Columns:**\n    *   `Documents`:\n        *   `Document_ID` (from `expected_output_fields`).\n        *   `Document_ID` is also a PK.\n    *   `Paragraphs`:\n        *   `Paragraph_Text` (from `filters`).\n        *   `Paragraph_ID` (PK for `Paragraphs`).\n        *   `Document_ID` (FK to `Documents`, needed for joining `Paragraphs` to `Documents`).\n\n3.  **Check PK/FK for Joins:**\n    *   Join between `Paragraphs` and `Documents` is needed (`join_hints` confirms this).\n    *   The FK `Paragraphs.Document_ID` references `Documents.Document_ID`.\n    *   So, `Documents.Document_ID` (PK) and `Paragraphs.Document_ID` (FK) are essential.\n    *   `Paragraphs.Paragraph_ID` (PK) is also essential for the `Paragraphs` table.\n\n4.  **Construct the Filtered Schema:**\n\n    *   **Tables:** `Documents`, `Paragraphs`\n    *   **Columns:**\n        *   `Documents`: `Document_ID`\n        *   `Paragraphs`: `Paragraph_ID`, `Document_ID`, `Paragraph_Text`\n\n    Let's map these back to the original schema's indices:\n    *   `Documents` (table_index: 2)\n        *   `Document_ID` (column_index: 9) - PK\n    *   `Paragraphs` (table_index: 3)\n        *   `Paragraph_ID` (column_index: 14) - PK\n        *   `Document_ID` (column_index: 15) - FK\n        *   `Paragraph_Text` (column_index: 16)\n\n    Original `table_names_original`: `[\"Ref_Template_Types\",\"Templates\",\"Documents\",\"Paragraphs\"]`\n    Original `column_names_original`: `[[-1,\"*\"],[0,\"Template_Type_Code\"],[0,\"Template_Type_Description\"],[1,\"Template_ID\"],[1,\"Version_Number\"],[1,\"Template_Type_Code\"],[1,\"Date_Effective_From\"],[1,\"Date_Effective_To\"],[1,\"Template_Details\"],[2,\"Document_ID\"],[2,\"Template_ID\"],[2,\"Document_Name\"],[2,\"Document_Description\"],[2,\"Other_Details\"],[3,\"Paragraph_ID\"],[3,\"Document_ID\"],[3,\"Paragraph_Text\"],[3,\"Other_Details\"]]`\n    Original `foreign_keys`: `[[5,1],[10,3],[15,9]]`\n    Original `primary_keys`: `[1,3,9,14]`\n\n    Filtered schema mapping:\n    *   `table_names_original`: [\"Documents\", \"Paragraphs\"] (re-indexed: 0, 1)\n    *   `column_names_original`:\n        *   `Documents` (new index 0): `Document_ID` (original index 9)\n        *   `Paragraphs` (new index 1): `Paragraph_ID` (original index 14), `Document_ID` (original index 15), `Paragraph_Text` (original index 16)\n    *   `column_types`: Need to extract types for the selected columns.\n    *   `foreign_keys`: The relevant FK is `[15,9]` which connects `Paragraphs.Document_ID` to `Documents.Document_ID`. After re-indexing, this will be `[Paragraphs.Document_ID_new_idx, Documents.Document_ID_new_idx]`.\n        *   `Paragraphs.Document_ID` is `column_names_original[15]`.\n        *   `Documents.Document_ID` is `column_names_original[9]`.\n        *   The new indices will be: `column_names_original[14]` -> `[1][0]`, `column_names_original[15]` -> `[1][1]`, `column_names_original[16]` -> `[1][2]`\n        *   `column_names_original[9]` -> `[0][0]`\n        *   So the FK `[15,9]` becomes `[new_col_index_of_15, new_col_index_of_9]`.\n        *   Let's map original column indices to new column indices:\n            *   Original 9 (Documents.Document_ID) -> new_table_idx 0, new_col_idx 0 (so, 0)\n            *   Original 14 (Paragraphs.Paragraph_ID) -> new_table_idx 1, new_col_idx 0 (so, 1)\n            *   Original 15 (Paragraphs.Document_ID) -> new_table_idx 1, new_col_idx 1 (so, 2)\n            *   Original 16 (Paragraphs.Paragraph_Text) -> new_table_idx 1, new_col_idx 2 (so, 3)\n\n        The new column indices for the filtered schema are:\n        *   `Documents.Document_ID`: 0 (table `Documents`, col `Document_ID`)\n        *   `Paragraphs.Paragraph_ID`: 1 (table `Paragraphs`, col `Paragraph_ID`)\n        *   `Paragraphs.Document_ID`: 2 (table `Paragraphs`, col `Document_ID`)\n        *   `Paragraphs.Paragraph_Text`: 3 (table `Paragraphs`, col `Paragraph_Text`)\n\n        The original FK `[15,9]` means `column 15` references `column 9`.\n        In the new schema:\n        `column 15` is now the 2nd column in the filtered list (index 2).\n        `column 9` is now the 0th column in the filtered list (index 0).\n        So, the new FK is `[2,0]`.\n\n    *   `primary_keys`:\n        *   Original 9 (Documents.Document_ID) -> new index 0\n        *   Original 14 (Paragraphs.Paragraph_ID) -> new index 1\n        *   So, `[0, 1]`\n\nLet's re-verify the structure.\n`table_names_original`:\n0: `Documents` (Original index 2)\n1: `Paragraphs` (Original index 3)\n\n`column_names_original`:\n-1: `*` (always kept)\n0: `Document_ID` (from `Documents`, original `[2, \"Document_ID\"]` which is `column_idx 9`)\n1: `Paragraph_ID` (from `Paragraphs`, original `[3, \"Paragraph_ID\"]` which is `column_idx 14`)\n2: `Document_ID` (from `Paragraphs`, original `[3, \"Document_ID\"]` which is `column_idx 15`)\n3: `Paragraph_Text` (from `Paragraphs`, original `[3, \"Paragraph_Text\"]` which is `column_idx 16`)\n\n`column_types`:\n\"number\" (for Document_ID)\n\"number\" (for Paragraph_ID)\n\"number\" (for Document_ID)\n\"text\" (for Paragraph_Text)\n\n`foreign_keys`:\n`[[2,0]]` (column with new index 2 (Paragraphs.Document_ID) references column with new index 0 (Documents.Document_ID))\n\n`primary_keys`:\n`[0,1]` (column with new index 0 (Documents.Document_ID), column with new index 1 (Paragraphs.Paragraph_ID))\n\nThis looks correct and follows all rules.\nThe final JSON needs to match the input schema format exactly.```json\n{\"db_id\":\"cre_Doc_Template_Mgt\",\"table_names_original\":[\"Documents\",\"Paragraphs\"],\"column_names_original\":[[-1,\"*\"],[0,\"Document_ID\"],[1,\"Paragraph_ID\"],[1,\"Document_ID\"],[1,\"Paragraph_Text\"]],\"column_types\":[\"number\",\"number\",\"number\",\"text\"],\"foreign_keys\":[[2,1]],\"primary_keys\":[1,2],\"column_sample_values\":[]}\n```",
+      "token_usage": {
+        "total_tokens": 3016,
+        "prompt_tokens": 993,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2023,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:37:46.610930"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.413,
+      "raw_response": "{ \"steps\": [ { \"step\": \"Identify minimum tables.\", \"details\": \"Documents and Paragraphs are needed because paragraph text filters are provided and output is on Document_ID.\" }, { \"step\": \"Determine if a join is needed.\", \"details\": \"A join is needed to link Paragraphs to Documents via Document_ID to attain document ids that match paragraph criteria.\" }, { \"step\": \"Identify primary and foreign key pairs for the join.\", \"details\": \"The PK=FK pair is Paragraphs.Document_ID (FK) = Documents.Document_ID (PK).\" }, { \"step\": \"Count or Group By Strategy\", \"details\": \"Neither GROUP BY nor COUNT is required because we need a simple intersection of document IDs containing specified paragraphs.\" }, { \"step\": \"Set operation determination\", \"details\": \"Use INTERSECT to handle 'documents that contain paragraphs with both texts.'\" }, { \"step\": \"Final SQL construction plan\", \"details\": \"SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Brazil' INTERSECT SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Ireland'\" } ] }",
+      "token_usage": {
+        "total_tokens": 1711,
+        "prompt_tokens": 1471,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 240,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:37:50.035728"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.903,
+      "raw_response": "{\"sql\": \"SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Brazil' INTERSECT SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Ireland'\"}",
+      "token_usage": {
+        "total_tokens": 2138,
+        "prompt_tokens": 2093,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 45,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:37:50.956932"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.476,
+      "raw_response": "{\"sql\": \"SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Brazil' INTERSECT SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Ireland'\", \"notes\": \"The SQL query properly uses the INTERSECT set operation to find Document_IDs containing paragraphs with both 'Brazil' and 'Ireland'. It accurately matches the expected output fields without unnecessary joins, counts, or groupings.\", \"diagnostics\": [\"Initial SQL meets the requirements of using INTERSECT to find common Document_IDs from Paragraphs containing specified text.\", \"No alterations to SELECT fields or join conditions were needed as they align with expected output conditions.\"]}",
+      "token_usage": {
+        "total_tokens": 1798,
+        "prompt_tokens": 1656,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 142,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:37:53.448551"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.243,
+      "raw_response": "The user wants me to act as a Final Validator for a given SQL query. I need to go through a 6-step validation checklist and fix any issues I find.\n\nHere's the plan:\n1.  **Check SELECT clause:**\n    *   Expected output field: `Document_ID`.\n    *   Current SQL: `SELECT Document_ID`. This matches.\n2.  **Check COUNTs and GROUP BY:**\n    *   No `COUNT` in the current query.\n    *   No `GROUP BY` in the current query.\n3.  **Check extremum patterns:**\n    *   Not applicable as it's not asking for min/max/earliest/latest.\n4.  **Check joins:**\n    *   `single_table_ok` is `false`.\n    *   `join_hints` suggest joining `Paragraphs` to `Documents`.\n    *   However, the current query only selects `Document_ID` from the `Paragraphs` table.\n    *   The question asks for \"ids of documents\". `Paragraphs` table has `Document_ID`.\n    *   The `Document_ID` in `Paragraphs` (column 3) is a foreign key to `Documents` (column 1).\n    *   The query uses `INTERSECT`, which means it finds `Document_ID`s that appear in both sets. This implicitly handles the \"and\" condition across paragraphs within the *same* document.\n    *   No explicit join to `Documents` is performed in the original query, which is fine if the `Document_ID` from `Paragraphs` is sufficient and refers to a valid document. The problem asks for \"ids of documents\", and `Paragraphs.Document_ID` refers to these document IDs. So, no join to `Documents` is strictly necessary *unless* there's a reason to filter or retrieve other information from `Documents`. In this case, `Paragraphs.Document_ID` is enough.\n5.  **Check ORDER BY:**\n    *   No `ORDER BY` in the current query. `order_by` in analysis is empty. This is correct.\n6.  **Check negation:**\n    *   Not a negation question.\n7.  **Check names and completeness:**\n    *   `Document_ID`, `Paragraphs`, `Paragraph_Text` all exist in the schema.\n    *   SQL is complete, single line, no comments.\n8.  **CRITICAL Final Pattern Checks:**\n    *   **Self-Join Validation:** `self_join_hint` is `false`. No self-join in SQL. Correct.\n    *   **Set Operation Validation:** `set_operation_type` is `INTERSECT`. SQL uses `INTERSECT`. Correct.\n    *   **WHERE Condition Validation:** `where_condition_type` is `LIKE`. SQL uses `LIKE`. `null_handling` is `UNKNOWN`. No `IS NULL` or `=\"null\"` needed. Correct.\n    *   **GROUP BY Validation:** No `GROUP BY` needed as no aggregation. Correct.\n    *   **ORDER BY Validation:** `order_by` is empty in analysis. No `ORDER BY` in SQL. Correct.\n    *   **DISTINCT Validation:** No `GROUP BY` used for uniqueness. `INTERSECT` inherently handles distinct `Document_ID`s. If a document has multiple paragraphs with \"Brazil\", `SELECT Document_ID` will list it multiple times, but `INTERSECT` will produce distinct results. So, `DISTINCT` on the `SELECT` clauses is not strictly necessary for the final result of `INTERSECT` but can be good practice. However, since the question simply asks for \"ids of documents\", and `INTERSECT` removes duplicates by default, it's fine.\n\nThe current SQL seems to be correct based on the analysis and schema.\nThe `expected_output_fields` is `[\"Document_ID\"]`. The SQL `SELECT Document_ID` matches this.\nThe `set_operation_type` is `INTERSECT`, and the SQL uses `INTERSECT`.\nThe `filters` are `Paragraph_Text LIKE '%Brazil%'` and `Paragraph_Text LIKE '%Ireland%'`. The SQL correctly applies these in separate `SELECT` statements joined by `INTERSECT`.\n\nNo changes needed.{\"sql\": \"SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Brazil' INTERSECT SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Ireland'\", \"explain\": \"The SQL query correctly identifies Document_ID from Paragraphs that contain 'Brazil' and 'Ireland' using INTERSECT, matching the expected output fields, set operation type, and filter conditions from the analysis. No further modifications were needed.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2471,
+        "prompt_tokens": 1434,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1037,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T05:37:58.712931"
+    }
+  ],
+  "final_sql": "SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Brazil' INTERSECT SELECT document_id FROM Paragraphs WHERE paragraph_text  =  'Ireland'",
+  "explain": "The SQL query correctly identifies Document_ID from Paragraphs that contain 'Brazil' and 'Ireland' using INTERSECT, matching the expected output fields, set operation type, and filter conditions from the analysis. No further modifications were needed.",
+  "error": "",
+  "timestamp": "2026-07-25T05:37:58.713845"
+}

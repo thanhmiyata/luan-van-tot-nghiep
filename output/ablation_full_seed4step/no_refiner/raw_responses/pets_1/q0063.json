@@ -1,0 +1,373 @@
+{
+  "question_index": 63,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "pets_1",
+  "question": "Find the id of students who do not have a cat pet.",
+  "gold_query": "SELECT stuid FROM student EXCEPT SELECT T1.stuid FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'cat'",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"StuID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"StuID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Pets\", \"column\": \"PetType\", \"operator\": \"<>\", \"value\": \"cat\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Has_Pet\", \"to_table\": \"Pets\", \"reason\": \"to find the type of pet each student has\"},\n    {\"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"reason\": \"to find which pets belong to which students\"}\n  ],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\", \"Pets\"], \"columns\": [\"StuID\", \"PetType\"], \"values\": [\"cat\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:07:23.831379"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"pets_1\",\n  \"table_names_original\": [\n    \"Student\",\n    \"Has_Pet\",\n    \"Pets\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"StuID\"\n    ],\n    [\n      1,\n      \"StuID\"\n    ],\n    [\n      1,\n      \"PetID\"\n    ],\n    [\n      2,\n      \"PetID\"\n    ],\n    [\n      2,\n      \"PetType\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      2,\n      1\n    ],\n    [\n      3,\n      4\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    4\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    [],\n    [\n      \"cat\",\n      \"dog\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:07:23.833742"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:07:23.834941"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Student.StuID FROM Student WHERE Student.StuID NOT IN (SELECT Has_Pet.StuID FROM Has_Pet JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat')\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:07:23.835938",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.stuid"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where not student.stuid in (select has_pet.stuid from has_pet join pets on has_pet.petid = pets.petid where pets.pettype = 'cat')",
+                "where pets.pettype = 'cat'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.stuid"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where not student.stuid in (select has_pet.stuid from has_pet join pets on has_pet.petid = pets.petid where pets.pettype = 'cat')",
+                "where pets.pettype = 'cat'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:07:23.835947",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.stuid"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where not student.stuid in (select has_pet.stuid from has_pet join pets on has_pet.petid = pets.petid where pets.pettype = 'cat')",
+                "where pets.pettype = 'cat'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.stuid"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where not student.stuid in (select has_pet.stuid from has_pet join pets on has_pet.petid = pets.petid where pets.pettype = 'cat')",
+                "where pets.pettype = 'cat'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:07:23.842691"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.816,
+      "raw_response": "{\n  \"sql\": \"SELECT StuID FROM Student WHERE StuID NOT IN (SELECT Has_Pet.StuID FROM Has_Pet JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat')\",\n  \"explain\": \"Fixed unsafe negation syntax NOT ... IN to standard StuID NOT IN subquery to ensure semantic validity.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3782,
+        "prompt_tokens": 2222,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1560,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:07:31.675354",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "stuid"
+          ],
+          "tables": [
+            "has_pet",
+            "pets",
+            "student"
+          ],
+          "joins": [
+            "join pets on has_pet.petid = pets.petid"
+          ],
+          "where": [
+            "where not stuid in (select has_pet.stuid from has_pet join pets on has_pet.petid = pets.petid where pets.pettype = 'cat')",
+            "where pets.pettype = 'cat'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "RELATED_NEGATION_UNSAFE",
+            "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: has_pet"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "stuid"
+          ],
+          "tables": [
+            "has_pet",
+            "pets",
+            "student"
+          ],
+          "joins": [
+            "join pets on has_pet.petid = pets.petid"
+          ],
+          "where": [
+            "where not stuid in (select has_pet.stuid from has_pet join pets on has_pet.petid = pets.petid where pets.pettype = 'cat')",
+            "where pets.pettype = 'cat'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "RELATED_NEGATION_UNSAFE",
+            "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: has_pet"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT StuID FROM Student WHERE NOT StuID IN (SELECT Has_Pet.StuID FROM Has_Pet JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat')",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:07:31.691372"
+}

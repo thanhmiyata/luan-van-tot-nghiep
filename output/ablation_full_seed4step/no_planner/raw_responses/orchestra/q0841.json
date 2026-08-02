@@ -1,0 +1,275 @@
+{
+  "question_index": 841,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "orchestra",
+  "question": "What are the names of conductors as well as the corresonding orchestras that they have conducted?",
+  "gold_query": "SELECT T1.Name ,  T2.Orchestra FROM conductor AS T1 JOIN orchestra AS T2 ON T1.Conductor_ID  =  T2.Conductor_ID",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\", \"Orchestra\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"conductor\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"orchestra\", \"column\": \"Orchestra\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"conductor\", \"to_table\": \"orchestra\", \"reason\": \"to connect conductors to their orchestras\"}],\n  \"entities\": {\"tables\": [\"conductor\", \"orchestra\"], \"columns\": [\"Name\", \"Orchestra\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:10:55.649924"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the original schema based on the provided question and analysis.\n1.  **Identify required tables**: The `entities.tables` from the analysis specifies \"conductor\" and \"orchestra\". These are the starting tables.\n2.  **Identify required columns for output**: The `expected_output_fields` and `output_fields_detailed` indicate `conductor.Name` and `orchestra.Orchestra`.\n3.  **Identify required columns for joins**: The `join_hints` state `conductor` to `orchestra`. The original `foreign_keys` `[[8,1]]` indicates that `orchestra.Conductor_ID` (global index 8) is a FK to `conductor.Conductor_ID` (global index 1). Therefore, `conductor.Conductor_ID` (PK of `conductor`) and `orchestra.Conductor_ID` (FK in `orchestra`) are essential for the join.\n4.  **Identify required PKs**: All tables involved (`conductor`, `orchestra`) need their primary keys. So `conductor.Conductor_ID` (global index 1) and `orchestra.Orchestra_ID` (global index 6) are needed.\n5.  **Compile all necessary columns**:\n    *   `conductor` table: `Conductor_ID` (PK, FK target) and `Name` (output).\n    *   `orchestra` table: `Orchestra_ID` (PK), `Orchestra` (output), and `Conductor_ID` (FK source).\n6.  **Filter `table_names_original`**: Keep \"conductor\" and \"orchestra\".\n7.  **Filter `column_names_original` and `column_types`**: Only include the identified necessary columns. Remap their global indices.\n    *   Original: `[-1,\"*\"], [0,\"Conductor_ID\"], [0,\"Name\"], ..., [1,\"Orchestra_ID\"], [1,\"Orchestra\"], [1,\"Conductor_ID\"], ...`\n    *   Selected global column indices: 1, 2, 6, 7, 8.\n    *   New `column_names_original` will be: `[-1,\"*\"], [0,\"Conductor_ID\"], [0,\"Name\"], [1,\"Orchestra_ID\"], [1,\"Orchestra\"], [1,\"Conductor_ID\"]`.\n    *   The corresponding `column_types` will be selected from the original list using these global indices (and adjusting for the `*` placeholder).\n8.  **Filter and remap `foreign_keys`**: The relevant FK is `[8,1]`. After remapping global indices, this becomes `[5,1]`.\n9.  **Filter and remap `primary_keys`**: The relevant PKs are `[1,6]`. After remapping global indices, this becomes `[1,3]`.\n10. **Filter `column_sample_values`**: Keep samples only for the retained columns, preserving their new order.\n\nLet's list the original and new indices for clarity:\nOriginal global column indices:\n- `*`: -1 (always present, no type)\n- `Conductor.Conductor_ID`: 1 (table 0, col 1) -> KEPT\n- `Conductor.Name`: 2 (table 0, col 2) -> KEPT\n- `Orchestra.Orchestra_ID`: 6 (table 1, col 6) -> KEPT\n- `Orchestra.Orchestra`: 7 (table 1, col 7) -> KEPT\n- `Orchestra.Conductor_ID`: 8 (table 1, col 8) -> KEPT\n\nNew global column indices:\n- `*`: -1 (for display purposes)\n- `[0,\"Conductor_ID\"]`: 1\n- `[0,\"Name\"]`: 2\n- `[1,\"Orchestra_ID\"]`: 3\n- `[1,\"Orchestra\"]`: 4\n- `[1,\"Conductor_ID\"]`: 5\n\nOriginal `column_types`: `[\"text\", \"number\", \"text\", \"number\", \"text\", \"number\", \"number\", \"text\", \"number\", \"text\", \"number\", \"text\", \"number\", \"number\", \"text\", \"text\", \"number\", \"text\", \"text\", \"number\", \"number\", \"others\", \"text\", \"number\"]`\nSelected types (using original global indices): `text` (for *), `number` (1), `text` (2), `number` (6), `text` (7), `number` (8).\nResulting `column_types`: `[\"text\", \"number\", \"text\", \"number\", \"text\", \"number\"]`\n\nOriginal `foreign_keys`: `[[8,1], [13,6], [20,12]]`\nRelevant FK: `[8,1]` -> using new indices: `[5,1]`\n\nOriginal `primary_keys`: `[1,6,12]`\nRelevant PKs: `[1,6]` -> using new indices: `[1,3]`\n\nOriginal `column_sample_values`:\n`[]` (idx -1)\n`[]` (idx 1)\n`[\"Antal Doráti\",\"Igor Stravinsky\",\"Colin Davis\",\"Paul Jorgensen\"]` (idx 2)\n`[]` (idx 3 - Age) -> DROPPED\n`[\"USA\",\"UK\",\"France\"]` (idx 4 - Nationality) -> DROPPED\n`[]` (idx 5 - Year_of_Work) -> DROPPED\n`[]` (idx 6)\n`[\"London Symphony Orchestra\",\"Columbia Symphony Orchestra\",\"Royal Concertgebouw Orchestra\",\"Royal Danish Orchestra\"]` (idx 7)\n`[]` (idx 8)\n...remaining are DROPPED\n\nNew `column_sample_values`:\n`[]` (for *)\n`[]` (for `[0,\"Conductor_ID\"]`)\n`[\"Antal Doráti\",\"Igor Stravinsky\",\"Colin Davis\",\"Paul Jorgensen\"]` (for `[0,\"Name\"]`)\n`[]` (for `[1,\"Orchestra_ID\"]`)\n`[\"London Symphony Orchestra\",\"Columbia Symphony Orchestra\",\"Royal Concertgebouw Orchestra\",\"Royal Danish Orchestra\"]` (for `[1,\"Orchestra\"]`)\n`[]` (for `[1,\"Conductor_ID\"]`)\n\nFinal check to ensure all requirements are met and no essential column/table is missing for the given query. The filtering seems correct and minimal.{\n\"db_id\": \"orchestra\",\n\"table_names_original\": [\"conductor\", \"orchestra\"],\n\"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Conductor_ID\"],\n    [0, \"Name\"],\n    [1, \"Orchestra_ID\"],\n    [1, \"Orchestra\"],\n    [1, \"Conductor_ID\"]\n],\n\"column_types\": [\"text\", \"number\", \"text\", \"number\", \"text\", \"number\"],\n\"foreign_keys\": [\n    [5, 1]\n],\n\"primary_keys\": [1, 3],\n\"column_sample_values\": [\n    [],\n    [],\n    [\"Antal Doráti\", \"Igor Stravinsky\", \"Colin Davis\", \"Paul Jorgensen\"],\n    [],\n    [\"London Symphony Orchestra\", \"Columbia Symphony Orchestra\", \"Royal Concertgebouw Orchestra\", \"Royal Danish Orchestra\"],\n    []\n]\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:10:55.651476"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:10:55.652554"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT conductor.Name, orchestra.Orchestra FROM conductor JOIN orchestra ON conductor.Conductor_ID = orchestra.Conductor_ID\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:10:55.653297",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "conductor.name",
+                "orchestra.orchestra"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "conductor.name",
+                "orchestra.orchestra"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:10:55.653303",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "conductor.name",
+                "orchestra.orchestra"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "conductor.name",
+                "orchestra.orchestra"
+              ],
+              "tables": [
+                "conductor",
+                "orchestra"
+              ],
+              "joins": [
+                "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Candidates are structurally equivalent and semantic audits pass; kept Direct.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:10:55.657234"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:10:55.658610",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/orchestra/orchestra.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "conductor.name",
+            "orchestra.orchestra"
+          ],
+          "tables": [
+            "conductor",
+            "orchestra"
+          ],
+          "joins": [
+            "join orchestra on conductor.conductor_id = orchestra.conductor_id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT conductor.Name, orchestra.Orchestra FROM conductor JOIN orchestra ON conductor.Conductor_ID = orchestra.Conductor_ID",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:10:55.660476"
+}

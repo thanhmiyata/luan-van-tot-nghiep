@@ -1,0 +1,69 @@
+{
+  "question_index": 81,
+  "pipeline": "4step",
+  "db_id": "pets_1",
+  "question": "Find the first name and gender of student who have more than one pet.",
+  "gold_query": "SELECT T1.fname ,  T1.sex FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid GROUP BY T1.stuid HAVING count(*)  >  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.172,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Fname\", \"Sex\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"Fname\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Student\", \"column\": \"Sex\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Has_Pet\", \"column\": \"StuID\"}],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"reason\": \"to match students with their pets\"}\n  ],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\"], \"columns\": [\"StuID\", \"Fname\", \"Sex\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1269,
+        "prompt_tokens": 1025,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 244,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:42:56.106567"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 9.729,
+      "raw_response": "{\"db_id\": \"pets_1\", \"table_names_original\": [\"Student\", \"Has_Pet\"], \"column_names_original\": [[-1, \"*\"], [0, \"StuID\"], [0, \"Fname\"], [0, \"Sex\"], [1, \"StuID\"], [1, \"PetID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 1]], \"primary_keys\": [1], \"column_sample_values\": []}",
+      "token_usage": {
+        "total_tokens": 2905,
+        "prompt_tokens": 794,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2111,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:43:05.838252"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.521,
+      "raw_response": "{\"sql\": \"SELECT Student.Fname, Student.Sex FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID GROUP BY Student.StuID, Student.Fname, Student.Sex HAVING COUNT(*) > 1\"}",
+      "token_usage": {
+        "total_tokens": 1181,
+        "prompt_tokens": 1118,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 63,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:43:07.360175"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.483,
+      "raw_response": "I need to carefully validate the provided SQL query against the given criteria and the analysis.\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `[\"Fname\", \"Sex\"]`\n    *   Current: `SELECT Student.Fname, Student.Sex`\n    *   Matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   Joins: `FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID`. This join is necessary to link students to their pets and then count pets per student. `Student.StuID` (PK) and `Has_Pet.StuID` (FK) are correctly used.\n    *   `GROUP BY Student.StuID, Student.Fname, Student.Sex`: The `GROUP BY` clause is correct for the `HAVING COUNT(*)` condition, as all non-aggregated `SELECT` fields must be in the `GROUP BY`.\n    *   `HAVING COUNT(*) > 1`: This counts the number of pet entries for each student, effectively counting the number of pets if each pet has one entry in `Has_Pet`. This is correct.\n    *   No `ORDER BY` is present, which is good as it's not requested.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available; Column/table names exist; SQL is complete and one line.**\n    *   Column/table names: `Student`, `Fname`, `Sex`, `StuID`, `Has_Pet` are all present in the schema.\n    *   SQL is complete and one line.\n    *   No text literals are used, so this point is not applicable here.\n\nAll checks pass. The SQL query is correct according to the validation rules and the provided analysis.\n\n```json\n{\n \"sql\": \"SELECT Student.Fname, Student.Sex FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID GROUP BY Student.StuID, Student.Fname, Student.Sex HAVING COUNT(*) > 1\",\n \"explain\": \"The query correctly selects the first name and sex from the Student table. It joins with Has_Pet to count pets per student using StuID. The GROUP BY includes all selected non-aggregated columns. The HAVING clause correctly filters for students with more than one pet. No unnecessary joins or ORDER BY clauses.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1343,
+        "prompt_tokens": 793,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 550,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:43:10.845186"
+    }
+  ],
+  "final_sql": "SELECT Student.Fname, Student.Sex FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID GROUP BY Student.StuID, Student.Fname, Student.Sex HAVING COUNT(*) > 1",
+  "explain": "The query correctly selects the first name and sex from the Student table. It joins with Has_Pet to count pets per student using StuID. The GROUP BY includes all selected non-aggregated columns. The HAVING clause correctly filters for students with more than one pet. No unnecessary joins or ORDER BY clauses.",
+  "error": "",
+  "timestamp": "2026-07-24T15:43:10.846871"
+}

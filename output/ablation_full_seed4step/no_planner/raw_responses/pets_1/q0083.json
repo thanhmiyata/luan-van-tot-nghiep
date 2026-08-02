@@ -1,0 +1,386 @@
+{
+  "question_index": 83,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "pets_1",
+  "question": "Find the last name of the student who has a cat that is age 3.",
+  "gold_query": "SELECT T1.lname FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pet_age  =  3 AND T3.pettype  =  'cat'",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"LName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"LName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Pets\", \"column\": \"PetType\", \"operator\": \"=\", \"value\": \"cat\", \"value_type\": \"STRING\"},\n    {\"table\": \"Pets\", \"column\": \"pet_age\", \"operator\": \"=\", \"value\": 3, \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Has_Pet\", \"to_table\": \"Student\", \"reason\": \"Link students with their pets\"},\n    {\"from_table\": \"Pets\", \"to_table\": \"Has_Pet\", \"reason\": \"Link pets with their owners in Student table\"}\n  ],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\", \"Pets\"], \"columns\": [\"LName\", \"PetType\", \"pet_age\"], \"values\": [\"cat\", 3]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:04:53.198025"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"pets_1\",\n  \"table_names_original\": [\"Student\", \"Has_Pet\", \"Pets\"],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"StuID\"],\n    [0, \"LName\"],\n    [1, \"StuID\"],\n    [1, \"PetID\"],\n    [2, \"PetID\"],\n    [2, \"PetType\"],\n    [2, \"pet_age\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [3, 1],\n    [4, 5]\n  ],\n  \"primary_keys\": [\n    1,\n    5\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\"Smith\", \"Kim\", \"Jones\", \"Kumar\"],\n    [],\n    [],\n    [],\n    [\"cat\", \"dog\"],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:04:53.200721"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:04:53.202031"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Student.LName FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat' AND Pets.pet_age = 3\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:04:53.203142",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.lname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join has_pet on student.stuid = has_pet.stuid",
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where pets.pettype = 'cat' and pets.pet_age = 3"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.lname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join has_pet on student.stuid = has_pet.stuid",
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where pets.pettype = 'cat' and pets.pet_age = 3"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:04:53.203151",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.lname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join has_pet on student.stuid = has_pet.stuid",
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where pets.pettype = 'cat' and pets.pet_age = 3"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "student.lname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [
+                "join has_pet on student.stuid = has_pet.stuid",
+                "join pets on has_pet.petid = pets.petid"
+              ],
+              "where": [
+                "where pets.pettype = 'cat' and pets.pet_age = 3"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: has_pet"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.605,
+      "raw_response": "{\n  \"sql\": \"SELECT Student.LName FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat' AND Pets.pet_age = 3\",\n  \"selected_candidate\": \"direct\",\n  \"notes\": \"Preserved candidate unchanged as deterministic and semantic reports both pass and candidate signatures agree.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 3627,
+        "prompt_tokens": 2644,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 983,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:04:58.830192",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "student.lname"
+          ],
+          "tables": [
+            "has_pet",
+            "pets",
+            "student"
+          ],
+          "joins": [
+            "join has_pet on student.stuid = has_pet.stuid",
+            "join pets on has_pet.petid = pets.petid"
+          ],
+          "where": [
+            "where pets.pettype = 'cat' and pets.pet_age = 3"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: has_pet"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.602,
+      "raw_response": "{\"sql\": \"SELECT Student.LName FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat' AND Pets.pet_age = 3\", \"explain\": \"Preserved input SQL as both deterministic and semantic reports passed validation with no violations.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3392,
+        "prompt_tokens": 2256,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1136,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:05:06.463840",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "student.lname"
+          ],
+          "tables": [
+            "has_pet",
+            "pets",
+            "student"
+          ],
+          "joins": [
+            "join has_pet on student.stuid = has_pet.stuid",
+            "join pets on has_pet.petid = pets.petid"
+          ],
+          "where": [
+            "where pets.pettype = 'cat' and pets.pet_age = 3"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: has_pet"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "student.lname"
+          ],
+          "tables": [
+            "has_pet",
+            "pets",
+            "student"
+          ],
+          "joins": [
+            "join has_pet on student.stuid = has_pet.stuid",
+            "join pets on has_pet.petid = pets.petid"
+          ],
+          "where": [
+            "where pets.pettype = 'cat' and pets.pet_age = 3"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: has_pet"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Student.LName FROM Student JOIN Has_Pet ON Student.StuID = Has_Pet.StuID JOIN Pets ON Has_Pet.PetID = Pets.PetID WHERE Pets.PetType = 'cat' AND Pets.pet_age = 3",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:05:06.479753"
+}

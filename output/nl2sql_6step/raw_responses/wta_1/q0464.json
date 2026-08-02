@@ -1,0 +1,470 @@
+{
+  "question_index": 464,
+  "pipeline": "6step",
+  "run_signature": "ac7fb161ec76b03cd381",
+  "db_id": "wta_1",
+  "question": "What is the name of the winner who has won the most matches, and how many rank points does this player have?",
+  "gold_query": "SELECT winner_name ,  winner_rank_points FROM matches GROUP BY winner_name ORDER BY count(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"winner_name\", \"ranking_points\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"matches\", \"column\": \"winner_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"rankings\", \"column\": \"ranking_points\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"matches\", \"column\": \"winner_name\"}],\n  \"order_by\": [\n    {\"table\": \"matches\", \"column\": \"winner_name\", \"direction\": \"ASC\"},\n    {\"table\": \"rankings\", \"column\": \"ranking_points\", \"direction\": \"DESC\"}\n  ],\n  \"join_hints\": [\n    {\"from_table\": \"matches\", \"to_table\": \"rankings\", \"reason\": \"to obtain the rank points of the player\"},\n    {\"from_table\": \"players\", \"to_table\": \"matches\", \"reason\": \"to ensure we retrieve correct player names if full name required\"}\n  ],\n  \"entities\": {\"tables\": [\"matches\", \"rankings\"], \"columns\": [\"winner_name\", \"ranking_points\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-26T23:51:01.420973"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"db_id\": \"wta_1\",\n  \"table_names_original\": [\n    \"players\",\n    \"matches\",\n    \"rankings\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"player_id\"],\n    [1, \"winner_id\"],\n    [1, \"winner_name\"],\n    [2, \"ranking_date\"],\n    [2, \"player_id\"],\n    [2, \"ranking_points\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\",\n    \"time\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [2, 1],\n    [5, 1]\n  ],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": []\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-26T23:51:01.423201"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 15.419,
+      "raw_response": "{\n  \"steps\": [\n    \"Identify the required tables: matches, players, rankings to retrieve winner name, match counts, and rank points.\",\n    \"Join matches to players on matches.winner_id = players.player_id.\",\n    \"Join players to rankings on rankings.player_id = players.player_id.\",\n    \"Group by matches.winner_id to aggregate match wins per player.\",\n    \"Order by COUNT(*) DESC to rank winners by most matches won.\",\n    \"Limit output to 1 row to get the top winner's name and rank points.\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"matches\",\n      \"column\": \"winner_name\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    },\n    {\n      \"table\": \"rankings\",\n      \"column\": \"ranking_points\",\n      \"agg\": \"NONE\",\n      \"order_index\": 1\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"matches\",\n      \"to_table\": \"players\",\n      \"condition\": \"matches.winner_id = players.player_id\"\n    },\n    {\n      \"from_table\": \"players\",\n      \"to_table\": \"rankings\",\n      \"condition\": \"rankings.player_id = players.player_id\"\n    }\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\n      \"table\": \"matches\",\n      \"column\": \"winner_id\"\n    }\n  ],\n  \"having\": [],\n  \"order_by\": [\n    {\n      \"table\": \"matches\",\n      \"column\": \"*\",\n      \"agg\": \"COUNT\",\n      \"direction\": \"DESC\"\n    }\n  ],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 6387,
+        "prompt_tokens": 3329,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3058,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-26T23:51:16.856312"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 1,
+      "elapsed_seconds": 1.399,
+      "raw_response": "{\n  \"direct_sql\": \"SELECT winner_name, winner_rank_points FROM matches WHERE winner_id = (SELECT winner_id FROM matches GROUP BY winner_id ORDER BY COUNT(*) DESC LIMIT 1) LIMIT 1;\",\n  \"planned_sql\": \"\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2553,
+        "prompt_tokens": 2485,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 68,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-26T23:51:18.278279",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "winner_name",
+                "winner_rank_points"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [
+                "where winner_id = (select winner_id from matches group by winner_id order by count(*) desc limit 1)"
+              ],
+              "group_by": [
+                "group by winner_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 1 does not contain expected column ranking_points."
+              },
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table rankings is absent."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "winner_name",
+                "winner_rank_points"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [
+                "where winner_id = (select winner_id from matches group by winner_id order by count(*) desc limit 1)"
+              ],
+              "group_by": [
+                "group by winner_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 1 does not contain expected column ranking_points."
+              },
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table rankings is absent."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 8.497,
+      "raw_response": "{\"direct_sql\": \"SELECT T1.winner_name, T",
+      "token_usage": {
+        "total_tokens": 4381,
+        "prompt_tokens": 3617,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 764,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-26T23:51:26.794592",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "winner_name",
+                "winner_rank_points"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [
+                "where winner_id = (select winner_id from matches group by winner_id order by count(*) desc limit 1)"
+              ],
+              "group_by": [
+                "group by winner_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 1 does not contain expected column ranking_points."
+              },
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table rankings is absent."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "winner_name",
+                "winner_rank_points"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [
+                "where winner_id = (select winner_id from matches group by winner_id order by count(*) desc limit 1)"
+              ],
+              "group_by": [
+                "group by winner_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 1 does not contain expected column ranking_points."
+              },
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table rankings is absent."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.742,
+      "raw_response": "{\n  \"sql\": \"SELECT winner_name, winner_rank_points FROM matches WHERE winner_id = (SELECT winner_id FROM matches GROUP BY winner_id ORDER BY COUNT(*) DESC LIMIT 1) LIMIT 1\",\n  \"selected_candidate\": \"direct\",\n  \"notes\": \"Direct SQL is valid and executable. Analysis-only schema/table disagreements do not override Direct SQL.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 5100,
+        "prompt_tokens": 3783,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1317,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-26T23:51:34.551652",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "winner_name",
+            "winner_rank_points"
+          ],
+          "tables": [
+            "matches"
+          ],
+          "joins": [],
+          "where": [
+            "where winner_id = (select winner_id from matches group by winner_id order by count(*) desc limit 1)"
+          ],
+          "group_by": [
+            "group by winner_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "OUTPUT_FIELD_MISMATCH",
+            "message": "Projection 1 does not contain expected column ranking_points."
+          },
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table rankings is absent."
+          }
+        ],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 17.39,
+      "raw_response": " preserves SQL unless one specific semantic violation is identified.\"\n\nWait, is there a semantic violation?\nThe semantic report says:\n violations:\n - OUTPUT_FIELD_MISMATCH: Projection 1 does not contain expected column ranking_points.\n - REQUIRED_TABLE_MISSING: Required table rankings is absent.\n\nWait! The semantic report generated those violations because Analysis put `expected_output",
+      "token_usage": {
+        "total_tokens": 5383,
+        "prompt_tokens": 3339,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-26T23:51:51.967859",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "winner_name",
+            "winner_rank_points"
+          ],
+          "tables": [
+            "matches"
+          ],
+          "joins": [],
+          "where": [
+            "where winner_id = (select winner_id from matches group by winner_id order by count(*) desc limit 1)"
+          ],
+          "group_by": [
+            "group by winner_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "OUTPUT_FIELD_MISMATCH",
+            "message": "Projection 1 does not contain expected column ranking_points."
+          },
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table rankings is absent."
+          }
+        ],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "winner_name",
+            "winner_rank_points"
+          ],
+          "tables": [
+            "matches"
+          ],
+          "joins": [],
+          "where": [
+            "where winner_id = (select winner_id from matches group by winner_id order by count(*) desc limit 1)"
+          ],
+          "group_by": [
+            "group by winner_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "OUTPUT_FIELD_MISMATCH",
+            "message": "Projection 1 does not contain expected column ranking_points."
+          },
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table rankings is absent."
+          }
+        ],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT winner_name, winner_rank_points FROM matches WHERE winner_id = (SELECT winner_id FROM matches GROUP BY winner_id ORDER BY COUNT(*) DESC LIMIT 1) LIMIT 1",
+  "explain": "Validator output unparsable; kept refined SQL.",
+  "error": "",
+  "timestamp": "2026-07-26T23:51:51.981151",
+  "hybrid_seed_from_4step": {
+    "seed_root": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/nl2sql_4step",
+    "seeded_steps": [
+      "question_analysis",
+      "schema_selector"
+    ],
+    "source_question_index": 464,
+    "source_db_id": "wta_1"
+  }
+}

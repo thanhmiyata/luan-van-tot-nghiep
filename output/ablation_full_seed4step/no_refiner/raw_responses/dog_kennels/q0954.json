@@ -1,0 +1,395 @@
+{
+  "question_index": 954,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "dog_kennels",
+  "question": "List the names of the dogs of the rarest breed and the treatment dates of them.",
+  "gold_query": "SELECT T1.name ,  T2.date_of_treatment FROM Dogs AS T1 JOIN Treatments AS T2 ON T1.dog_id  =  T2.dog_id WHERE T1.breed_code  =  ( SELECT breed_code FROM Dogs GROUP BY breed_code ORDER BY count(*) ASC LIMIT 1 )",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\", \"date_of_treatment\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Dogs\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Treatments\", \"column\": \"date_of_treatment\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Dogs\", \"to_table\": \"Breeds\", \"reason\": \"to find the rarest breed\"},\n    {\"from_table\": \"Dogs\", \"to_table\": \"Treatments\", \"reason\": \"to get treatment dates\"}\n  ],\n  \"entities\": {\"tables\": [\"Breeds\", \"Dogs\", \"Treatments\"], \"columns\": [\"breed_code\", \"name\", \"date_of_treatment\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:59:30.292230"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"db_id\": \"dog_kennels\", \"table_names_original\": [\"Breeds\", \"Dogs\", \"Treatments\"], \"column_names_original\": [[-1, \"*\"], [0, \"breed_code\"], [0, \"breed_name\"], [1, \"dog_id\"], [1, \"breed_code\"], [1, \"name\"], [2, \"treatment_id\"], [2, \"dog_id\"], [2, \"date_of_treatment\"]], \"column_types\": [\"text\", \"text\", \"text\", \"number\", \"text\", \"text\", \"number\", \"number\", \"time\"], \"foreign_keys\": [[4, 1], [7, 3]], \"primary_keys\": [1, 3, 6], \"column_sample_values\": [[], [\"BUL\", \"ESK\", \"HUS\"], [\"Eskimo\", \"Husky\", \"Bulldog\"], [], [\"ESK\", \"BUL\", \"HUS\"], [\"Kacey\", \"Hipolito\", \"Mavis\", \"Houston\"], [], [], []]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:59:30.295140"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:59:30.296315"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Dogs.name, Treatments.date_of_treatment FROM Dogs JOIN Breeds ON Dogs.breed_code = Breeds.breed_code JOIN Treatments ON Dogs.dog_id = Treatments.dog_id WHERE Breeds.breed_code = (SELECT breed_code FROM Breeds WHERE breed_code IN ('BUL', 'ESK', 'HUS') ORDER BY COUNT(Dogs.dog_id) ASC LIMIT 1)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:59:30.297274",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": false,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "SQLITE_EXPLAIN_ERROR",
+                "message": "no such column: Dogs.dog_id"
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "dogs.name",
+                "treatments.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [
+                "where breed_code in ('bul', 'esk', 'hus')",
+                "where breeds.breed_code = (select breed_code from breeds where breed_code in ('bul', 'esk', 'hus') order by count(dogs.dog_id) asc limit 1)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by count(dogs.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: breeds"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": false,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "SQLITE_EXPLAIN_ERROR",
+                "message": "no such column: Dogs.dog_id"
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "dogs.name",
+                "treatments.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [
+                "where breed_code in ('bul', 'esk', 'hus')",
+                "where breeds.breed_code = (select breed_code from breeds where breed_code in ('bul', 'esk', 'hus') order by count(dogs.dog_id) asc limit 1)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by count(dogs.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: breeds"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:59:30.297280",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": false,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "SQLITE_EXPLAIN_ERROR",
+                "message": "no such column: Dogs.dog_id"
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "dogs.name",
+                "treatments.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [
+                "where breed_code in ('bul', 'esk', 'hus')",
+                "where breeds.breed_code = (select breed_code from breeds where breed_code in ('bul', 'esk', 'hus') order by count(dogs.dog_id) asc limit 1)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by count(dogs.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: breeds"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": false,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "SQLITE_EXPLAIN_ERROR",
+                "message": "no such column: Dogs.dog_id"
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "dogs.name",
+                "treatments.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [
+                "where breed_code in ('bul', 'esk', 'hus')",
+                "where breeds.breed_code = (select breed_code from breeds where breed_code in ('bul', 'esk', 'hus') order by count(dogs.dog_id) asc limit 1)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by count(dogs.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: breeds"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:59:30.305144"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.891,
+      "raw_response": "{\n  \"sql\": \"\",\n  \"explain\": \"The original SQL has a fatal error: 'no such column: Dogs.dog_id'. This means the column Dogs.dog_id is incorrectly referenced, as no such column currently exists under the table Dogs, according to the provided schema.\",\n  \"error\": \"SQLITE_EXPLAIN_ERROR: no such column: Dogs.dog_id\"\n}",
+      "token_usage": {
+        "total_tokens": 3646,
+        "prompt_tokens": 3553,
+        "cached_prompt_tokens": 1920,
+        "completion_tokens": 93,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:59:32.210988",
+      "deterministic_audit": {
+        "valid": false,
+        "sqlite_explain_ok": false,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [
+          {
+            "code": "SQLITE_EXPLAIN_ERROR",
+            "message": "no such column: Dogs.dog_id"
+          }
+        ],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "dogs.name",
+            "treatments.date_of_treatment"
+          ],
+          "tables": [
+            "breeds",
+            "dogs",
+            "treatments"
+          ],
+          "joins": [
+            "join breeds on dogs.breed_code = breeds.breed_code",
+            "join treatments on dogs.dog_id = treatments.dog_id"
+          ],
+          "where": [
+            "where breed_code in ('bul', 'esk', 'hus')",
+            "where breeds.breed_code = (select breed_code from breeds where breed_code in ('bul', 'esk', 'hus') order by count(dogs.dog_id) asc limit 1)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by count(dogs.dog_id) asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: breeds"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": false,
+        "sqlite_explain_ok": false,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [
+          {
+            "code": "SQLITE_EXPLAIN_ERROR",
+            "message": "no such column: Dogs.dog_id"
+          }
+        ],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "dogs.name",
+            "treatments.date_of_treatment"
+          ],
+          "tables": [
+            "breeds",
+            "dogs",
+            "treatments"
+          ],
+          "joins": [
+            "join breeds on dogs.breed_code = breeds.breed_code",
+            "join treatments on dogs.dog_id = treatments.dog_id"
+          ],
+          "where": [
+            "where breed_code in ('bul', 'esk', 'hus')",
+            "where breeds.breed_code = (select breed_code from breeds where breed_code in ('bul', 'esk', 'hus') order by count(dogs.dog_id) asc limit 1)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by count(dogs.dog_id) asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: breeds"
+        ]
+      }
+    }
+  ],
+  "final_sql": "",
+  "error": "RuntimeError: Final SQL failed the executable-output invariant: SQLITE_EXPLAIN_ERROR",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:59:32.231567"
+}

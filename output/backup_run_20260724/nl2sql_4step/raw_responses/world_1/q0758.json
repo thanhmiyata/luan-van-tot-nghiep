@@ -1,0 +1,69 @@
+{
+  "question_index": 758,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "Which languages are spoken by only one country in republic governments?",
+  "gold_query": "SELECT T2.Language FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T1.GovernmentForm  =  \"Republic\" GROUP BY T2.Language HAVING COUNT(*)  =  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.932,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"country\", \"column\": \"GovernmentForm\", \"operator\": \"=\", \"value\": \"republic\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [{\"table\": \"countrylanguage\", \"column\": \"Language\"}],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"to filter by republic government form\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Language\", \"GovernmentForm\"], \"values\": [\"republic\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1204,
+        "prompt_tokens": 965,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 239,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:38:14.933447"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.032,
+      "raw_response": "{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[0, \"Code\"], [0, \"GovernmentForm\"], [1, \"CountryCode\"], [1, \"Language\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\"], \"foreign_keys\": [[2, 0]], \"primary_keys\": [0, 2]}",
+      "token_usage": {
+        "total_tokens": 3499,
+        "prompt_tokens": 806,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2693,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:38:25.978298"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.687,
+      "raw_response": "{\"sql\": \"SELECT countrylanguage.Language FROM countrylanguage JOIN country ON countrylanguage.CountryCode = country.Code WHERE country.GovernmentForm = 'republic' GROUP BY countrylanguage.Language HAVING COUNT(DISTINCT country.Code) = 1\"}",
+      "token_usage": {
+        "total_tokens": 1009,
+        "prompt_tokens": 895,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 114,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:38:27.679122"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.21,
+      "raw_response": "I will validate the SQL against the provided schema and analysis.\n\n1.  **SELECT statement:** The `SELECT` clause is `SELECT countrylanguage.Language`. The `expected_output_fields` is `[\"Language\"]`. This matches.\n2.  **JOINs:** The SQL uses `JOIN countrylanguage ON countrylanguage.CountryCode = country.Code`. The `join_hints` specify joining `countrylanguage` to `country` to filter by government form. The join condition `countrylanguage.CountryCode = country.Code` uses the foreign key `countrylanguage.CountryCode` and primary key `country.Code` and is correct. The join is necessary to filter by `country.GovernmentForm`.\n3.  **WHERE clause:** The `WHERE` clause is `country.GovernmentForm = 'republic'`. This matches the `filters` in the analysis.\n4.  **GROUP BY clause:** The `GROUP BY` clause is `GROUP BY countrylanguage.Language`. This matches the `group_by` in the analysis.\n5.  **HAVING clause:** The `HAVING` clause is `HAVING COUNT(DISTINCT country.Code) = 1`. This correctly counts distinct countries (`country.Code` is the primary key for country) and ensures only languages spoken by exactly one country are selected, which aligns with \"spoken by only one country\". `COUNT(DISTINCT country.Code)` correctly counts distinct entities.\n6.  **ORDER BY:** There is no `ORDER BY` clause, and the `analysis` also indicates no `order_by`. This is correct.\n7.  **Column/Table Names:** All table and column names (`countrylanguage`, `country`, `Language`, `CountryCode`, `Code`, `GovernmentForm`) exist in the schema.\n8.  **SQL completeness and format:** The SQL is complete, one line, and has no comments.\n\nThe SQL appears correct and aligns with all validation criteria.{\n \"sql\": \"SELECT T1.Language FROM countrylanguage AS T1 JOIN country AS T2 ON T1.CountryCode = T2.Code WHERE T2.GovernmentForm = 'republic' GROUP BY T1.Language HAVING COUNT(DISTINCT T2.Code) = 1\",\n \"explain\": \"The SQL query correctly selects the 'Language' from 'countrylanguage' by joining with 'country' to filter for 'republic' governments. It then groups by 'Language' and uses a HAVING clause with COUNT(DISTINCT country.Code) = 1 to ensure only languages spoken by a single country are returned. Aliases were added for brevity and clarity.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1281,
+        "prompt_tokens": 718,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 563,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:38:30.903078"
+    }
+  ],
+  "final_sql": "SELECT T1.Language FROM countrylanguage AS T1 JOIN country AS T2 ON T1.CountryCode = T2.Code WHERE T2.GovernmentForm = 'republic' GROUP BY T1.Language HAVING COUNT(DISTINCT T2.Code) = 1",
+  "explain": "The SQL query correctly selects the 'Language' from 'countrylanguage' by joining with 'country' to filter for 'republic' governments. It then groups by 'Language' and uses a HAVING clause with COUNT(DISTINCT country.Code) = 1 to ensure only languages spoken by a single country are returned. Aliases were added for brevity and clarity.",
+  "error": "",
+  "timestamp": "2026-07-23T23:38:30.904822"
+}

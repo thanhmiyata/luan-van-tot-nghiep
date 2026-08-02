@@ -1,0 +1,69 @@
+{
+  "question_index": 266,
+  "pipeline": "4step",
+  "db_id": "employee_hire_evaluation",
+  "question": "Find the cities that have more than one employee under age 30.",
+  "gold_query": "SELECT city FROM employee WHERE age  <  30 GROUP BY city HAVING count(*)  >  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 1.98,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"City\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"employee\", \"column\": \"City\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"employee\", \"column\": \"Age\", \"operator\": \"<\", \"value\": \"30\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [{\"table\": \"employee\", \"column\": \"City\"}],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"employee\"], \"columns\": [\"City\", \"Age\"], \"values\": [\"30\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1359,
+        "prompt_tokens": 1159,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 200,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:32:20.496765"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.935,
+      "raw_response": "Thought: I need to filter the schema to include only the necessary tables and columns for the query: \"Find the cities that have more than one employee under age 30.\"\n\n1.  **Identify required tables**: From the `Analysis`, the `employee` table is listed in `entities.tables` and is used for `output_fields_detailed`, `filters`, and `group_by`. No other tables are mentioned or needed to link `employee` to itself.\n2.  **Identify required columns from `employee` table**:\n    *   `City`: For output and group by. (column index 4 in original schema)\n    *   `Age`: For filter (`Age < 30`). (column index 3 in original schema)\n    *   `Employee_ID`: This column is implicitly needed for the \"more than one employee\" part, as we need to count employees within each city. Also, it's the Primary Key (PK) of the `employee` table, and PKs of kept tables should generally be preserved. (column index 1 in original schema)\n3.  **Preserve PK/FKs**:\n    *   The `employee` table's PK is `Employee_ID` (original index 1). This must be kept.\n    *   No FKs within the `employee` table itself, and no other tables are being kept, so no FKs need to be preserved for joins between kept tables.\n4.  **Construct the new schema**:\n    *   `db_id`: Remains the same.\n    *   `table_names_original`: Only `employee` (index 0).\n    *   `column_names_original`: Select `Employee_ID`, `Age`, `City` from `employee`, along with the mandatory `*` column.\n        *   Original indices: `*` (-1), `Employee_ID` (1), `Age` (3), `City` (4).\n        *   New mapping:\n            *   `[-1,\"*\"]` -> `[-1,\"*\"]` (new index 0 for `*`)\n            *   `[0,\"Employee_ID\"]` (original index 1) -> `[0,\"Employee_ID\"]` (new index 1)\n            *   `[0,\"Age\"]` (original index 3) -> `[0,\"Age\"]` (new index 2)\n            *   `[0,\"City\"]` (original index 4) -> `[0,\"City\"]` (new index 3)\n    *   `column_types`: Map types based on the selected columns and their original types.\n        *   `*`: `text`\n        *   `Employee_ID` (original index 1): `number`\n        *   `Age` (original index 3): `number`\n        *   `City` (original index 4): `text`\n    *   `foreign_keys`: Empty, as only one table is kept and no cross-table joins are needed.\n    *   `primary_keys`: `Employee_ID` is the PK. Its new index is 1. So, `[1]`.\n    *   `column_sample_values`: Filter and re-index samples corresponding to the kept columns.\n        *   `*`: `[]`\n        *   `Employee_ID`: `[]` (original was `[]`)\n        *   `Age`: `[]` (original was `[]`)\n        *   `City`: `[\"Bristol\",\"Bath\",\"Wasps\",\"Sale\"]` (original was at index 4)```json\n{\n  \"db_id\": \"employee_hire_evaluation\",\n  \"table_names_original\": [\n    \"employee\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Employee_ID\"\n    ],\n    [\n      0,\n      \"Age\"\n    ],\n    [\n      0,\n      \"City\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [\n      \"Bristol\",\n      \"Bath\",\n      \"Wasps\",\n      \"Sale\"\n    ]\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 3376,
+        "prompt_tokens": 906,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2470,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:32:32.433368"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.892,
+      "raw_response": "{\"sql\": \"SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1\"}",
+      "token_usage": {
+        "total_tokens": 1077,
+        "prompt_tokens": 1042,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 35,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:32:33.326510"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.985,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, following the 4-step checklist.\n\n**Checklist:**\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"City\"]`\n    *   Current SQL `SELECT`: `City`\n    *   Matches.\n    *   `COUNT` uses `DISTINCT` when counting entities: Not applicable here as `COUNT(*)` is used in `HAVING` for groups, which is correct for counting rows within each group.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   No `ORDER BY` in the SQL, and none expected in the analysis.\n    *   No joins are present, and none are needed according to the `single_table_ok: false` (which is a bit misleading here as it implies a join *might* be needed, but the current query correctly operates on a single table for this question), and `join_hints: []`. The query is correctly a single-table query.\n    *   `COUNT(*)` is used in `HAVING COUNT(*) > 1`, which is correct for counting employees within each city group.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available; Column/table names exist; SQL is complete and one line.**\n    *   Text literals: None in the `WHERE` or `HAVING` clause, only the number `30`.\n    *   Column/table names exist:\n        *   `employee`: Exists in `table_names_original`.\n        *   `City`: Exists in `column_names_original` for `employee`.\n        *   `Age`: Exists in `column_names_original` for `employee`.\n    *   SQL is complete and one line: Yes.\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable.**\n    *   No issues found. The SQL query \"SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1\" correctly answers the question \"Find the cities that have more than one employee under age 30.\" based on the provided schema and analysis.\n\nThe current SQL is already correct and matches all validation criteria.{\"sql\": \"SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1\", \"explain\": \"The query correctly selects cities where the employee's age is less than 30, groups them by city, and then filters to include only those cities with more than one employee, matching all validation criteria.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1290,
+        "prompt_tokens": 692,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 598,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:32:37.312779"
+    }
+  ],
+  "final_sql": "SELECT City FROM employee WHERE Age < 30 GROUP BY City HAVING COUNT(*) > 1",
+  "explain": "The query correctly selects cities where the employee's age is less than 30, groups them by city, and then filters to include only those cities with more than one employee, matching all validation criteria.",
+  "error": "",
+  "timestamp": "2026-07-24T13:32:37.314338"
+}

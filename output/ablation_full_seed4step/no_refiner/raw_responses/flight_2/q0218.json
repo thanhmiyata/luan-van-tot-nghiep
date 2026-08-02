@@ -1,0 +1,290 @@
+{
+  "question_index": 218,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "flight_2",
+  "question": "Return the number of United Airlines flights leaving from AHD Airport.",
+  "gold_query": "SELECT count(*) FROM AIRLINES AS T1 JOIN FLIGHTS AS T2 ON T2.Airline  =  T1.uid WHERE T1.Airline  =  \"United Airlines\" AND T2.SourceAirport  =  \"AHD\"",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"COUNT\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"flights\", \"column\": \"*\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"flights\", \"column\": \"SourceAirport\", \"operator\": \"=\", \"value\": \"AHD\", \"value_type\": \"STRING\"},\n    {\"table\": \"airlines\", \"column\": \"Airline\", \"operator\": \"=\", \"value\": \"United Airlines\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"flights\", \"to_table\": \"airlines\", \"reason\": \"To filter by airline name\"}\n  ],\n  \"entities\": {\"tables\": [\"flights\", \"airlines\"], \"columns\": [\"SourceAirport\", \"Airline\"], \"values\": [\"AHD\", \"United Airlines\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:03:43.603752"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"db_id\": \"flight_2\", \"table_names_original\": [\"airlines\", \"flights\"], \"column_names_original\": [[-1, \"*\"], [0, \"uid\"], [0, \"Airline\"], [1, \"Airline\"], [1, \"SourceAirport\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"text\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [\"United Airlines\", \"US Airways\", \"Delta Airlines\", \"Southwest Airlines\"], [], [\" APG\", \" ASY\", \" CVO\", \" ACV\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:03:43.607300"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.681,
+      "raw_response": "{\n  \"steps\": [\"Join flights and airlines tables to filter by airlines name\", \"Count flights from AHD airport for United Airlines\"],\n  \"select\": [{\"table\": \"flights\", \"column\": \"*\", \"agg\": \"COUNT\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"flights\", \"to_table\": \"airlines\", \"condition\": \"flights.Airline = airlines.uid\"}],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"flights.SourceAirport = 'AHD'\"},\n    {\"scope_id\": \"s1\", \"branch_id\": \"b2\", \"expression\": \"airlines.Airline = 'United Airlines'\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2572,
+        "prompt_tokens": 2188,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 384,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:03:48.304792"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) FROM flights JOIN airlines ON flights.Airline = airlines.uid WHERE flights.SourceAirport = 'AHD' AND airlines.Airline = 'United Airlines'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:03:48.307407",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "airlines",
+                "flights"
+              ],
+              "joins": [
+                "join airlines on flights.airline = airlines.uid"
+              ],
+              "where": [
+                "where flights.sourceairport = 'ahd' and airlines.airline = 'united airlines'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "airlines",
+                "flights"
+              ],
+              "joins": [
+                "join airlines on flights.airline = airlines.uid"
+              ],
+              "where": [
+                "where flights.sourceairport = 'ahd' and airlines.airline = 'united airlines'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.143,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT COUNT(*) FROM flights JOIN airlines ON flights.Airline = airlines.uid WHERE flights.SourceAirport = 'AHD' AND airlines.Airline = 'United Airlines'\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2529,
+        "prompt_tokens": 2456,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 73,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:03:49.472124",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "airlines",
+                "flights"
+              ],
+              "joins": [
+                "join airlines on flights.airline = airlines.uid"
+              ],
+              "where": [
+                "where flights.sourceairport = 'ahd' and airlines.airline = 'united airlines'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "airlines",
+                "flights"
+              ],
+              "joins": [
+                "join airlines on flights.airline = airlines.uid"
+              ],
+              "where": [
+                "where flights.sourceairport = 'ahd' and airlines.airline = 'united airlines'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:03:49.482164"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:03:49.484588",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*)"
+          ],
+          "tables": [
+            "airlines",
+            "flights"
+          ],
+          "joins": [
+            "join airlines on flights.airline = airlines.uid"
+          ],
+          "where": [
+            "where flights.sourceairport = 'ahd' and airlines.airline = 'united airlines'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) FROM flights JOIN airlines ON flights.Airline = airlines.uid WHERE flights.SourceAirport = 'AHD' AND airlines.Airline = 'United Airlines'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:03:49.489441"
+}

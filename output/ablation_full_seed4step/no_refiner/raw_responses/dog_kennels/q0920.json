@@ -1,0 +1,335 @@
+{
+  "question_index": 920,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "dog_kennels",
+  "question": "What is the average age of the dogs who have gone through any treatments?",
+  "gold_query": "SELECT avg(age) FROM Dogs WHERE dog_id IN ( SELECT dog_id FROM Treatments )",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"age\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Dogs\", \"column\": \"age\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Dogs\", \"to_table\": \"Treatments\", \"reason\": \"to check if dogs have received any treatments\"}],\n  \"entities\": {\"tables\": [\"Dogs\", \"Treatments\"], \"columns\": [\"age\", \"dog_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:56:30.845533"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Dogs\",\n    \"Treatments\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"dog_id\"],\n    [0, \"age\"],\n    [1, \"treatment_id\"],\n    [1, \"dog_id\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [4, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"6\",\n      \"9\",\n      \"8\",\n      \"5\"\n    ],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:56:30.847468"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.854,
+      "raw_response": "{\n  \"steps\": [\"Select average age of dogs with treatments\"],\n  \"select\": [{\"table\": \"Dogs\", \"column\": \"age\", \"agg\": \"AVG\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"Dogs\", \"to_table\": \"Treatments\", \"condition\": \"Treatments.dog_id = Dogs.dog_id\"}],\n  \"predicates\": [],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2330,
+        "prompt_tokens": 2184,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 146,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:56:33.717838"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT AVG(Dogs.age) FROM Dogs JOIN Treatments ON Dogs.dog_id = Treatments.dog_id\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:56:33.719980",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(dogs.age)"
+              ],
+              "tables": [
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(dogs.age)"
+              ],
+              "tables": [
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "inner join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.052,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT AVG(Dogs.age) FROM Dogs INNER JOIN Treatments ON Dogs.dog_id = Treatments.dog_id\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2432,
+        "prompt_tokens": 2378,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 54,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:56:34.783667",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(dogs.age)"
+              ],
+              "tables": [
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(dogs.age)"
+              ],
+              "tables": [
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "inner join treatments on dogs.dog_id = treatments.dog_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:56:34.800812"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.517,
+      "raw_response": "{\"sql\": \"SELECT AVG(Dogs.age) FROM Dogs JOIN Treatments ON Dogs.dog_id = Treatments.dog_id\", \"explain\": \"The SQL correctly calculates the average age of dogs who have received any treatments using an appropriate INNER JOIN, matching the question's parameters.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3378,
+        "prompt_tokens": 3225,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 153,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:56:37.342328",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(dogs.age)"
+          ],
+          "tables": [
+            "dogs",
+            "treatments"
+          ],
+          "joins": [
+            "join treatments on dogs.dog_id = treatments.dog_id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: treatments",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(dogs.age)"
+          ],
+          "tables": [
+            "dogs",
+            "treatments"
+          ],
+          "joins": [
+            "join treatments on dogs.dog_id = treatments.dog_id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: treatments",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT AVG(Dogs.age) FROM Dogs JOIN Treatments ON Dogs.dog_id = Treatments.dog_id",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:56:37.355452"
+}

@@ -1,0 +1,317 @@
+{
+  "question_index": 436,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "wta_1",
+  "question": "What are the average ages of losers and winners across matches?",
+  "gold_query": "SELECT avg(loser_age) ,  avg(winner_age) FROM matches",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"average_loser_age\", \"average_winner_age\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"matches\", \"column\": \"loser_age\", \"agg\": \"AVG\", \"alias\": \"average_loser_age\", \"order_index\": 0},\n    {\"table\": \"matches\", \"column\": \"winner_age\", \"agg\": \"AVG\", \"alias\": \"average_winner_age\", \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"matches\"], \"columns\": [\"loser_age\", \"winner_age\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:21:39.209837"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema based on the question \"What are the average ages of losers and winners across matches?\".\nThe analysis indicates that the `matches` table is the only relevant table.\nThe columns required for the output are `loser_age` and `winner_age` from the `matches` table.\nAs per the instructions, I should preserve all columns tied to outputs and PK/FKs.\nThe `matches` table does not have an explicit primary key listed in `primary_keys` array that refers to its columns. However, `match_num` is a good candidate for an implicit primary key for the `matches` table. To adhere to \"Prefer a safe small superset over dropping a needed column\" and preserve identity of the kept table, `match_num` should be included.\nNo joins are required, so no foreign keys or other primary keys (like `players.player_id`) are needed.\n\nSteps:\n1.  **Identify relevant table:** `matches` (table index 1).\n2.  **Identify relevant columns for output:** `loser_age` (original global index 9), `winner_age` (original global index 28).\n3.  **Identify PK for the kept table (safe superset):** `match_num` (original global index 19) from `matches` table.\n4.  **Map these to the new schema structure:**\n    *   `db_id` remains the same.\n    *   `table_names_original` will only contain \"matches\".\n    *   `column_names_original` will start with `[-1,\"*\"]`, followed by the selected columns from `matches` (which will become table 0 in the new schema).\n    *   `column_types` will correspond to the selected columns.\n    *   `foreign_keys` will be empty as no joins are needed.\n    *   `primary_keys` will be empty as the original `primary_keys` list referred to `players.player_id`, which is not kept.\n    *   `column_sample_values` will correspond to the selected columns.\n\nLet's list the selected columns and their attributes:\n-   `[-1, \"*\"]` -> type `text`, sample `[]`\n-   `[1, \"loser_age\"]` (original global index 9) -> new `[0, \"loser_age\"]`, type `number`, sample `[]`\n-   `[1, \"winner_age\"]` (original global index 28) -> new `[0, \"winner_age\"]`, type `number`, sample `[]`\n-   `[1, \"match_num\"]` (original global index 19) -> new `[0, \"match_num\"]`, type `number`, sample `[]````json\n{\n  \"db_id\": \"wta_1\",\n  \"table_names_original\": [\n    \"matches\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"loser_age\"],\n    [0, \"winner_age\"],\n    [0, \"match_num\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:21:39.211701"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.181,
+      "raw_response": "{\n  \"steps\": [\"Select average ages of losers and winners from matches table without join or group by\"],\n  \"select\": [\n    {\"table\": \"matches\", \"column\": \"loser_age\", \"agg\": \"AVG\", \"order_index\": 0},\n    {\"table\": \"matches\", \"column\": \"winner_age\", \"agg\": \"AVG\", \"order_index\": 1}\n  ],\n  \"joins\": [],\n  \"predicates\": [],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2473,
+        "prompt_tokens": 2316,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 157,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:21:43.406993"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT AVG(loser_age) AS average_loser_age, AVG(winner_age) AS average_winner_age FROM matches\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:21:43.409658",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(loser_age) as average_loser_age",
+                "avg(winner_age) as average_winner_age"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(loser_age) as average_loser_age",
+                "avg(winner_age) as average_winner_age"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.325,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT AVG(loser_age) AS average_loser_age, AVG(winner_age) AS average_winner_age FROM matches\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2587,
+        "prompt_tokens": 2516,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 71,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:21:44.753643",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(loser_age) as average_loser_age",
+                "avg(winner_age) as average_winner_age"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(loser_age) as average_loser_age",
+                "avg(winner_age) as average_winner_age"
+              ],
+              "tables": [
+                "matches"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:21:44.760936"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.028,
+      "raw_response": "{\n  \"sql\": \"SELECT AVG(loser_age) AS average_loser_age, AVG(winner_age) AS average_winner_age FROM matches\",\n  \"explain\": \"The query correctly calculates the average ages of losers and winners from the 'matches' table. Both deterministic and semantic reports are valid, with no violations, matching the expected output fields.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2666,
+        "prompt_tokens": 2575,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 91,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:21:46.809994",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(loser_age) as average_loser_age",
+            "avg(winner_age) as average_winner_age"
+          ],
+          "tables": [
+            "matches"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(loser_age) as average_loser_age",
+            "avg(winner_age) as average_winner_age"
+          ],
+          "tables": [
+            "matches"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT AVG(loser_age) AS average_loser_age, AVG(winner_age) AS average_winner_age FROM matches",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:21:46.818137"
+}

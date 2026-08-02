@@ -1,0 +1,69 @@
+{
+  "question_index": 367,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Show all document ids and the number of paragraphs in each document. Order by document id.",
+  "gold_query": "SELECT document_id ,  count(*) FROM Paragraphs GROUP BY document_id ORDER BY document_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.771,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Document_ID\", \"Paragraph_count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Paragraphs\", \"column\": \"Paragraph_ID\", \"agg\": \"COUNT\", \"alias\": \"Paragraph_count\", \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\"}],\n  \"order_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\", \"direction\": \"ASC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"Paragraph count per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\", \"Paragraph_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1549,
+        "prompt_tokens": 1290,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 259,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:45:08.992224"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.775,
+      "raw_response": "{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Documents\", \"Paragraphs\"], \"column_names_original\": [[-1, \"*\"], [0, \"Document_ID\"], [1, \"Paragraph_ID\"], [1, \"Document_ID\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 3920,
+        "prompt_tokens": 919,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3001,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:45:20.769123"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.642,
+      "raw_response": "{\"sql\": \"SELECT Documents.Document_ID, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_count FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID ORDER BY Documents.Document_ID ASC\"}",
+      "token_usage": {
+        "total_tokens": 1315,
+        "prompt_tokens": 1257,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 58,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:45:22.412756"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.861,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, ensuring it meets all the specified criteria.\n\nHere's the plan:\n1.  **Check SELECT clause:**\n    *   `SELECT Documents.Document_ID, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_count`\n    *   Expected output fields: `[\"Document_ID\", \"Paragraph_count\"]`\n    *   Content and order match.\n    *   `COUNT(Paragraphs.Paragraph_ID)` is used. The analysis suggests `COUNT(*)` is preferred unless joins duplicate rows. In a `LEFT JOIN` scenario where we are counting child rows, `COUNT(Paragraphs.Paragraph_ID)` (or any non-null column from `Paragraphs`) is appropriate and correctly handles documents with no paragraphs (resulting in 0). `COUNT(*)` would also work for the count of paragraphs here, as the `LEFT JOIN` ensures all `Documents` are included. However, `COUNT(Paragraphs.Paragraph_ID)` explicitly counts non-null `Paragraph_ID`s, which is essentially counting paragraphs. Given the current structure, it's acceptable. Let's consider if `COUNT(*)` would be better. For `LEFT JOIN` where we count occurrences in the right table, `COUNT(right_table.PK_column)` or `COUNT(*)` (after grouping) generally yield the same result for non-NULL counts. `COUNT(*)` is more generic. Let's keep `COUNT(Paragraphs.Paragraph_ID)` for now as it's not strictly incorrect.\n\n2.  **Check Joins:**\n    *   `FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID`\n    *   Analysis indicates `single_table_ok: false` and `join_hints: [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"Paragraph count per document\"}]`.\n    *   `LEFT JOIN` is correct to include documents even if they have no paragraphs.\n    *   Join condition `Documents.Document_ID = Paragraphs.Document_ID` is correct (PK/FK).\n    *   Joins are minimal and necessary.\n\n3.  **Check GROUP BY:**\n    *   `GROUP BY Documents.Document_ID`\n    *   Analysis `group_by: [{\"table\": \"Documents\", \"column\": \"Document_ID\"}]`. Matches.\n    *   All non-aggregated columns in SELECT (`Documents.Document_ID`) are in GROUP BY. Correct.\n\n4.  **Check ORDER BY:**\n    *   `ORDER BY Documents.Document_ID ASC`\n    *   Question: \"Order by document id.\"\n    *   Analysis `order_by: [{\"table\": \"Documents\", \"column\": \"Document_ID\", \"direction\": \"ASC\"}]`. Matches.\n    *   `Documents.Document_ID` is a real column and is in the SELECT list (or GROUP BY). Correct.\n    *   `ASC` is default so it could be omitted, but explicit `ASC` is fine.\n\n5.  **Check column/table names and completeness:**\n    *   All names (`Documents`, `Paragraphs`, `Document_ID`, `Paragraph_ID`) exist in the schema.\n    *   SQL is complete and one line. No comments.\n\n6.  **Final decision on COUNT(*):** While `COUNT(*)` is preferred, `COUNT(Paragraphs.Paragraph_ID)` is perfectly valid here, especially in a `LEFT JOIN` where we want to count *actual* paragraphs (non-null `Paragraph_ID`s). Changing it to `COUNT(*)` would not significantly improve correctness or performance in this specific case, and the current SQL is not \"wrong\". Thus, no change needed for this.\n\nThe SQL appears to be correct and aligns with all validation criteria.\n\n```json\n{\n  \"sql\": \"SELECT Documents.Document_ID, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_count FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID ORDER BY Documents.Document_ID ASC\",\n  \"explain\": \"The SQL query correctly selects document IDs and counts paragraphs using a LEFT JOIN to ensure all documents are included. Grouping by document ID and ordering as requested by the question are also correct.\",\n  \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1832,
+        "prompt_tokens": 876,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 956,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:45:27.274246"
+    }
+  ],
+  "final_sql": "SELECT Documents.Document_ID, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_count FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID ORDER BY Documents.Document_ID ASC",
+  "explain": "The SQL query correctly selects document IDs and counts paragraphs using a LEFT JOIN to ensure all documents are included. Grouping by document ID and ordering as requested by the question are also correct.",
+  "error": "",
+  "timestamp": "2026-07-25T04:45:27.275737"
+}

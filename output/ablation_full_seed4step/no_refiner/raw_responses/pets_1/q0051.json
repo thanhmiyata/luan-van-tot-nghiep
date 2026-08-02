@@ -1,0 +1,343 @@
+{
+  "question_index": 51,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "pets_1",
+  "question": "Find number of pets owned by students who are older than 20.",
+  "gold_query": "SELECT count(*) FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid WHERE T1.age  >  20",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"COUNT(PetID)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Has_Pet\", \"column\": \"PetID\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Student\", \"column\": \"Age\", \"operator\": \">\", \"value\": \"20\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [{\"table\": \"Has_Pet\", \"column\": \"StuID\"}],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Has_Pet\", \"to_table\": \"Student\", \"reason\": \"to filter students by age\"}\n  ],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\"], \"columns\": [\"Age\", \"StuID\", \"PetID\"], \"values\": [\"20\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:06:17.812353"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have carefully analyzed the question, original schema, and the provided analysis.\n1.  **Identify Required Tables**: The analysis explicitly mentions `Student` and `Has_Pet` in `entities.tables` and `join_hints`. The `Pets` table is not required as `PetID` for counting is available in `Has_Pet` and no attributes from `Pets` are needed for filtering or output.\n2.  **Identify Required Columns**:\n    *   `Student` table: `StuID` (PK, for join with `Has_Pet`), `Age` (for filter `Age > 20`).\n    *   `Has_Pet` table: `StuID` (FK, for join with `Student`), `PetID` (for `COUNT(PetID)`).\n    *   The `[-1, \"*\"]` entry is typically preserved as the first column.\n3.  **Map Original Indices to New Indices**: I will create a mapping from original column indices to their new indices in the filtered schema to correctly update `primary_keys` and `foreign_keys`.\n    *   Original `column_names_original`: `[[-1,\"*\"],[0,\"StuID\"],[0,\"LName\"],[0,\"Fname\"],[0,\"Age\"],[0,\"Sex\"],[0,\"Major\"],[0,\"Advisor\"],[0,\"city_code\"],[1,\"StuID\"],[1,\"PetID\"],[2,\"PetID\"],[2,\"PetType\"],[2,\"pet_age\"],[2,\"weight\"]]`\n    *   Original `primary_keys`: `[1,11]` (Student.StuID, Pets.PetID)\n    *   Original `foreign_keys`: `[[9,1],[10,11]]` (Has_Pet.StuID -> Student.StuID, Has_Pet.PetID -> Pets.PetID)\n\n    **Columns to keep (original index -> new index):**\n    *   `[-1, \"*\"]` (original index 0) -> new index 0\n    *   `[0, \"StuID\"]` (original index 1) -> new index 1\n    *   `[0, \"Age\"]` (original index 4) -> new index 2\n    *   `[1, \"StuID\"]` (original index 9) -> new index 3\n    *   `[1, \"PetID\"]` (original index 10) -> new index 4\n\n4.  **Construct Filtered Schema**:\n    *   `table_names_original`: Keep `Student` and `Has_Pet`.\n    *   `column_names_original`: Include the selected columns with their new indices.\n    *   `column_types`: Match the types of the selected columns.\n    *   `primary_keys`: Update indices based on the mapping. `1` (Student.StuID) maps to `1`. `11` (Pets.PetID) is dropped as `Pets` is not needed.\n    *   `foreign_keys`: Update indices based on the mapping. `[9,1]` (Has_Pet.StuID -> Student.StuID) maps to `[3,1]`. `[10,11]` (Has_Pet.PetID -> Pets.PetID) is dropped as `Pets` is not needed.\n    *   `column_sample_values`: Keep only values for the selected columns, maintaining their original order relative to other *kept* columns. If no sample values for a kept column, use `[]`.\n\nThe filtered schema will include `db_id`, `table_names_original`, `column_names_original`, `column_types`, `foreign_keys`, `primary_keys`, and `column_sample_values`.{\"db_id\": \"pets_1\", \"table_names_original\": [\"Student\", \"Has_Pet\"], \"column_names_original\": [[-1, \"*\"], [0, \"StuID\"], [0, \"Age\"], [1, \"StuID\"], [1, \"PetID\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1], \"column_sample_values\": [[], [], [], [], []]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:06:17.815956"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:06:17.817382"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(PetID) FROM Has_Pet WHERE StuID IN (SELECT StuID FROM Student WHERE Age > 20)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:06:17.818416",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(petid)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where age > 20",
+                "where stuid in (select stuid from student where age > 20)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(petid)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where age > 20",
+                "where stuid in (select stuid from student where age > 20)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:06:17.818425",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(petid)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where age > 20",
+                "where stuid in (select stuid from student where age > 20)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(petid)"
+              ],
+              "tables": [
+                "has_pet",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where age > 20",
+                "where stuid in (select stuid from student where age > 20)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:06:17.823954"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 15.999,
+      "raw_response": "Has_Pet` for those students.\nSince `StuID` in Student is unique (Primary Key), each matching student's pets in `Has_Pet` are counted.\n\nWait, is `COUNT(*)` preferred over `COUNT(PetID)`?\nRule 6 says: \"Never change COUNT(*) to COUNT(column)/COUNT DISTINCT without explicit null-sensitive/distinct",
+      "token_usage": {
+        "total_tokens": 4039,
+        "prompt_tokens": 1995,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:06:33.840250",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(petid)"
+          ],
+          "tables": [
+            "has_pet",
+            "student"
+          ],
+          "joins": [],
+          "where": [
+            "where age > 20",
+            "where stuid in (select stuid from student where age > 20)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": []
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(petid)"
+          ],
+          "tables": [
+            "has_pet",
+            "student"
+          ],
+          "joins": [],
+          "where": [
+            "where age > 20",
+            "where stuid in (select stuid from student where age > 20)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(PetID) FROM Has_Pet WHERE StuID IN (SELECT StuID FROM Student WHERE Age > 20)",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:06:33.852533"
+}

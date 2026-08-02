@@ -1,0 +1,370 @@
+{
+  "question_index": 549,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "student_transcripts_tracking",
+  "question": "Find the last name of the students who currently live in the state of North Carolina but have not registered in any degree program.",
+  "gold_query": "SELECT T1.last_name FROM Students AS T1 JOIN Addresses AS T2 ON T1.current_address_id  =  T2.address_id WHERE T2.state_province_county  =  'NorthCarolina' EXCEPT SELECT DISTINCT T3.last_name FROM Students AS T3 JOIN Student_Enrolment AS T4 ON T3.student_id  =  T4.student_id",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"last_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Addresses\", \"column\": \"state_province_county\", \"operator\": \"=\", \"value\": \"North Carolina\", \"value_type\": \"STRING\"},\n    {\"table\": \"Students\", \"column\": \"current_address_id\", \"operator\": \"IN\", \"value\": \"(subquery from Addresses)\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Students\", \"to_table\": \"Addresses\", \"reason\": \"Students filtered based on current address state\"},\n    {\"from_table\": \"Students\", \"to_table\": \"Student_Enrolment\", \"reason\": \"Finding students not registered in any degree program\"}\n  ],\n  \"entities\": {\"tables\": [\"Students\", \"Addresses\", \"Student_Enrolment\"], \"columns\": [\"last_name\", \"state_province_county\", \"current_address_id\", \"degree_program_id\"], \"values\": [\"North Carolina\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:09:29.121045"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Addresses\", \"Degree_Programs\", \"Students\", \"Student_Enrolment\"], \"column_names_original\": [[-1, \"*\"], [0, \"address_id\"], [0, \"state_province_county\"], [1, \"degree_program_id\"], [2, \"student_id\"], [2, \"current_address_id\"], [2, \"last_name\"], [3, \"student_enrolment_id\"], [3, \"degree_program_id\"], [3, \"student_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\", \"number\", \"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[5, 1], [9, 4], [8, 3]], \"primary_keys\": [1, 3, 4, 7], \"column_sample_values\": [[], [], [\"Virginia\", \"Kentucky\", \"Kansas\", \"Washington\"], [\"Master\", \"Bachelor\", \"PHD\"], [], [], [\"Ward\", \"Balistreri\", \"Gleichner\", \"Carroll\"], [], [], []]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:09:29.126090"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:09:29.127859"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Students.last_name FROM Students WHERE Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'North Carolina') AND Students.student_id NOT IN (SELECT student_id FROM Student_Enrolment)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:09:29.129337",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.last_name"
+              ],
+              "tables": [
+                "addresses",
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [],
+              "where": [
+                "where state_province_county = 'north carolina'",
+                "where students.current_address_id in (select address_id from addresses where state_province_county = 'north carolina') and not students.student_id in (select student_id from student_enrolment)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.last_name"
+              ],
+              "tables": [
+                "addresses",
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [],
+              "where": [
+                "where state_province_county = 'north carolina'",
+                "where students.current_address_id in (select address_id from addresses where state_province_county = 'north carolina') and not students.student_id in (select student_id from student_enrolment)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:09:29.129345",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.last_name"
+              ],
+              "tables": [
+                "addresses",
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [],
+              "where": [
+                "where state_province_county = 'north carolina'",
+                "where students.current_address_id in (select address_id from addresses where state_province_county = 'north carolina') and not students.student_id in (select student_id from student_enrolment)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.last_name"
+              ],
+              "tables": [
+                "addresses",
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [],
+              "where": [
+                "where state_province_county = 'north carolina'",
+                "where students.current_address_id in (select address_id from addresses where state_province_county = 'north carolina') and not students.student_id in (select student_id from student_enrolment)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.624,
+      "raw_response": "{\"sql\": \"SELECT Students.last_name FROM Students WHERE Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'NorthCarolina') AND NOT Students.student_id IN (SELECT student_id FROM Student_Enrolment)\", \"selected_candidate\": \"repaired\", \"notes\": \"Corrected state province county literal to 'NorthCarolina' based on column_sample_values.\", \"diagnostics\": []}",
+      "token_usage": {
+        "total_tokens": 4246,
+        "prompt_tokens": 4148,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 98,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:09:30.774270",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "students.last_name"
+          ],
+          "tables": [
+            "addresses",
+            "student_enrolment",
+            "students"
+          ],
+          "joins": [],
+          "where": [
+            "where state_province_county = 'northcarolina'",
+            "where students.current_address_id in (select address_id from addresses where state_province_county = 'northcarolina') and not students.student_id in (select student_id from student_enrolment)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: student_enrolment"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.48,
+      "raw_response": "{\"sql\": \"SELECT Students.last_name FROM Students WHERE Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'North Carolina') AND NOT Students.student_id IN (SELECT student_id FROM Student_Enrolment)\", \"explain\": \"The SQL correctly identifies students not enrolled in any degree program and living in North Carolina. The constraint reports confirm there are no semantic or deterministic errors.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3919,
+        "prompt_tokens": 3817,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 102,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:09:32.282926",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "students.last_name"
+          ],
+          "tables": [
+            "addresses",
+            "student_enrolment",
+            "students"
+          ],
+          "joins": [],
+          "where": [
+            "where state_province_county = 'north carolina'",
+            "where students.current_address_id in (select address_id from addresses where state_province_county = 'north carolina') and not students.student_id in (select student_id from student_enrolment)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: student_enrolment"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "students.last_name"
+          ],
+          "tables": [
+            "addresses",
+            "student_enrolment",
+            "students"
+          ],
+          "joins": [],
+          "where": [
+            "where state_province_county = 'north carolina'",
+            "where students.current_address_id in (select address_id from addresses where state_province_county = 'north carolina') and not students.student_id in (select student_id from student_enrolment)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: student_enrolment"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Students.last_name FROM Students WHERE Students.current_address_id IN (SELECT address_id FROM Addresses WHERE state_province_county = 'North Carolina') AND NOT Students.student_id IN (SELECT student_id FROM Student_Enrolment)",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:09:32.291803"
+}

@@ -1,0 +1,290 @@
+{
+  "question_index": 770,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "world_1",
+  "question": "What is the total number of unique official languages spoken in the countries that are founded before 1930?",
+  "gold_query": "SELECT count(DISTINCT T2.Language) FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE  IndepYear  <  1930 AND T2.IsOfficial  =  \"T\"",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"IndepYear\", \"purpose\": \"FILTER\"},\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"count\", \"order_index\": 0}\n  ],\n  \"distinct\": true,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"country\", \"column\": \"IndepYear\", \"operator\": \"<\", \"value\": 1930, \"value_type\": \"NUMBER\"},\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"=\", \"value\": \"T\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": 1930, \"table\": \"country\", \"column\": \"IndepYear\", \"evidence\": \"QUESTION\"},\n    {\"literal\": \"T\", \"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"evidence\": \"SAMPLE_VALUE\"}\n  ],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"language and independence conditions apply to same row\"}],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"link languages to countries\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"IndepYear\", \"Language\", \"IsOfficial\"], \"values\": [1930, \"T\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:17:45.604362"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[\"country\", \"Code\"], [\"country\", \"IndepYear\"], [\"countrylanguage\", \"CountryCode\"], [\"countrylanguage\", \"Language\"], [\"countrylanguage\", \"IsOfficial\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:17:45.608563"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.585,
+      "raw_response": "{\n  \"steps\": [\"Identify countries founded before 1930\", \"Find official languages spoken in these countries\", \"Count the distinct official languages\"],\n  \"select\": [{\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"condition\": \"countrylanguage.CountryCode = country.Code\"}],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"country.IndepYear < 1930\"},\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"countrylanguage.IsOfficial = 'T'\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2878,
+        "prompt_tokens": 2653,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 225,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:17:48.208205"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT countrylanguage.Language) AS count FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.IndepYear < 1930 AND countrylanguage.IsOfficial = 'T'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:17:48.211942",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct countrylanguage.language) as count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "inner join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [
+                "where country.indepyear < 1930 and countrylanguage.isofficial = 't'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct countrylanguage.language) as count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join country on countrylanguage.countrycode = country.code"
+              ],
+              "where": [
+                "where country.indepyear < 1930 and countrylanguage.isofficial = 't'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.351,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT COUNT(DISTINCT countrylanguage.Language) AS count FROM countrylanguage JOIN country ON countrylanguage.CountryCode = country.Code WHERE country.IndepYear < 1930 AND countrylanguage.IsOfficial = 'T'\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2997,
+        "prompt_tokens": 2922,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 75,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:17:49.584865",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct countrylanguage.language) as count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "inner join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [
+                "where country.indepyear < 1930 and countrylanguage.isofficial = 't'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct countrylanguage.language) as count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join country on countrylanguage.countrycode = country.code"
+              ],
+              "where": [
+                "where country.indepyear < 1930 and countrylanguage.isofficial = 't'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:17:49.598521"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:17:49.602660",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(distinct countrylanguage.language) as count"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "inner join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [
+            "where country.indepyear < 1930 and countrylanguage.isofficial = 't'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT countrylanguage.Language) AS count FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.IndepYear < 1930 AND countrylanguage.IsOfficial = 'T'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:17:49.607144"
+}

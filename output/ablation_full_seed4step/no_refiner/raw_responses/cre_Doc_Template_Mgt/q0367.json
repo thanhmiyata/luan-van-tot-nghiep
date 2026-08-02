@@ -1,0 +1,369 @@
+{
+  "question_index": 367,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Show all document ids and the number of paragraphs in each document. Order by document id.",
+  "gold_query": "SELECT document_id ,  count(*) FROM Paragraphs GROUP BY document_id ORDER BY document_id",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Document_ID\", \"Paragraph_count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Paragraphs\", \"column\": \"Paragraph_ID\", \"agg\": \"COUNT\", \"alias\": \"Paragraph_count\", \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\"}],\n  \"order_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\", \"direction\": \"ASC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"Paragraph count per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\", \"Paragraph_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:42.364499"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Documents\", \"Paragraphs\"], \"column_names_original\": [[-1, \"*\"], [0, \"Document_ID\"], [1, \"Paragraph_ID\"], [1, \"Document_ID\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [], [], []]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:51:42.366269"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.217,
+      "raw_response": "{\n  \"steps\": [\"Join Paragraphs with Documents on Document_ID\", \"Count paragraphs per Document_ID\", \"Select Document_ID and paragraph count\", \"Order by Document_ID\"],\n  \"select\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"Paragraphs\", \"column\": \"*\", \"agg\": \"COUNT\", \"order_index\": 1, \"alias\": \"Paragraph_count\"}\n  ],\n  \"joins\": [\n    {\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"condition\": \"Paragraphs.Document_ID = Documents.Document_ID\"}\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\"}\n  ],\n  \"having\": [],\n  \"order_by\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"direction\": \"ASC\"}\n  ],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2319,
+        "prompt_tokens": 2074,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 245,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:45.596240"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Documents.Document_ID, COUNT(Paragraphs.Paragraph_ID) AS Paragraph_count FROM Documents LEFT JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID ORDER BY Documents.Document_ID ASC\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:45.598264",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "documents.document_id",
+                "count(paragraphs.paragraph_id) as paragraph_count"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "left join paragraphs on documents.document_id = paragraphs.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by documents.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by documents.document_id asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "documents.document_id",
+                "count(*) as paragraph_count"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "join paragraphs on documents.document_id = paragraphs.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by documents.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by documents.document_id asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.314,
+      "raw_response": "{\"direct_sql\": \"\",\"planned_sql\": \"SELECT Documents.Document_ID, COUNT(*) AS Paragraph_count FROM Documents JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID ORDER BY Documents.Document_ID ASC\",\"disagreement_reason\": \"empty if structurally equivalent\"}",
+      "token_usage": {
+        "total_tokens": 2422,
+        "prompt_tokens": 2354,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 68,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:46.931861",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "documents.document_id",
+                "count(paragraphs.paragraph_id) as paragraph_count"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "left join paragraphs on documents.document_id = paragraphs.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by documents.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by documents.document_id asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "documents.document_id",
+                "count(*) as paragraph_count"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "join paragraphs on documents.document_id = paragraphs.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by documents.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by documents.document_id asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: paragraphs"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:51:46.942866"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.227,
+      "raw_response": "{\"sql\": \"SELECT Documents.Document_ID, COUNT(*) AS Paragraph_count FROM Documents JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID ORDER BY Documents.Document_ID ASC\", \"explain\": \"The SQL accurately counts paragraphs for each document using an INNER JOIN, aligning with the query question and schema requirements. Both deterministic and semantic checks passed without violations.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2413,
+        "prompt_tokens": 2321,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 92,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:51:49.189999",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "documents.document_id",
+            "count(*) as paragraph_count"
+          ],
+          "tables": [
+            "documents",
+            "paragraphs"
+          ],
+          "joins": [
+            "join paragraphs on documents.document_id = paragraphs.document_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by documents.document_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by documents.document_id asc"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: paragraphs"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "documents.document_id",
+            "count(*) as paragraph_count"
+          ],
+          "tables": [
+            "documents",
+            "paragraphs"
+          ],
+          "joins": [
+            "join paragraphs on documents.document_id = paragraphs.document_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by documents.document_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by documents.document_id asc"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: paragraphs"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Documents.Document_ID, COUNT(*) AS Paragraph_count FROM Documents JOIN Paragraphs ON Documents.Document_ID = Paragraphs.Document_ID GROUP BY Documents.Document_ID ORDER BY Documents.Document_ID ASC",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:51:49.201315"
+}

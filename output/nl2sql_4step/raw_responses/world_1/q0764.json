@@ -1,0 +1,65 @@
+{
+  "question_index": 764,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "What is average life expectancy in the countries where English is not the official language?",
+  "gold_query": "SELECT avg(LifeExpectancy) FROM country WHERE Name NOT IN (SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T2.Language  =  \"English\" AND T2.IsOfficial  =  \"T\")",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.145,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"LifeExpectancy\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"LifeExpectancy\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"FILTER\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"purpose\": \"FILTER\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"JOIN\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"LifeExpectancy\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"<>\", \"value\": \"English\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"English\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter for rows where English is not the official language\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"to filter countries based on language\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"LifeExpectancy\", \"Language\"], \"values\": [\"English\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 3058,
+        "prompt_tokens": 2549,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 509,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:22:03.510302"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.055,
+      "raw_response": "Thought: I have carefully reviewed the question, the original schema, and the analysis.\nThe goal is to filter the schema, preserving tables and columns necessary for the query, including PK/FK for joins.\n\n1.  **Identify required tables:** The `analysis.required_tables` clearly states `country` and `countrylanguage`.\n\n2.  **Identify required columns:**\n    *   **Output:** `country.LifeExpectancy` (from `analysis.expected_output_fields` and `analysis.output_fields_detailed`)\n    *   **Filters:** `countrylanguage.Language` (from `analysis.filters`) and `countrylanguage.IsOfficial` (from `analysis.required_columns` and my re-evaluation of the question \"where English is not the *official* language\").\n    *   **Join columns (PK/FK):**\n        *   `country.Code` (PK of `country`, referenced by `countrylanguage.CountryCode`, used in `analysis.required_columns`)\n        *   `countrylanguage.CountryCode` (FK to `country.Code`, used in `analysis.required_columns`)\n        *   `countrylanguage.Language` (part of composite PK for `countrylanguage` along with `CountryCode`, already listed as a filter)\n\n3.  **Construct the filtered schema:**\n    *   `table_names_original`: `country`, `countrylanguage`\n    *   `column_names_original`: Extract the original column entries `[table_id, column_name]` for the identified tables and columns.\n        *   `country` (index 2): `Code`, `LifeExpectancy`\n        *   `countrylanguage` (index 3): `CountryCode`, `Language`, `IsOfficial`\n\n    Mapping to `column_names_original` entries:\n    *   `[2,\"Code\"]`\n    *   `[2,\"LifeExpectancy\"]`\n    *   `[3,\"CountryCode\"]`\n    *   `[3,\"Language\"]`\n    *   `[3,\"IsOfficial\"]`\n\nThis set of tables and columns includes all necessary elements for the question's logic and the required joins.```json\n{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[2, \"Code\"], [2, \"LifeExpectancy\"], [3, \"CountryCode\"], [3, \"Language\"], [3, \"IsOfficial\"]]}\n```",
+      "token_usage": {
+        "total_tokens": 4136,
+        "prompt_tokens": 1626,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2510,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:22:14.566860"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.062,
+      "raw_response": "{\"sql\": \"SELECT AVG(country.LifeExpectancy) FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language <> 'English' AND countrylanguage.IsOfficial = 'T'\"}",
+      "token_usage": {
+        "total_tokens": 2188,
+        "prompt_tokens": 2134,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 54,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:22:15.630099",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": [],
+        "checked_join_conditions": [
+          "country.Code = countrylanguage.CountryCode"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT AVG(country.LifeExpectancy) FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language <> 'English' AND countrylanguage.IsOfficial = 'T'",
+  "explain": "Validator no-op: Generator SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T17:22:15.635272"
+}

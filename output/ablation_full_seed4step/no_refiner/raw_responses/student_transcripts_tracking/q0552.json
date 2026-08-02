@@ -1,0 +1,359 @@
+{
+  "question_index": 552,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "student_transcripts_tracking",
+  "question": "What is the date and id of the transcript with at least 2 courses listed?",
+  "gold_query": "SELECT T2.transcript_date ,  T1.transcript_id FROM Transcript_Contents AS T1 JOIN Transcripts AS T2 ON T1.transcript_id  =  T2.transcript_id GROUP BY T1.transcript_id HAVING count(*)  >=  2",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"transcript_date\", \"transcript_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Transcripts\", \"column\": \"transcript_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [{\"table\": \"Transcript_Contents\", \"column\": \"transcript_id\", \"operator\": \"HAS_AT_LEAST\", \"value\": \"2\", \"value_type\": \"NUMBER\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Transcripts\", \"to_table\": \"Transcript_Contents\", \"reason\": \"link courses to transcripts\"}],\n  \"entities\": {\"tables\": [\"Transcripts\", \"Transcript_Contents\"], \"columns\": [\"transcript_date\", \"transcript_id\"], \"values\": [\"2\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:13:42.891993"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"student_transcripts_tracking\",\n  \"table_names_original\": [\n    \"Transcripts\",\n    \"Transcript_Contents\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [9, \"transcript_id\"],\n    [9, \"transcript_date\"],\n    [10, \"student_course_id\"],\n    [10, \"transcript_id\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"time\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [4, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:13:42.895982"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.025,
+      "raw_response": "{\n  \"steps\": [\"Join the Transcripts and Transcript_Contents tables on transcript_id\", \"Filter transcripts with at least 2 courses\", \"Select the transcript_date and transcript_id\"],\n  \"select\": [\n    {\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"Transcripts\", \"column\": \"transcript_id\", \"agg\": \"NONE\", \"order_index\": 1}\n  ],\n  \"joins\": [\n    {\"from_table\": \"Transcripts\", \"to_table\": \"Transcript_Contents\", \"condition\": \"Transcript_Contents.transcript_id = Transcripts.transcript_id\"}\n  ],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"COUNT(Transcript_Contents.student_course_id) >= 2\"}\n  ],\n  \"group_by\": [\n    {\"table\": \"Transcripts\", \"column\": \"transcript_id\"}\n  ],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2271,
+        "prompt_tokens": 2004,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 267,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:13:46.937304"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT T.transcript_date, T.transcript_id FROM Transcripts T JOIN Transcript_Contents TC ON T.transcript_id = TC.transcript_id GROUP BY T.transcript_id, T.transcript_date HAVING COUNT(*) >= 2\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:13:46.939874",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "t.transcript_date",
+                "t.transcript_id"
+              ],
+              "tables": [
+                "transcript_contents",
+                "transcripts"
+              ],
+              "joins": [
+                "join transcript_contents as tc on t.transcript_id = tc.transcript_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by t.transcript_id, t.transcript_date"
+              ],
+              "having": [
+                "having count(*) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "transcripts.transcript_date",
+                "transcripts.transcript_id"
+              ],
+              "tables": [
+                "transcript_contents",
+                "transcripts"
+              ],
+              "joins": [
+                "inner join transcript_contents on transcript_contents.transcript_id = transcripts.transcript_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by transcripts.transcript_id"
+              ],
+              "having": [
+                "having count(transcript_contents.student_course_id) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.355,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT Transcripts.transcript_date, Transcripts.transcript_id FROM Transcripts INNER JOIN Transcript_Contents ON Transcript_Contents.transcript_id = Transcripts.transcript_id GROUP BY Transcripts.transcript_id HAVING COUNT(Transcript_Contents.student_course_id) >= 2\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2392,
+        "prompt_tokens": 2305,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 87,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:13:48.314346",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "t.transcript_date",
+                "t.transcript_id"
+              ],
+              "tables": [
+                "transcript_contents",
+                "transcripts"
+              ],
+              "joins": [
+                "join transcript_contents as tc on t.transcript_id = tc.transcript_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by t.transcript_id, t.transcript_date"
+              ],
+              "having": [
+                "having count(*) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "transcripts.transcript_date",
+                "transcripts.transcript_id"
+              ],
+              "tables": [
+                "transcript_contents",
+                "transcripts"
+              ],
+              "joins": [
+                "inner join transcript_contents on transcript_contents.transcript_id = transcripts.transcript_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by transcripts.transcript_id"
+              ],
+              "having": [
+                "having count(transcript_contents.student_course_id) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:13:48.324618"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.4,
+      "raw_response": "{\n  \"sql\": \"SELECT T.transcript_date, T.transcript_id FROM Transcripts AS T JOIN Transcript_Contents AS TC ON T.transcript_id = TC.transcript_id GROUP BY T.transcript_id, T.transcript_date HAVING COUNT(*) >= 2\",\n  \"explain\": \"The original SQL passes both deterministic and semantic checks with no violations. It correctly implements the relationship between Transcripts and Transcript_Contents and applies the condition of having at least 2 courses listed.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3863,
+        "prompt_tokens": 3746,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 117,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:13:49.745553",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "t.transcript_date",
+            "t.transcript_id"
+          ],
+          "tables": [
+            "transcript_contents",
+            "transcripts"
+          ],
+          "joins": [
+            "join transcript_contents as tc on t.transcript_id = tc.transcript_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by t.transcript_id, t.transcript_date"
+          ],
+          "having": [
+            "having count(*) >= 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "t.transcript_date",
+            "t.transcript_id"
+          ],
+          "tables": [
+            "transcript_contents",
+            "transcripts"
+          ],
+          "joins": [
+            "join transcript_contents as tc on t.transcript_id = tc.transcript_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by t.transcript_id, t.transcript_date"
+          ],
+          "having": [
+            "having count(*) >= 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT T.transcript_date, T.transcript_id FROM Transcripts AS T JOIN Transcript_Contents AS TC ON T.transcript_id = TC.transcript_id GROUP BY T.transcript_id, T.transcript_date HAVING COUNT(*) >= 2",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:13:49.757744"
+}

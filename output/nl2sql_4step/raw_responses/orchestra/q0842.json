@@ -1,0 +1,69 @@
+{
+  "question_index": 842,
+  "pipeline": "4step",
+  "db_id": "orchestra",
+  "question": "Show the names of conductors that have conducted more than one orchestras.",
+  "gold_query": "SELECT T1.Name FROM conductor AS T1 JOIN orchestra AS T2 ON T1.Conductor_ID  =  T2.Conductor_ID GROUP BY T2.Conductor_ID HAVING COUNT(*)  >  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 2,
+      "elapsed_seconds": 9.261,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"conductor\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"orchestra\", \"column\": \"Conductor_ID\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"conductor\", \"to_table\": \"orchestra\", \"reason\": \"to match conductors with orchestras\"}],\n  \"entities\": {\"tables\": [\"conductor\", \"orchestra\"], \"columns\": [\"Name\", \"Conductor_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1422,
+        "prompt_tokens": 1218,
+        "cached_prompt_tokens": 1024,
+        "completion_tokens": 204,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:18:56.999555"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 16.502,
+      "raw_response": "```json\n{\n  \"db_id\": \"orchestra\",\n  \"table_names_original\": [\n    \"conductor\",\n    \"orchestra\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Conductor_ID\"\n    ],\n    [\n      0,\n      \"Name\"\n    ],\n    [\n      1,\n      \"Orchestra_ID\"\n    ],\n    [\n      1,\n      \"Conductor_ID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Antal Doráti\",\n      \"Igor Stravinsky\",\n      \"Colin Davis\",\n      \"Paul Jorgensen\"\n    ],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4685,
+        "prompt_tokens": 958,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3727,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:19:13.503157"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.665,
+      "raw_response": "{\"sql\": \"SELECT Name FROM conductor WHERE Conductor_ID IN (SELECT Conductor_ID FROM orchestra GROUP BY Conductor_ID HAVING COUNT(DISTINCT Orchestra_ID) > 1)\"}",
+      "token_usage": {
+        "total_tokens": 1132,
+        "prompt_tokens": 1082,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 50,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:19:15.170047"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.207,
+      "raw_response": "I need to validate the given SQL query against the provided schema, question, and analysis.\n\n**Validation Steps:**\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"Name\"]`\n    *   SQL `SELECT`: `Name`\n    *   Match: Yes.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows.**\n    *   The SQL uses a subquery to filter `Conductor_ID`s. This is an efficient way to achieve the join implicitly.\n    *   The subquery `GROUP BY Conductor_ID HAVING COUNT(DISTINCT Orchestra_ID) > 1` correctly identifies conductors associated with more than one unique `Orchestra_ID`. This is correct for \"more than one orchestras\".\n    *   No explicit `ORDER BY` is present, which is correct as the question does not ask for ordering.\n    *   `COUNT(DISTINCT Orchestra_ID)` is correctly used to count unique orchestras, which is what the question implies (\"more than one orchestras\").\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available.**\n    *   There are no text literals in the SQL to check against `column_sample_values`.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `conductor`, `orchestra` are valid table names.\n    *   `Name`, `Conductor_ID`, `Orchestra_ID` are valid column names.\n    *   SQL is complete and one line.\n\n**Conclusion:** The SQL query is correct and adheres to all validation criteria.{\n \"sql\": \"SELECT Name FROM conductor WHERE Conductor_ID IN (SELECT Conductor_ID FROM orchestra GROUP BY Conductor_ID HAVING COUNT(DISTINCT Orchestra_ID) > 1)\",\n \"explain\": \"The SQL query correctly selects the 'Name' from the 'conductor' table where the 'Conductor_ID' is present in a subquery that identifies conductors associated with more than one distinct 'Orchestra_ID', addressing the question's requirement for conductors of more than one orchestra.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1240,
+        "prompt_tokens": 743,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 497,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T14:19:18.378994"
+    }
+  ],
+  "final_sql": "SELECT Name FROM conductor WHERE Conductor_ID IN (SELECT Conductor_ID FROM orchestra GROUP BY Conductor_ID HAVING COUNT(DISTINCT Orchestra_ID) > 1)",
+  "explain": "The SQL query correctly selects the 'Name' from the 'conductor' table where the 'Conductor_ID' is present in a subquery that identifies conductors associated with more than one distinct 'Orchestra_ID', addressing the question's requirement for conductors of more than one orchestra.",
+  "error": "",
+  "timestamp": "2026-07-24T14:19:18.380109"
+}

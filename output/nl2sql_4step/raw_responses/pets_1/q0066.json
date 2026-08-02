@@ -1,0 +1,69 @@
+{
+  "question_index": 66,
+  "pipeline": "4step",
+  "db_id": "pets_1",
+  "question": "What is the first name of every student who has a dog but does not have a cat?",
+  "gold_query": "SELECT T1.fname ,  T1.age FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'dog' AND T1.stuid NOT IN (SELECT T1.stuid FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'cat')",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.824,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Fname\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"Fname\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Has_Pet\", \"column\": \"PetID\", \"operator\": \"IN\", \"value\": \"(SELECT PetID FROM Pets WHERE PetType = 'dog')\", \"value_type\": \"SUBQUERY\"},\n    {\"table\": \"Has_Pet\", \"column\": \"PetID\", \"operator\": \"NOT IN\", \"value\": \"(SELECT PetID FROM Pets WHERE PetType = 'cat')\", \"value_type\": \"SUBQUERY\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"reason\": \"to connect students with their pets\"}],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\", \"Pets\"], \"columns\": [\"Fname\", \"PetID\", \"PetType\"], \"values\": [\"dog\", \"cat\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1327,
+        "prompt_tokens": 1029,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 298,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:37:46.732361"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 15.502,
+      "raw_response": "```json\n{\n  \"db_id\": \"pets_1\",\n  \"table_names_original\": [\n    \"Student\",\n    \"Has_Pet\",\n    \"Pets\"\n  ],\n  \"column_names_original\": [\n    [0, \"StuID\"],\n    [0, \"Fname\"],\n    [1, \"StuID\"],\n    [1, \"PetID\"],\n    [2, \"PetID\"],\n    [2, \"PetType\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [2, 0],\n    [3, 4]\n  ],\n  \"primary_keys\": [\n    0,\n    4\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"Linda\",\n      \"Tracy\",\n      \"Shiela\",\n      \"Dinesh\"\n    ],\n    [],\n    [],\n    [],\n    [\n      \"cat\",\n      \"dog\"\n    ]\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4218,
+        "prompt_tokens": 850,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3368,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:38:02.236395"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.635,
+      "raw_response": "{\"sql\": \"SELECT Fname FROM Student WHERE StuID IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'dog')) AND StuID NOT IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'cat'))\"}",
+      "token_usage": {
+        "total_tokens": 1273,
+        "prompt_tokens": 1193,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 80,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:38:03.873531"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.352,
+      "raw_response": "I need to validate the provided SQL against the given criteria.\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   SQL: `SELECT Fname`\n    *   Expected: `Fname`\n    *   Match: Yes.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   The SQL uses subqueries to filter `StuID`. This approach is valid and doesn't introduce unnecessary joins or `ORDER BY`. The subqueries correctly link `StuID` from `Student` to `Has_Pet` and `PetID` from `Has_Pet` to `Pets`.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available:**\n    *   `'dog'` and `'cat'` are used in the `WHERE` clauses for `PetType`.\n    *   `column_sample_values` for `PetType` are `[\"cat\", \"dog\"]`.\n    *   Match: Yes, casing and spelling are correct.\n\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `Student`, `Fname`, `StuID`, `Has_Pet`, `PetID`, `Pets`, `PetType` all exist in the schema.\n    *   SQL is complete and on one line.\n    *   Match: Yes.\n\nThe SQL appears correct and meets all validation criteria.\n\nThe SQL provided is:\n`SELECT Fname FROM Student WHERE StuID IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'dog')) AND StuID NOT IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'cat'))`\n\nThis is a correct way to retrieve the `Fname` of students who have a dog but not a cat, using nested subqueries. The `StuID` is correctly used to bridge `Student` and `Has_Pet`, and `PetID` is correctly used to bridge `Has_Pet` and `Pets`.```json\n{\n \"sql\": \"SELECT Fname FROM Student WHERE StuID IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'dog')) AND StuID NOT IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'cat'))\",\n \"explain\": \"The SQL is correct. It correctly identifies students who own a 'dog' using nested subqueries and excludes students who own a 'cat' using another nested subquery with 'NOT IN'. All table and column names are valid, and text literals match sample values. The SELECT statement matches the expected output fields.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1503,
+        "prompt_tokens": 882,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 621,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T15:38:07.227461"
+    }
+  ],
+  "final_sql": "SELECT Fname FROM Student WHERE StuID IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'dog')) AND StuID NOT IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'cat'))",
+  "explain": "The SQL is correct. It correctly identifies students who own a 'dog' using nested subqueries and excludes students who own a 'cat' using another nested subquery with 'NOT IN'. All table and column names are valid, and text literals match sample values. The SELECT statement matches the expected output fields.",
+  "error": "",
+  "timestamp": "2026-07-24T15:38:07.228866"
+}

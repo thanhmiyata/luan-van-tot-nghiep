@@ -1,0 +1,69 @@
+{
+  "question_index": 337,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "What is the template type code of the template used by document with the name \"Data base\"?",
+  "gold_query": "SELECT T1.template_type_code FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id  =  T2.template_id WHERE T2.document_name  =  \"Data base\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.503,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"Documents\", \"column\": \"Document_Name\", \"operator\": \"=\", \"value\": \"Data base\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"to get Template_ID from Documents\"},\n    {\"from_table\": \"Templates\", \"to_table\": \"Ref_Template_Types\", \"reason\": \"to get Template_Type_Code from Templates\"}\n  ],\n  \"entities\": {\"tables\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"columns\": [\"Template_Type_Code\", \"Document_Name\"], \"values\": [\"Data base\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1556,
+        "prompt_tokens": 1291,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 265,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:34:49.936997"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 18.26,
+      "raw_response": "{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"column_names_original\": [[\"-1\", \"*\"], [\"0\", \"Template_Type_Code\"], [\"1\", \"Template_ID\"], [\"1\", \"Template_Type_Code\"], [\"2\", \"Document_ID\"], [\"2\", \"Template_ID\"], [\"2\", \"Document_Name\"]], \"column_types\": [\"text\", \"text\", \"number\", \"text\", \"number\", \"number\", \"text\"], \"foreign_keys\": [[3, 1], [5, 2]], \"primary_keys\": [1, 2, 4], \"column_sample_values\": [[], [\"AD\", \"BK\", \"CV\", \"PP\"], [], [\"PP\", \"BK\", \"PPT\", \"AD\"], [], [], [\"Introduction of OS\", \"Understanding DB\", \"Summer Show\", \"Robbin CV\"]]}",
+      "token_usage": {
+        "total_tokens": 5149,
+        "prompt_tokens": 928,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4221,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:35:08.198322"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.424,
+      "raw_response": "{\"sql\": \"SELECT t.Template_Type_Code FROM Documents d JOIN Templates t ON d.Template_ID = t.Template_ID WHERE d.Document_Name = 'Data base'\"}",
+      "token_usage": {
+        "total_tokens": 1375,
+        "prompt_tokens": 1331,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 44,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:35:09.624775"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.21,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, following the 4-step checklist.\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected output field: `Template_Type_Code`.\n    *   Current SQL SELECT: `t.Template_Type_Code`.\n    *   This matches.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   The question asks for `Template_Type_Code` based on `Document_Name`.\n    *   `Documents` table has `Document_Name` and `Template_ID`.\n    *   `Templates` table has `Template_ID` and `Template_Type_Code`.\n    *   The SQL performs `JOIN Documents d ON d.Template_ID = t.Template_ID`. However, the join is `Documents d JOIN Templates t`. The `ON` clause `d.Template_ID = t.Template_ID` is correct, but the tables are `Documents` and `Templates`.\n    *   The join is necessary to link `Document_Name` in `Documents` to `Template_Type_Code` in `Templates` (via `Template_ID`).\n    *   The `Templates` table has `Template_Type_Code`, but it also has `Template_Type_Code` as a foreign key to `Ref_Template_Types`. Looking at the schema:\n        *   `Templates` (Template_ID PK, Template_Type_Code FK)\n        *   `Ref_Template_Types` (Template_Type_Code PK)\n    *   The analysis `output_fields_detailed` specifies `{\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\"}`. This suggests that the `Template_Type_Code` should ideally come from `Ref_Template_Types` to get the master definition, even if `Templates` also stores it as a foreign key.\n    *   However, the `Templates` table *itself* contains `Template_Type_Code`. If the `Templates` table already has the column and value, an additional join to `Ref_Template_Types` might be considered unnecessary *unless* the `Template_Type_Code` in `Templates` is just a foreign key *and* the actual 'type code' is expected from the lookup table.\n    *   Let's check the schema again:\n        *   `Templates` has `Template_ID` (PK) and `Template_Type_Code` (FK).\n        *   `Ref_Template_Types` has `Template_Type_Code` (PK).\n        *   So, `Templates.Template_Type_Code` directly stores the value we need, and it's a foreign key to `Ref_Template_Types`.\n    *   The original SQL `SELECT t.Template_Type_Code FROM Documents d JOIN Templates t ON d.Template_ID = t.Template_ID` is correct and minimal for getting `Template_Type_Code` if it's stored directly in `Templates`.\n    *   The analysis specified `Ref_Template_Types` as the source table for `Template_Type_Code`. If `Templates.Template_Type_Code` is merely a foreign key and `Ref_Template_Types.Template_Type_Code` is the \"master\" list, then a join to `Ref_Template_Types` would be needed.\n    *   Given that `Templates.Template_Type_Code` *is* the field and it *is* a foreign key to `Ref_Template_Types.Template_Type_Code`, it's generally good practice to select from the reference table if the analysis explicitly points to it. This ensures we are getting the canonical value.\n    *   Let's adjust the query to include `Ref_Template_Types` as per the analysis `output_fields_detailed`.\n\n    *   Original SQL: `SELECT t.Template_Type_Code FROM Documents d JOIN Templates t ON d.Template_ID = t.Template_ID WHERE d.Document_Name = 'Data base'`\n    *   Analysis expects `Ref_Template_Types.Template_Type_Code`.\n    *   To get `Ref_Template_Types.Template_Type_Code`:\n        1.  Join `Documents` to `Templates` on `Template_ID`.\n        2.  Join `Templates` to `Ref_Template_Types` on `Template_Type_Code`.\n\n3.  **Text literals match real values; column/table names exist; SQL complete and one line:**\n    *   `Document_Name = 'Data base'`. Sample values for `Document_Name` include \"Introduction of OS\", \"Understanding DB\", \"Summer Show\", \"Robbin CV\". \"Data base\" is a plausible value, though not in the provided samples.\n    *   `Documents`, `Templates`, `Ref_Template_Types` (newly added) are in schema.\n    *   `Template_ID`, `Document_Name`, `Template_Type_Code` are in schema.\n    *   SQL is complete and one line.\n\n4.  **Fix issues and return corrected SQL:**\n    The main issue is the discrepancy between the original SQL selecting `Templates.Template_Type_Code` and the analysis expecting `Ref_Template_Types.Template_Type_Code`. The analysis explicitly states `output_fields_detailed` as `{\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\"}`. Therefore, the query should join to `Ref_Template_Types`.\n\n    Corrected SQL:\n    `SELECT T2.Template_Type_Code FROM Documents AS T1 JOIN Templates AS T3 ON T1.Template_ID = T3.Template_ID JOIN Ref_Template_Types AS T2 ON T3.Template_Type_Code = T2.Template_Type_Code WHERE T1.Document_Name = 'Data base'`\n\n    Let's double-check aliases for clarity and consistency.\n    `Documents d`\n    `Templates t`\n    `Ref_Template_Types rtt`\n\n    Revised SQL:\n    `SELECT rtt.Template_Type_Code FROM Documents d JOIN Templates t ON d.Template_ID = t.Template_ID JOIN Ref_Template_Types rtt ON t.Template_Type_Code = rtt.Template_Type_Code WHERE d.Document_Name = 'Data base'`\n\n    This query now matches the `expected_output_fields` table, includes the necessary joins, and filters correctly.{\n \"sql\": \"SELECT T2.Template_Type_Code FROM Documents AS T1 JOIN Templates AS T3 ON T1.Template_ID = T3.Template_ID JOIN Ref_Template_Types AS T2 ON T3.Template_Type_Code = T2.Template_Type_Code WHERE T1.Document_Name = 'Data base'\",\n \"explain\": \"The original query correctly identified the joins to retrieve 'Template_Type_Code' based on 'Document_Name'. However, the analysis specified that the 'Template_Type_Code' should come from the 'Ref_Template_Types' table. The corrected query adds an additional join from 'Templates' to 'Ref_Template_Types' on 'Template_Type_Code' to select the value from the canonical reference table as per the analysis.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2564,
+        "prompt_tokens": 940,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1624,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:35:16.836289"
+    }
+  ],
+  "final_sql": "SELECT T2.Template_Type_Code FROM Documents AS T1 JOIN Templates AS T3 ON T1.Template_ID = T3.Template_ID JOIN Ref_Template_Types AS T2 ON T3.Template_Type_Code = T2.Template_Type_Code WHERE T1.Document_Name = 'Data base'",
+  "explain": "The original query correctly identified the joins to retrieve 'Template_Type_Code' based on 'Document_Name'. However, the analysis specified that the 'Template_Type_Code' should come from the 'Ref_Template_Types' table. The corrected query adds an additional join from 'Templates' to 'Ref_Template_Types' on 'Template_Type_Code' to select the value from the canonical reference table as per the analysis.",
+  "error": "",
+  "timestamp": "2026-07-25T04:35:16.837348"
+}

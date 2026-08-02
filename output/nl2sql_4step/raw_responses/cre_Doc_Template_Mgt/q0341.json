@@ -1,0 +1,69 @@
+{
+  "question_index": 341,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Show all template type codes and the number of documents using each type.",
+  "gold_query": "SELECT T1.template_type_code ,  count(*) FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id  =  T2.template_id GROUP BY T1.template_type_code",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.931,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_Type_Code\", \"number_of_documents\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"COUNT\", \"alias\": \"number_of_documents\", \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Ref_Template_Types\", \"to_table\": \"Templates\", \"reason\": \"Template_Type_Code is needed from both tables\"}, {\"from_table\": \"Templates\", \"to_table\": \"Documents\", \"reason\": \"Template_ID is needed to count documents\"}],\n  \"entities\": {\"tables\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"columns\": [\"Template_Type_Code\", \"Template_ID\", \"Document_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1575,
+        "prompt_tokens": 1286,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 289,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:36:17.921976"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.768,
+      "raw_response": "```json\n{\n  \"db_id\": \"cre_Doc_Template_Mgt\",\n  \"table_names_original\": [\n    \"Ref_Template_Types\",\n    \"Templates\",\n    \"Documents\"\n  ],\n  \"column_names_original\": [\n    [0, \"Template_Type_Code\"],\n    [1, \"Template_ID\"],\n    [1, \"Template_Type_Code\"],\n    [2, \"Document_ID\"],\n    [2, \"Template_ID\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [2, 0],\n    [4, 1]\n  ],\n  \"primary_keys\": [\n    0,\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [\"AD\", \"BK\", \"CV\", \"PP\"],\n    [],\n    [\"PP\", \"BK\", \"PPT\", \"AD\"],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 4454,
+        "prompt_tokens": 960,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3494,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:36:32.691635"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.863,
+      "raw_response": "{\"sql\": \"SELECT Ref_Template_Types.Template_Type_Code, COUNT(*) as number_of_documents FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Ref_Template_Types.Template_Type_Code\"}",
+      "token_usage": {
+        "total_tokens": 1400,
+        "prompt_tokens": 1330,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 70,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:36:34.556811"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.834,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `Template_Type_Code`, `number_of_documents` (alias for COUNT).\n    *   Current: `Ref_Template_Types.Template_Type_Code`, `COUNT(*) as number_of_documents`.\n    *   `Template_Type_Code` is present and in order.\n    *   `COUNT(*)` is used, which is preferred for counting rows unless distinctness is required due to join duplication. The analysis specifies `COUNT` on `Document_ID`, but `COUNT(*)` achieves the same result here as `Document_ID` is a primary key in `Documents` and we're counting documents per template type. This looks correct.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   No ORDER BY is present, which is correct as the question doesn't ask for ordering.\n    *   **Joins:**\n        *   `Ref_Template_Types` JOIN `Templates` ON `Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code`: Correct join based on `Template_Type_Code`.\n        *   `Templates` JOIN `Documents` ON `Templates.Template_ID = Documents.Template_ID`: Correct join based on `Template_ID`.\n        *   These joins are necessary to link template types to documents for counting.\n    *   `COUNT(*)` is used, which is appropriate.\n\n3.  **Every name in ORDER BY is a real column or an alias defined in SELECT; ordering by count uses ORDER BY count(*) directly.**\n    *   N/A, no ORDER BY.\n\n4.  **Negation questions use NOT IN/EXCEPT, not != on joined rows; \"X and Y\" on the same column uses INTERSECT.**\n    *   N/A, not a negation or INTERSECT question.\n\n5.  **Names exist in schema; SQL complete, one line, no comments.**\n    *   `Ref_Template_Types`, `Templates`, `Documents` are valid table names.\n    *   `Template_Type_Code`, `Template_ID`, `Document_ID` are valid column names.\n    *   The SQL is complete, one line, and has no comments.\n\nThe SQL query seems to perfectly match all validation criteria. No changes are needed.\n\n```json\n{\n \"sql\": \"SELECT Ref_Template_Types.Template_Type_Code, COUNT(*) as number_of_documents FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Ref_Template_Types.Template_Type_Code\",\n \"explain\": \"The query correctly selects the template type code and counts the total number of documents for each type using necessary joins and grouping. COUNT(*) is preferred and correctly aliased. All table and column names are valid, and the output fields match the expected order and content.\",\n \"error\": \"\"\n}\n``````json\n{\n \"sql\": \"SELECT Ref_Template_Types.Template_Type_Code, COUNT(*) as number_of_documents FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Ref_Template_Types.Template_Type_Code\",\n \"explain\": \"The query correctly selects the template type code and counts the total number of documents for each type using necessary joins and grouping. COUNT(*) is preferred and correctly aliased. All table and column names are valid, and the output fields match the expected order and content.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1842,
+        "prompt_tokens": 988,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 854,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:36:38.392810"
+    }
+  ],
+  "final_sql": "SELECT Ref_Template_Types.Template_Type_Code, COUNT(*) as number_of_documents FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Ref_Template_Types.Template_Type_Code",
+  "explain": "The query correctly selects the template type code and counts the total number of documents for each type using necessary joins and grouping. COUNT(*) is preferred and correctly aliased. All table and column names are valid, and the output fields match the expected order and content.",
+  "error": "",
+  "timestamp": "2026-07-25T04:36:38.393863"
+}

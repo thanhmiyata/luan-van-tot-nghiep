@@ -1,0 +1,76 @@
+{
+  "question_index": 783,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "Return the codes of countries that do not speak English and do not have Republics for governments.",
+  "gold_query": "SELECT Code FROM country WHERE GovernmentForm != \"Republic\" EXCEPT SELECT CountryCode FROM countrylanguage WHERE LANGUAGE  =  \"English\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.879,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"country\", \"column\": \"GovernmentForm\", \"purpose\": \"FILTER\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"FILTER\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": true,\n  \"filters\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"table\": \"country\",\n      \"column\": \"GovernmentForm\",\n      \"operator\": \"<>\",\n      \"value\": \"Republic\",\n      \"value_type\": \"STRING\"\n    },\n    {\n      \"scope_id\": \"s2\",\n      \"branch_id\": \"b2\",\n      \"table\": \"countrylanguage\",\n      \"column\": \"Language\",\n      \"operator\": \"<>\",\n      \"value\": \"English\",\n      \"value_type\": \"STRING\"\n    }\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"English\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"},\n    {\"literal\": \"Republic\", \"table\": \"country\", \"column\": \"GovernmentForm\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter countries without Republic governments.\"},\n    {\"scope_id\": \"s2\", \"scope\": \"RELATED_ROWS\", \"logic\": \"NOT_EXISTS\", \"branch_ids\": [\"b2\"], \"reason\": \"Filter countries whose languages do not include English.\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": [],\n    \"reason\": \"\"\n  },\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"Related by the country language and code.\"}\n  ],\n  \"entities\": {\n    \"tables\": [\"country\", \"countrylanguage\"],\n    \"columns\": [\"Code\", \"GovernmentForm\", \"CountryCode\", \"Language\"],\n    \"values\": [\"English\", \"Republic\"]\n  },\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2941,
+        "prompt_tokens": 2299,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 642,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:55:20.634915"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 5.886,
+      "raw_response": "```json\n{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[2, \"Code\"], [2, \"GovernmentForm\"], [3, \"CountryCode\"], [3, \"Language\"]]}\n```",
+      "token_usage": {
+        "total_tokens": 2993,
+        "prompt_tokens": 1803,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1190,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:55:26.538614"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 1.951,
+      "raw_response": "{\n  \"steps\": [\"Filter countries that are not Republics and do not speak English\"],\n  \"select\": [{\"table\": \"country\", \"column\": \"Code\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"condition\": \"countrylanguage.CountryCode = country.Code\"}],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"country.GovernmentForm <> 'Republic'\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"expression\": \"NOT EXISTS (SELECT 1 FROM countrylanguage WHERE countrylanguage.CountryCode = country.Code AND countrylanguage.Language = 'English')\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": []\n}",
+      "token_usage": {
+        "total_tokens": 2079,
+        "prompt_tokens": 1857,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 222,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:55:28.507070"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.98,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT country.Code FROM country LEFT JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.GovernmentForm <> 'Republic' AND NOT EXISTS (SELECT 1 FROM countrylanguage WHERE countrylanguage.CountryCode = country.Code AND countrylanguage.Language = 'English')\"}",
+      "token_usage": {
+        "total_tokens": 2144,
+        "prompt_tokens": 2074,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 70,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T17:55:29.496834",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      }
+    }
+  ],
+  "final_sql": "SELECT DISTINCT country.Code FROM country LEFT JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.GovernmentForm <> 'Republic' AND NOT EXISTS (SELECT 1 FROM countrylanguage WHERE countrylanguage.CountryCode = country.Code AND countrylanguage.Language = 'English')",
+  "explain": "Validator no-op: current SQL already constraint-valid.",
+  "error": "",
+  "timestamp": "2026-07-25T17:55:29.503471"
+}

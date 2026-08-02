@@ -1,0 +1,305 @@
+{
+  "question_index": 312,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Return the id and type code of the template that is used for the greatest number of documents.",
+  "gold_query": "SELECT T1.template_id ,  T2.Template_Type_Code FROM Documents AS T1 JOIN Templates AS T2 ON T1.template_id  =  T2.template_id GROUP BY T1.template_id ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_ID\", \"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Templates\", \"column\": \"Template_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Templates\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Templates\", \"column\": \"Template_ID\"}],\n  \"order_by\": [{\"table\": \"Documents\", \"column\": \"Template_ID\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"to match template usage in documents\"}],\n  \"entities\": {\"tables\": [\"Templates\", \"Documents\"], \"columns\": [\"Template_ID\", \"Template_Type_Code\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:49:49.061880"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have carefully reviewed the question, the original schema, and the analysis.\nThe goal is to find the `Template_ID` and `Template_Type_Code` for the template with the most documents.\nThis requires joining `Templates` and `Documents` tables.\n- `Templates.Template_ID` is needed for output, grouping, and as the PK for the join.\n- `Templates.Template_Type_Code` is needed for output.\n- `Documents.Template_ID` is needed as the FK for the join and for grouping (implicitly, to count documents per template).\n- `Documents.Document_ID` is needed as the PK to count the number of documents per template.\n\nBased on this, the necessary tables are `Templates` and `Documents`.\n\nLet's list the original column indices and then map them to the new schema:\n\nOriginal Tables (and their global indices):\n- `Ref_Template_Types` (0)\n- `Templates` (1)\n- `Documents` (2)\n- `Paragraphs` (3)\n\nColumns to keep from `Templates` (original table index 1):\n- `Template_ID` (original global index 3): PK, output, group_by, join\n- `Template_Type_Code` (original global index 5): output\n\nColumns to keep from `Documents` (original table index 2):\n- `Document_ID` (original global index 9): PK, needed for COUNT\n- `Template_ID` (original global index 10): FK, join\n\nNow, construct the filtered schema:\n\n1.  `db_id`: \"cre_Doc_Template_Mgt\" (remains unchanged)\n2.  `table_names_original`: `[\"Templates\", \"Documents\"]` (only kept tables)\n\n3.  `column_names_original`:\n    We need to create new table-specific column indices and map them to the original global indices.\n    - `[-1, \"*\"]` (general selector, always included)\n    - `[0, \"Template_ID\"]` (from `Templates`, original index 3)\n    - `[0, \"Template_Type_Code\"]` (from `Templates`, original index 5)\n    - `[1, \"Document_ID\"]` (from `Documents`, original index 9)\n    - `[1, \"Template_ID\"]` (from `Documents`, original index 10)\n\n    New global indices (after filtering):\n    - 0: `[-1, \"*\"]`\n    - 1: `[0, \"Template_ID\"]` (originally global index 3)\n    - 2: `[0, \"Template_Type_Code\"]` (originally global index 5)\n    - 3: `[1, \"Document_ID\"]` (originally global index 9)\n    - 4: `[1, \"Template_ID\"]` (originally global index 10)\n\n4.  `column_types`:\n    Based on the new global indices:\n    - 0: \"text\" (for `*`)\n    - 1: \"number\" (from `Templates.Template_ID`)\n    - 2: \"text\" (from `Templates.Template_Type_Code`)\n    - 3: \"number\" (from `Documents.Document_ID`)\n    - 4: \"number\" (from `Documents.Template_ID`)\n    So: `[\"text\", \"number\", \"text\", \"number\", \"number\"]`\n\n5.  `primary_keys`:\n    Original PKs relevant to kept columns:\n    - `Templates.Template_ID` (original global index 3)\n    - `Documents.Document_ID` (original global index 9)\n    Mapping to new global indices:\n    - `Templates.Template_ID` -> new index 1\n    - `Documents.Document_ID` -> new index 3\n    So: `[1, 3]`\n\n6.  `foreign_keys`:\n    Original FKs relevant to kept columns:\n    - `[10, 3]` (`Documents.Template_ID` references `Templates.Template_ID`)\n    Mapping to new global indices:\n    - `Documents.Template_ID` (original 10) -> new index 4\n    - `Templates.Template_ID` (original 3) -> new index 1\n    So: `[[4, 1]]`\n\nThis filtered schema contains all necessary tables and columns, with PK/FK relationships preserved for the required join and output.```json\n{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Templates\", \"Documents\"], \"column_names_original\": [[-1, \"*\"], [0, \"Template_ID\"], [0, \"Template_Type_Code\"], [1, \"Document_ID\"], [1, \"Template_ID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": []}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:49:49.064250"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.373,
+      "raw_response": "{\n  \"steps\": [\"Join Templates and Documents on Template_ID\", \"Count the number of Documents per Template\", \"Order by the count descending\", \"Select top result\"],\n  \"select\": [{\"table\": \"Templates\", \"column\": \"Template_ID\", \"agg\": \"NONE\", \"order_index\": 0}, {\"table\": \"Templates\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"order_index\": 1}],\n  \"joins\": [{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"condition\": \"Documents.Template_ID = Templates.Template_ID\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"Templates\", \"column\": \"Template_ID\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"COUNT(*)\", \"column\": \"\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2450,
+        "prompt_tokens": 2079,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 371,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:49:55.450262"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID, Templates.Template_Type_Code ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:49:55.451754",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "templates.template_id",
+                "templates.template_type_code"
+              ],
+              "tables": [
+                "documents",
+                "templates"
+              ],
+              "joins": [
+                "join documents on templates.template_id = documents.template_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by templates.template_id, templates.template_type_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "templates.template_id",
+                "templates.template_type_code"
+              ],
+              "tables": [
+                "documents",
+                "templates"
+              ],
+              "joins": [
+                "join documents on templates.template_id = documents.template_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by templates.template_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.985,
+      "raw_response": "{\"direct_sql\": \"\",\"planned_sql\": \"SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID ORDER BY COUNT(*) DESC LIMIT 1\",\"disagreement_reason\": \"empty if structurally equivalent\"}",
+      "token_usage": {
+        "total_tokens": 2416,
+        "prompt_tokens": 2349,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 67,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:49:57.457104",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "templates.template_id",
+                "templates.template_type_code"
+              ],
+              "tables": [
+                "documents",
+                "templates"
+              ],
+              "joins": [
+                "join documents on templates.template_id = documents.template_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by templates.template_id, templates.template_type_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "templates.template_id",
+                "templates.template_type_code"
+              ],
+              "tables": [
+                "documents",
+                "templates"
+              ],
+              "joins": [
+                "join documents on templates.template_id = documents.template_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by templates.template_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:49:57.466317"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:49:57.470193",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "templates.template_id",
+            "templates.template_type_code"
+          ],
+          "tables": [
+            "documents",
+            "templates"
+          ],
+          "joins": [
+            "join documents on templates.template_id = documents.template_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by templates.template_id, templates.template_type_code"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID, Templates.Template_Type_Code ORDER BY COUNT(*) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:49:57.474501"
+}

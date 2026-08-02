@@ -1,0 +1,377 @@
+{
+  "question_index": 451,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "wta_1",
+  "question": "What are the country code and first name of the players who won in both tourney WTA Championships and Australian Open?",
+  "gold_query": "SELECT T1.country_code ,  T1.first_name FROM players AS T1 JOIN matches AS T2 ON T1.player_id  =  T2.winner_id WHERE T2.tourney_name  =  'WTA Championships' INTERSECT SELECT T1.country_code ,  T1.first_name FROM players AS T1 JOIN matches AS T2 ON T1.player_id  =  T2.winner_id WHERE T2.tourney_name  =  'Australian Open'",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"country_code\", \"first_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"players\", \"column\": \"country_code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"players\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [\n    {\n      \"table\": \"matches\",\n      \"column\": \"tourney_name\",\n      \"operator\": \"=\",\n      \"value\": \"WTA Championships\",\n      \"value_type\": \"STRING\"\n    },\n    {\n      \"table\": \"matches\",\n      \"column\": \"tourney_name\",\n      \"operator\": \"=\",\n      \"value\": \"Australian Open\",\n      \"value_type\": \"STRING\"\n    }\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"players\", \"to_table\": \"matches\", \"reason\": \"link winners with their tourney results\"}\n  ],\n  \"entities\": {\"tables\": [\"players\", \"matches\"], \"columns\": [\"player_id\", \"winner_id\", \"country_code\", \"first_name\", \"tourney_name\"], \"values\": [\"WTA Championships\", \"Australian Open\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:22:27.652457"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"wta_1\",\n  \"table_names_original\": [\n    \"players\",\n    \"matches\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"player_id\"\n    ],\n    [\n      0,\n      \"first_name\"\n    ],\n    [\n      0,\n      \"country_code\"\n    ],\n    [\n      1,\n      \"winner_id\"\n    ],\n    [\n      1,\n      \"tourney_name\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"text\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Martina\",\n      \"Mirjana\",\n      \"Justine\",\n      \"Kerry Anne\"\n    ],\n    [\n      \"SUI\",\n      \"CRO\",\n      \"BEL\",\n      \"AUS\"\n    ],\n    [],\n    [\n      \"WTA Championships\",\n      \"Auckland\",\n      \"Brisbane\",\n      \"Hobart\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:22:27.654294"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 5.572,
+      "raw_response": "{\n  \"steps\": [\n    \"Join players and matches on winner_id = player_id.\",\n    \"Filter matches for 'WTA Championships'.\",\n    \"Filter matches for 'Australian Open'.\",\n    \"Use INTERSECT to get players who won both tournaments.\"\n  ],\n  \"select\": [\n    {\"table\": \"players\", \"column\": \"country_code\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"players\", \"column\": \"first_name\", \"agg\": \"NONE\", \"order_index\": 1}\n  ],\n  \"joins\": [\n    {\"from_table\": \"players\", \"to_table\": \"matches\", \"condition\": \"matches.winner_id = players.player_id\"}\n  ],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"matches.tourney_name = 'WTA Championships'\"},\n    {\"scope_id\": \"s1\", \"branch_id\": \"b2\", \"expression\": \"matches.tourney_name = 'Australian Open'\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"INTERSECT\", \"branches\": [\"b1\", \"b2\"]},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3686,
+        "prompt_tokens": 3322,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 364,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:22:33.238379"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT players.country_code, players.first_name FROM players JOIN matches ON players.player_id = matches.winner_id WHERE matches.tourney_name = 'WTA Championships' INTERSECT SELECT players.country_code, players.first_name FROM players JOIN matches ON players.player_id = matches.winner_id WHERE matches.tourney_name = 'Australian Open'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:22:33.241845",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "players.country_code",
+                "players.first_name"
+              ],
+              "tables": [
+                "matches",
+                "players"
+              ],
+              "joins": [
+                "join matches on players.player_id = matches.winner_id",
+                "join matches on players.player_id = matches.winner_id"
+              ],
+              "where": [
+                "where matches.tourney_name = 'australian open'",
+                "where matches.tourney_name = 'wta championships'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "players.country_code",
+                "players.first_name"
+              ],
+              "tables": [
+                "matches",
+                "players"
+              ],
+              "joins": [
+                "join matches on matches.winner_id = players.player_id",
+                "join matches on matches.winner_id = players.player_id"
+              ],
+              "where": [
+                "where matches.tourney_name = 'australian open'",
+                "where matches.tourney_name = 'wta championships'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.958,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT players.country_code, players.first_name FROM players JOIN matches ON matches.winner_id = players.player_id WHERE matches.tourney_name = 'WTA Championships' INTERSECT SELECT players.country_code, players.first_name FROM players JOIN matches ON matches.winner_id = players.player_id WHERE matches.tourney_name = 'Australian Open'\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3744,
+        "prompt_tokens": 3646,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 98,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:22:35.220170",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "players.country_code",
+                "players.first_name"
+              ],
+              "tables": [
+                "matches",
+                "players"
+              ],
+              "joins": [
+                "join matches on players.player_id = matches.winner_id",
+                "join matches on players.player_id = matches.winner_id"
+              ],
+              "where": [
+                "where matches.tourney_name = 'australian open'",
+                "where matches.tourney_name = 'wta championships'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "players.country_code",
+                "players.first_name"
+              ],
+              "tables": [
+                "matches",
+                "players"
+              ],
+              "joins": [
+                "join matches on matches.winner_id = players.player_id",
+                "join matches on matches.winner_id = players.player_id"
+              ],
+              "where": [
+                "where matches.tourney_name = 'australian open'",
+                "where matches.tourney_name = 'wta championships'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:22:35.235934"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.442,
+      "raw_response": "{\"sql\": \"SELECT players.country_code, players.first_name FROM players JOIN matches ON players.player_id = matches.winner_id WHERE matches.tourney_name = 'WTA Championships' INTERSECT SELECT players.country_code, players.first_name FROM players JOIN matches ON players.player_id = matches.winner_id WHERE matches.tourney_name = 'Australian Open'\", \"explain\": \"The original SQL passed both the deterministic and semantic checks without any violations, and it matches the expected output fields from the analysis while answering the question correctly.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3539,
+        "prompt_tokens": 3418,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 121,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:22:38.700117",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "players.country_code",
+            "players.first_name"
+          ],
+          "tables": [
+            "matches",
+            "players"
+          ],
+          "joins": [
+            "join matches on players.player_id = matches.winner_id",
+            "join matches on players.player_id = matches.winner_id"
+          ],
+          "where": [
+            "where matches.tourney_name = 'australian open'",
+            "where matches.tourney_name = 'wta championships'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/wta_1/wta_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "players.country_code",
+            "players.first_name"
+          ],
+          "tables": [
+            "matches",
+            "players"
+          ],
+          "joins": [
+            "join matches on players.player_id = matches.winner_id",
+            "join matches on players.player_id = matches.winner_id"
+          ],
+          "where": [
+            "where matches.tourney_name = 'australian open'",
+            "where matches.tourney_name = 'wta championships'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT players.country_code, players.first_name FROM players JOIN matches ON players.player_id = matches.winner_id WHERE matches.tourney_name = 'WTA Championships' INTERSECT SELECT players.country_code, players.first_name FROM players JOIN matches ON players.player_id = matches.winner_id WHERE matches.tourney_name = 'Australian Open'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:22:38.717287"
+}

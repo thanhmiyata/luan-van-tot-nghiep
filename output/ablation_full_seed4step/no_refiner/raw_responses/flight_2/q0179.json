@@ -1,0 +1,263 @@
+{
+  "question_index": 179,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "flight_2",
+  "question": "Which country does Airline \"JetBlue Airways\" belong to?",
+  "gold_query": "SELECT Country FROM AIRLINES WHERE Airline  =  \"JetBlue Airways\"",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Country\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"airlines\", \"column\": \"Country\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"airlines\", \"column\": \"Airline\", \"operator\": \"=\", \"value\": \"JetBlue Airways\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"airlines\"], \"columns\": [\"Airline\", \"Country\"], \"values\": [\"JetBlue Airways\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:02:57.248558"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the original schema to include only the necessary tables and columns based on the provided question and analysis.\n\n1.  **Identify Required Tables**: The analysis clearly states `entities.tables: [\"airlines\"]` and `output_fields_detailed` and `filters` also point to the `airlines` table. Therefore, only the `airlines` table is needed.\n2.  **Identify Required Columns**:\n    *   `airlines.Airline` is needed for the filter (`Airline = \"JetBlue Airways\"`).\n    *   `airlines.Country` is needed for the output.\n    *   `airlines.uid` (original index 1) is the primary key of the `airlines` table, so it must be preserved.\n    *   The special `[-1, \"*\"]` entry (original index 0) should also be preserved as it's part of the standard schema format.\n3.  **Map Original Indices to New Indices**:\n    *   `[-1,\"*\"]` (original index 0) -> new index 0\n    *   `[0,\"uid\"]` (original index 1) -> new index 1\n    *   `[0,\"Airline\"]` (original index 2) -> new index 2\n    *   `[0,\"Country\"]` (original index 4) -> new index 3\n    (Original index 3 `[0,\"Abbreviation\"]` is dropped as it's not needed.)\n    (All columns related to `airports` and `flights` are dropped as those tables are not needed.)\n4.  **Update `table_names_original`**: This will now contain only `[\"airlines\"]`.\n5.  **Update `column_names_original`**: Will include `[-1,\"*\"]`, `[0,\"uid\"]`, `[0,\"Airline\"]`, `[0,\"Country\"]`.\n6.  **Update `column_types`**: Based on the kept columns and their original types.\n    *   `text` (for `*`)\n    *   `number` (for `airlines.uid`)\n    *   `text` (for `airlines.Airline`)\n    *   `text` (for `airlines.Country`)\n7.  **Update `foreign_keys`**: No foreign keys involve only the `airlines` table, and no other tables are kept, so this will be an empty list `[]`.\n8.  **Update `primary_keys`**: Only `airlines.uid` is relevant. Its original index was `1`. Its new index is `1`. So, `[1]`.\n9.  **Update `column_sample_values`**: Keep only the sample values for the retained columns, matching their new indices.\n\nThis process ensures that all necessary information for the query is retained while minimizing the schema size.{\"db_id\": \"flight_2\", \"table_names_original\": [\"airlines\"], \"column_names_original\": [[-1, \"*\"], [0, \"uid\"], [0, \"Airline\"], [0, \"Country\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\"], \"foreign_keys\": [], \"primary_keys\": [1], \"column_sample_values\": [[], [], [\"United Airlines\", \"US Airways\", \"Delta Airlines\", \"Southwest Airlines\"], [\"USA\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:02:57.249962"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:57.251353"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Country FROM airlines WHERE Airline = 'JetBlue Airways'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:02:57.252159",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country"
+              ],
+              "tables": [
+                "airlines"
+              ],
+              "joins": [],
+              "where": [
+                "where airline = 'jetblue airways'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country"
+              ],
+              "tables": [
+                "airlines"
+              ],
+              "joins": [],
+              "where": [
+                "where airline = 'jetblue airways'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:57.252166",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country"
+              ],
+              "tables": [
+                "airlines"
+              ],
+              "joins": [],
+              "where": [
+                "where airline = 'jetblue airways'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country"
+              ],
+              "tables": [
+                "airlines"
+              ],
+              "joins": [],
+              "where": [
+                "where airline = 'jetblue airways'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:57.254900"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:57.256001",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country"
+          ],
+          "tables": [
+            "airlines"
+          ],
+          "joins": [],
+          "where": [
+            "where airline = 'jetblue airways'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT Country FROM airlines WHERE Airline = 'JetBlue Airways'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:02:57.257481"
+}

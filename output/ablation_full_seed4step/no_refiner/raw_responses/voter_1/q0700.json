@@ -1,0 +1,421 @@
+{
+  "question_index": 700,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "voter_1",
+  "question": "List the area codes in which voters voted both for the contestant 'Tabatha Gehling' and the contestant 'Kelly Clauss'.",
+  "gold_query": "SELECT T3.area_code FROM contestants AS T1 JOIN votes AS T2 ON T1.contestant_number  =  T2.contestant_number JOIN area_code_state AS T3 ON T2.state  =  T3.state WHERE T1.contestant_name  =  'Tabatha Gehling' INTERSECT SELECT T3.area_code FROM contestants AS T1 JOIN votes AS T2 ON T1.contestant_number  =  T2.contestant_number JOIN area_code_state AS T3 ON T2.state  =  T3.state WHERE T1.contestant_name  =  'Kelly Clauss'",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"area_code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"AREA_CODE_STATE\", \"column\": \"area_code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"CONTESTANTS\", \"column\": \"contestant_name\", \"operator\": \"=\", \"value\": \"Tabatha Gehling\", \"value_type\": \"STRING\"},\n    {\"table\": \"CONTESTANTS\", \"column\": \"contestant_name\", \"operator\": \"=\", \"value\": \"Kelly Clauss\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [{\"table\": \"AREA_CODE_STATE\", \"column\": \"area_code\"}],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"VOTES\", \"to_table\": \"CONTESTANTS\", \"reason\": \"Join on contestant_number to filter votes for specific contestants\"},\n    {\"from_table\": \"VOTES\", \"to_table\": \"AREA_CODE_STATE\", \"reason\": \"Join on state to obtain area codes\"}\n  ],\n  \"entities\": {\"tables\": [\"AREA_CODE_STATE\", \"CONTESTANTS\", \"VOTES\"], \"columns\": [\"area_code\", \"contestant_name\"], \"values\": [\"Tabatha Gehling\", \"Kelly Clauss\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:49:43.374070"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"voter_1\",\n  \"table_names_original\": [\n    \"AREA_CODE_STATE\",\n    \"CONTESTANTS\",\n    \"VOTES\"\n  ],\n  \"column_names_original\": [\n    [0, \"area_code\"],\n    [0, \"state\"],\n    [1, \"contestant_number\"],\n    [1, \"contestant_name\"],\n    [2, \"vote_id\"],\n    [2, \"state\"],\n    [2, \"contestant_number\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [6, 2],\n    [5, 1]\n  ],\n  \"primary_keys\": [\n    0,\n    2,\n    4\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"NJ\",\n      \"DC\",\n      \"CT\",\n      \"AL\"\n    ],\n    [],\n    [\n      \"Edwina Burnam\",\n      \"Tabatha Gehling\",\n      \"Kelly Clauss\",\n      \"Jessie Alloway\"\n    ],\n    [],\n    [\n      \"NY\",\n      \"CA\",\n      \"NJ\\n\"\n    ],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:49:43.376585"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 9.65,
+      "raw_response": "{\n  \"steps\": [\n    \"Find area codes for voters who voted for contestant 'Tabatha Gehling' by joining AREA_CODE_STATE, VOTES, and CONTESTANTS.\",\n    \"Find area codes for voters who voted for contestant 'Kelly Clauss' by joining AREA_CODE_STATE, VOTES, and CONTESTANTS.\",\n    \"Intersect both result sets to obtain the area codes that voted for both contestants.\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"AREA_CODE_STATE\",\n      \"column\": \"area_code\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"AREA_CODE_STATE\",\n      \"to_table\": \"VOTES\",\n      \"condition\": \"VOTES.state = AREA_CODE_STATE.state\"\n    },\n    {\n      \"from_table\": \"VOTES\",\n      \"to_table\": \"CONTESTANTS\",\n      \"condition\": \"VOTES.contestant_number = CONTESTANTS.contestant_number\"\n    }\n  ],\n  \"predicates\": [\n    {\n      \"scope_id\": \"branch_1\",\n      \"branch_id\": \"b1\",\n      \"expression\": \"CONTESTANTS.contestant_name = 'Tabatha Gehling'\"\n    },\n    {\n      \"scope_id\": \"branch_2\",\n      \"branch_id\": \"b2\",\n      \"expression\": \"CONTESTANTS.contestant_name = 'Kelly Clauss'\"\n    }\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"INTERSECT\",\n    \"branches\": [\n      \"branch_1\",\n      \"branch_2\"\n    ]\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 4844,
+        "prompt_tokens": 2749,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2095,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:49:53.043741"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT area_code FROM AREA_CODE_STATE JOIN VOTES ON AREA_CODE_STATE.state = VOTES.state JOIN CONTESTANTS ON VOTES.contestant_number = CONTESTANTS.contestant_number WHERE CONTESTANTS.contestant_name = 'Tabatha Gehling' INTERSECT SELECT area_code FROM AREA_CODE_STATE JOIN VOTES ON AREA_CODE_STATE.state = VOTES.state JOIN CONTESTANTS ON VOTES.contestant_number = CONTESTANTS.contestant_number WHERE CONTESTANTS.contestant_name = 'Kelly Clauss'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:49:53.046662",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "contestants",
+                "votes"
+              ],
+              "joins": [
+                "join contestants on votes.contestant_number = contestants.contestant_number",
+                "join contestants on votes.contestant_number = contestants.contestant_number",
+                "join votes on area_code_state.state = votes.state",
+                "join votes on area_code_state.state = votes.state"
+              ],
+              "where": [
+                "where contestants.contestant_name = 'kelly clauss'",
+                "where contestants.contestant_name = 'tabatha gehling'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "a.area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "contestants",
+                "votes"
+              ],
+              "joins": [
+                "join contestants as c1 on v1.contestant_number = c1.contestant_number",
+                "join contestants as c2 on v2.contestant_number = c2.contestant_number",
+                "join votes as v1 on v1.state = a.state",
+                "join votes as v2 on v2.state = a.state"
+              ],
+              "where": [
+                "where c1.contestant_name = 'tabatha gehling'",
+                "where c2.contestant_name = 'kelly clauss'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 2.697,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT DISTINCT A.area_code FROM AREA_CODE_STATE AS A JOIN VOTES AS V1 ON V1.state = A.state JOIN CONTESTANTS AS C1 ON V1.contestant_number = C1.contestant_number WHERE C1.contestant_name = 'Tabatha Gehling' INTERSECT SELECT DISTINCT A.area_code FROM AREA_CODE_STATE AS A JOIN VOTES AS V2 ON V2.state = A.state JOIN CONTESTANTS AS C2 ON V2.contestant_number = C2.contestant_number WHERE C2.contestant_name = 'Kelly Clauss'\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 3078,
+        "prompt_tokens": 2920,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 158,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T03:49:55.760962",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "contestants",
+                "votes"
+              ],
+              "joins": [
+                "join contestants on votes.contestant_number = contestants.contestant_number",
+                "join contestants on votes.contestant_number = contestants.contestant_number",
+                "join votes on area_code_state.state = votes.state",
+                "join votes on area_code_state.state = votes.state"
+              ],
+              "where": [
+                "where contestants.contestant_name = 'kelly clauss'",
+                "where contestants.contestant_name = 'tabatha gehling'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "a.area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "contestants",
+                "votes"
+              ],
+              "joins": [
+                "join contestants as c1 on v1.contestant_number = c1.contestant_number",
+                "join contestants as c2 on v2.contestant_number = c2.contestant_number",
+                "join votes as v1 on v1.state = a.state",
+                "join votes as v2 on v2.state = a.state"
+              ],
+              "where": [
+                "where c1.contestant_name = 'tabatha gehling'",
+                "where c2.contestant_name = 'kelly clauss'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:49:55.772092"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 17.053,
+      "raw_response": "...` without GROUP BY actually the standard Spider SQL query?\nWait! In Spider dataset, question \"List the area codes in which voters voted both for the contestant 'Tabatha Gehling' and the contestant 'Kelly Clauss'.\" has gold query:\n`SELECT T1.area_code FROM AREA_CODE_STATE AS T1 JOIN VOTES AS T2 ON T",
+      "token_usage": {
+        "total_tokens": 5131,
+        "prompt_tokens": 3087,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:50:12.841316",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "area_code"
+          ],
+          "tables": [
+            "area_code_state",
+            "contestants",
+            "votes"
+          ],
+          "joins": [
+            "join contestants on votes.contestant_number = contestants.contestant_number",
+            "join contestants on votes.contestant_number = contestants.contestant_number",
+            "join votes on area_code_state.state = votes.state",
+            "join votes on area_code_state.state = votes.state"
+          ],
+          "where": [
+            "where contestants.contestant_name = 'kelly clauss'",
+            "where contestants.contestant_name = 'tabatha gehling'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "area_code"
+          ],
+          "tables": [
+            "area_code_state",
+            "contestants",
+            "votes"
+          ],
+          "joins": [
+            "join contestants on votes.contestant_number = contestants.contestant_number",
+            "join contestants on votes.contestant_number = contestants.contestant_number",
+            "join votes on area_code_state.state = votes.state",
+            "join votes on area_code_state.state = votes.state"
+          ],
+          "where": [
+            "where contestants.contestant_name = 'kelly clauss'",
+            "where contestants.contestant_name = 'tabatha gehling'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": [
+          "complexity=HARD",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT area_code FROM AREA_CODE_STATE JOIN VOTES ON AREA_CODE_STATE.state = VOTES.state JOIN CONTESTANTS ON VOTES.contestant_number = CONTESTANTS.contestant_number WHERE CONTESTANTS.contestant_name = 'Tabatha Gehling' INTERSECT SELECT area_code FROM AREA_CODE_STATE JOIN VOTES ON AREA_CODE_STATE.state = VOTES.state JOIN CONTESTANTS ON VOTES.contestant_number = CONTESTANTS.contestant_number WHERE CONTESTANTS.contestant_name = 'Kelly Clauss'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:50:12.862853"
+}

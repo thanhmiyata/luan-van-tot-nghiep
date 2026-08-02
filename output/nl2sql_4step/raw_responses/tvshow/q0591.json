@@ -1,0 +1,69 @@
+{
+  "question_index": 591,
+  "pipeline": "4step",
+  "db_id": "tvshow",
+  "question": "list all cartoon titles and their directors ordered by their air date",
+  "gold_query": "SELECT title ,  Directed_by FROM Cartoon ORDER BY Original_air_date",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.361,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Title\", \"Directed_by\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"Cartoon\", \"column\": \"Title\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Cartoon\", \"column\": \"Directed_by\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"Cartoon\", \"column\": \"Original_air_date\", \"direction\": \"ASC\"}],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"Cartoon\"], \"columns\": [\"Title\", \"Directed_by\", \"Original_air_date\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1600,
+        "prompt_tokens": 1381,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 219,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:07:42.801806"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 24.6,
+      "raw_response": "Thought: I need to filter the original schema based on the provided question and analysis.\n1.  **Identify Required Tables:** The analysis `entities.tables` explicitly lists \"Cartoon\". `output_fields_detailed` and `order_by` also exclusively refer to the \"Cartoon\" table. Thus, only the \"Cartoon\" table is required.\n2.  **Identify Required Columns:**\n    *   From `output_fields_detailed`: `Cartoon.Title`, `Cartoon.Directed_by`.\n    *   From `order_by`: `Cartoon.Original_air_date`.\n    *   From `primary_keys`: `Cartoon.id` (index 19 in original schema) is the primary key for the `Cartoon` table, so it must be preserved.\n3.  **Map Original Indices to Filtered Schema:**\n    *   The original schema `table_names_original` has `Cartoon` at index `2`. If we only keep `Cartoon`, its new index will be `0`.\n    *   Original column indices and names from `Cartoon` table:\n        *   `19: [2, \"id\"]` -> Kept. New column index `0`.\n        *   `20: [2, \"Title\"]` -> Kept. New column index `1`.\n        *   `21: [2, \"Directed_by\"]` -> Kept. New column index `2`.\n        *   `23: [2, \"Original_air_date\"]` -> Kept. New column index `3`.\n    *   Columns `Written_by` (22), `Production_code` (24), `Channel` (25) from `Cartoon` are not needed for output, filter, group by, or order by. They are not primary keys. `Cartoon.Channel` (25) is an FK but since `TV_Channel` is not needed for this query (single table query), it's not required to establish a connection.\n4.  **Filter `column_types`:** Based on the new column indices.\n5.  **Filter `foreign_keys`:** The original `foreign_keys` are `[[18,1],[25,1]]`. None of the involved columns (18, 1, 25) are kept in the filtered schema. So, `foreign_keys` will be empty.\n6.  **Filter `primary_keys`:** Original `primary_keys` are `[1, 10, 19]`. Only `19` (Cartoon.id) is kept. Its new index is `0`. So, `primary_keys` will be `[0]`.\n7.  **Filter `column_sample_values`:** Based on the new column indices.\n\nConstruct the new JSON based on these filtered components.```json\n{\n  \"db_id\": \"tvshow\",\n  \"table_names_original\": [\n    \"Cartoon\"\n  ],\n  \"column_names_original\": [\n    [0, \"id\"],\n    [0, \"Title\"],\n    [0, \"Directed_by\"],\n    [0, \"Original_air_date\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    0\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"The Rise of the Blue Beetle!\",\n      \"Terror on Dinosaur Island!\",\n      \"Evil Under the Sea!\",\n      \"Day of the Dark Knight!\"\n    ],\n    [\n      \"Ben Jones\",\n      \"Brandon Vietti\",\n      \"Michael Chang\"\n    ],\n    [\n      \"November14,2008\",\n      \"November21,2008\",\n      \"December5,2008\",\n      \"January2,2009\"\n    ]\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 6871,
+        "prompt_tokens": 1182,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5689,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:08:07.402742"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.224,
+      "raw_response": "{\"sql\": \"SELECT Title, Directed_by FROM Cartoon ORDER BY Original_air_date ASC\"}",
+      "token_usage": {
+        "total_tokens": 1154,
+        "prompt_tokens": 1124,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 30,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:08:09.628878"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.161,
+      "raw_response": "I need to validate the given SQL query against the provided schema, question, and analysis.\n\nHere's the plan:\n1.  **Check SELECT clause:** Ensure `SELECT Title, Directed_by` matches `expected_output_fields: [\"Title\", \"Directed_by\"]` and the order is correct.\n2.  **Check ORDER BY clause:** Ensure `ORDER BY Original_air_date ASC` matches `order_by: [{\"table\": \"Cartoon\", \"column\": \"Original_air_date\", \"direction\": \"ASC\"}]`. The question explicitly asks for ordering by air date.\n3.  **Check table/column names:** Verify `Title`, `Directed_by`, `Cartoon`, and `Original_air_date` exist in the schema.\n4.  **Check joins:** The query involves only one table, `Cartoon`, which is correct as `single_table_ok: true`. No joins are present, so no join issues.\n5.  **Check SQL completeness and formatting:** Ensure it's one line and complete.\n\nLet's go through the checks:\n*   **SELECT clause:** `SELECT Title, Directed_by` matches `expected_output_fields: [\"Title\", \"Directed_by\"]` in content and order. (Pass)\n*   **ORDER BY clause:** `ORDER BY Original_air_date ASC` matches the `order_by` in the analysis, and the question \"ordered by their air date\" confirms it's needed. (Pass)\n*   **Column/Table Names:**\n    *   `Cartoon` exists in `table_names_original`. (Pass)\n    *   `Title` exists under `Cartoon` (index 0, id 2). (Pass)\n    *   `Directed_by` exists under `Cartoon` (index 0, id 3). (Pass)\n    *   `Original_air_date` exists under `Cartoon` (index 0, id 4). (Pass)\n*   **Joins:** No joins are present, which is correct for `single_table_ok: true`. (Pass)\n*   **Completeness/Formatting:** The SQL is complete and on one line. (Pass)\n\nThe SQL query appears to be correct and aligns with all validation criteria.```json\n{\n \"sql\": \"SELECT Title, Directed_by FROM Cartoon ORDER BY Original_air_date ASC\",\n \"explain\": \"The SQL query correctly selects 'Title' and 'Directed_by' from the 'Cartoon' table, matching the expected output fields. It also correctly orders the results by 'Original_air_date' in ascending order as requested by the question and specified in the analysis. All table and column names exist in the schema, and no unnecessary joins are present.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1384,
+        "prompt_tokens": 781,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 603,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T20:08:12.793656"
+    }
+  ],
+  "final_sql": "SELECT Title, Directed_by FROM Cartoon ORDER BY Original_air_date ASC",
+  "explain": "The SQL query correctly selects 'Title' and 'Directed_by' from the 'Cartoon' table, matching the expected output fields. It also correctly orders the results by 'Original_air_date' in ascending order as requested by the question and specified in the analysis. All table and column names exist in the schema, and no unnecessary joins are present.",
+  "error": "",
+  "timestamp": "2026-07-24T20:08:12.794755"
+}

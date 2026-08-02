@@ -1,0 +1,349 @@
+{
+  "question_index": 423,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "museum_visit",
+  "question": "Find the name and age of the visitor who bought the most tickets at once.",
+  "gold_query": "SELECT t1.name ,  t1.age FROM visitor AS t1 JOIN visit AS t2 ON t1.id  =  t2.visitor_id ORDER BY t2.num_of_ticket DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"visitor.Name\", \"visitor.Age\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"visitor\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"visitor\", \"column\": \"Age\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"visit\", \"column\": \"Num_of_Ticket\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"visit\", \"to_table\": \"visitor\", \"reason\": \"to access visitor details for the person with the most tickets in a single purchase\"}],\n  \"entities\": {\"tables\": [\"visitor\", \"visit\"], \"columns\": [\"Name\", \"Age\", \"Num_of_Ticket\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:44:13.998309"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"museum_visit\",\n  \"table_names_original\": [\n    \"\",\n    \"visitor\",\n    \"visit\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [1, \"ID\"],\n    [1, \"Name\"],\n    [1, \"Age\"],\n    [2, \"Museum_ID\"],\n    [2, \"visitor_ID\"],\n    [2, \"Num_of_Ticket\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [10, 5]\n  ],\n  \"primary_keys\": [\n    5,\n    9\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Gonzalo Higuaín \",\n      \"Guti Midfielder\",\n      \"Arjen Robben\",\n      \"Raúl Brown\"\n    ],\n    [],\n    [],\n    [\n      \"5\",\n      \"3\",\n      \"6\"\n    ],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:44:14.000732"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.955,
+      "raw_response": "{\n  \"steps\": [\n    \"Join visitor with visit on visit.visitor_ID = visitor.ID\",\n    \"Sort rows by visit.Num_of_Ticket in descending order\",\n    \"Limit the result to 1 row to get the visitor who bought the most tickets at once\",\n    \"Project visitor.Name and visitor.Age\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"visitor\",\n      \"column\": \"Name\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    },\n    {\n      \"table\": \"visitor\",\n      \"column\": \"Age\",\n      \"agg\": \"NONE\",\n      \"order_index\": 1\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"visitor\",\n      \"to_table\": \"visit\",\n      \"condition\": \"visit.visitor_ID = visitor.ID\"\n    }\n  ],\n  \"predicates\": [],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [\n    {\n      \"table\": \"visit\",\n      \"column\": \"Num_of_Ticket\",\n      \"direction\": \"DESC\"\n    }\n  ],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3434,
+        "prompt_tokens": 2129,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1305,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:44:20.972792"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT visitor.Name, visitor.Age FROM visit JOIN visitor ON visit.visitor_ID = visitor.ID ORDER BY visit.Num_of_Ticket DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:44:20.975730",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/museum_visit/museum_visit.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "visitor.name",
+                "visitor.age"
+              ],
+              "tables": [
+                "visit",
+                "visitor"
+              ],
+              "joins": [
+                "join visitor on visit.visitor_id = visitor.id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by visit.num_of_ticket desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/museum_visit/museum_visit.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "visitor.name",
+                "visitor.age"
+              ],
+              "tables": [
+                "visit",
+                "visitor"
+              ],
+              "joins": [
+                "inner join visit on visit.visitor_id = visitor.id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by visit.num_of_ticket desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.381,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT visitor.Name, visitor.Age FROM visitor INNER JOIN visit ON visit.visitor_ID = visitor.ID ORDER BY visit.Num_of_Ticket DESC LIMIT 1\", \"disagreement_reason\": \"empty if structurally equivalent\"}",
+      "token_usage": {
+        "total_tokens": 2354,
+        "prompt_tokens": 2289,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 65,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T03:44:22.377857",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/museum_visit/museum_visit.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "visitor.name",
+                "visitor.age"
+              ],
+              "tables": [
+                "visit",
+                "visitor"
+              ],
+              "joins": [
+                "join visitor on visit.visitor_id = visitor.id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by visit.num_of_ticket desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/museum_visit/museum_visit.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "visitor.name",
+                "visitor.age"
+              ],
+              "tables": [
+                "visit",
+                "visitor"
+              ],
+              "joins": [
+                "inner join visit on visit.visitor_id = visitor.id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by visit.num_of_ticket desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:44:22.388200"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.065,
+      "raw_response": "{\n  \"sql\": \"SELECT visitor.Name, visitor.Age FROM visit JOIN visitor ON visit.visitor_ID = visitor.ID ORDER BY visit.Num_of_Ticket DESC LIMIT 1\",\n  \"explain\": \"The SQL query is semantically and deterministically valid, correctly selecting visitor Name and Age ordered by Num_of_Ticket descending with limit 1.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2863,
+        "prompt_tokens": 2223,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 640,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:44:26.476473",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/museum_visit/museum_visit.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "visitor.name",
+            "visitor.age"
+          ],
+          "tables": [
+            "visit",
+            "visitor"
+          ],
+          "joins": [
+            "join visitor on visit.visitor_id = visitor.id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by visit.num_of_ticket desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/museum_visit/museum_visit.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "visitor.name",
+            "visitor.age"
+          ],
+          "tables": [
+            "visit",
+            "visitor"
+          ],
+          "joins": [
+            "join visitor on visit.visitor_id = visitor.id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by visit.num_of_ticket desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT visitor.Name, visitor.Age FROM visit JOIN visitor ON visit.visitor_ID = visitor.ID ORDER BY visit.Num_of_Ticket DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:44:26.489419"
+}

@@ -1,0 +1,389 @@
+{
+  "question_index": 516,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "student_transcripts_tracking",
+  "question": "What is the name and id of the department with the most number of degrees ?",
+  "gold_query": "select t2.department_name ,  t1.department_id from degree_programs as t1 join departments as t2 on t1.department_id  =  t2.department_id group by t1.department_id order by count(*) desc limit 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"department_name\", \"department_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Departments\", \"column\": \"department_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Departments\", \"column\": \"department_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Departments\", \"column\": \"department_id\"}],\n  \"order_by\": [{\"table\": \"COUNT_degree_programs\", \"column\": \"degree_program_id\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"Departments\", \"to_table\": \"Degree_Programs\", \"reason\": \"need to find department with most degrees\"}],\n  \"entities\": {\"tables\": [\"Departments\", \"Degree_Programs\"], \"columns\": [\"department_name\", \"department_id\", \"degree_program_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:02.578107"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n\"db_id\": \"student_transcripts_tracking\",\n\"table_names_original\": [\"Departments\", \"Degree_Programs\"],\n\"column_names_original\": [\n  [-1, \"*\"],\n  [2, \"department_id\"],\n  [2, \"department_name\"],\n  [3, \"degree_program_id\"],\n  [3, \"department_id\"]\n],\n\"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"],\n\"foreign_keys\": [\n  [4, 1]\n],\n\"primary_keys\": [1, 3],\n\"column_sample_values\": [\n  [],\n  [],\n  [\"computer science\", \"history\", \"art\", \"linguistic\"],\n  [],\n  []\n]\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:11:02.581810"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.942,
+      "raw_response": "{\n  \"steps\": [\"Join Departments and Degree_Programs on department_id\", \"Count degree_program_id per department_id\", \"Find department with maximum count\"],\n  \"select\": [{\"table\": \"Departments\", \"column\": \"department_name\", \"agg\": \"NONE\", \"order_index\": 0}, {\"table\": \"Departments\", \"column\": \"department_id\", \"agg\": \"NONE\", \"order_index\": 1}],\n  \"joins\": [{\"from_table\": \"Departments\", \"to_table\": \"Degree_Programs\", \"condition\": \"Degree_Programs.department_id = Departments.department_id\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"Departments\", \"column\": \"department_id\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"Degree_Programs\", \"column\": \"COUNT(degree_program_id)\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2306,
+        "prompt_tokens": 2075,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 231,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:05.539508"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT d.department_name, d.department_id FROM Departments d JOIN Degree_Programs dp ON d.department_id = dp.department_id GROUP BY d.department_id ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:05.542192",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.department_name",
+                "d.department_id"
+              ],
+              "tables": [
+                "degree_programs",
+                "departments"
+              ],
+              "joins": [
+                "join degree_programs as dp on d.department_id = dp.department_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by d.department_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count_degree_programs is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "departments.department_name",
+                "departments.department_id"
+              ],
+              "tables": [
+                "degree_programs",
+                "departments"
+              ],
+              "joins": [
+                "join degree_programs on degree_programs.department_id = departments.department_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by departments.department_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(degree_programs.degree_program_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count_degree_programs is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.608,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT Departments.department_name, Departments.department_id FROM Departments JOIN Degree_Programs ON Degree_Programs.department_id = Departments.department_id GROUP BY Departments.department_id ORDER BY COUNT(Degree_Programs.degree_program_id) DESC LIMIT 1\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2429,
+        "prompt_tokens": 2352,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 77,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:07.169158",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.department_name",
+                "d.department_id"
+              ],
+              "tables": [
+                "degree_programs",
+                "departments"
+              ],
+              "joins": [
+                "join degree_programs as dp on d.department_id = dp.department_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by d.department_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count_degree_programs is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "departments.department_name",
+                "departments.department_id"
+              ],
+              "tables": [
+                "degree_programs",
+                "departments"
+              ],
+              "joins": [
+                "join degree_programs on degree_programs.department_id = departments.department_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by departments.department_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(degree_programs.degree_program_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count_degree_programs is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:11:07.180265"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.773,
+      "raw_response": "{\n  \"sql\": \"SELECT d.department_name, d.department_id FROM Departments AS d JOIN Degree_Programs AS dp ON d.department_id = dp.department_id GROUP BY d.department_id ORDER BY COUNT(dp.degree_program_id) DESC LIMIT 1\",\n  \"explain\": \"The corrected SQL uses COUNT(dp.degree_program_id) to properly determine the department with the most number of degrees.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3860,
+        "prompt_tokens": 3690,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 170,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:09.974818",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "d.department_name",
+            "d.department_id"
+          ],
+          "tables": [
+            "degree_programs",
+            "departments"
+          ],
+          "joins": [
+            "join degree_programs as dp on d.department_id = dp.department_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by d.department_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(dp.degree_program_id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count_degree_programs is absent."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "d.department_name",
+            "d.department_id"
+          ],
+          "tables": [
+            "degree_programs",
+            "departments"
+          ],
+          "joins": [
+            "join degree_programs as dp on d.department_id = dp.department_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by d.department_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(dp.degree_program_id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count_degree_programs is absent."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT d.department_name, d.department_id FROM Departments AS d JOIN Degree_Programs AS dp ON d.department_id = dp.department_id GROUP BY d.department_id ORDER BY COUNT(dp.degree_program_id) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:11:09.987348"
+}

@@ -1,0 +1,69 @@
+{
+  "question_index": 312,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Return the id and type code of the template that is used for the greatest number of documents.",
+  "gold_query": "SELECT T1.template_id ,  T2.Template_Type_Code FROM Documents AS T1 JOIN Templates AS T2 ON T1.template_id  =  T2.template_id GROUP BY T1.template_id ORDER BY count(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.055,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_ID\", \"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Templates\", \"column\": \"Template_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Templates\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Templates\", \"column\": \"Template_ID\"}],\n  \"order_by\": [{\"table\": \"Documents\", \"column\": \"Template_ID\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Templates\", \"reason\": \"to match template usage in documents\"}],\n  \"entities\": {\"tables\": [\"Templates\", \"Documents\"], \"columns\": [\"Template_ID\", \"Template_Type_Code\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1548,
+        "prompt_tokens": 1291,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 257,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:24:56.886480"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 15.523,
+      "raw_response": "Thought: I have carefully reviewed the question, the original schema, and the analysis.\nThe goal is to find the `Template_ID` and `Template_Type_Code` for the template with the most documents.\nThis requires joining `Templates` and `Documents` tables.\n- `Templates.Template_ID` is needed for output, grouping, and as the PK for the join.\n- `Templates.Template_Type_Code` is needed for output.\n- `Documents.Template_ID` is needed as the FK for the join and for grouping (implicitly, to count documents per template).\n- `Documents.Document_ID` is needed as the PK to count the number of documents per template.\n\nBased on this, the necessary tables are `Templates` and `Documents`.\n\nLet's list the original column indices and then map them to the new schema:\n\nOriginal Tables (and their global indices):\n- `Ref_Template_Types` (0)\n- `Templates` (1)\n- `Documents` (2)\n- `Paragraphs` (3)\n\nColumns to keep from `Templates` (original table index 1):\n- `Template_ID` (original global index 3): PK, output, group_by, join\n- `Template_Type_Code` (original global index 5): output\n\nColumns to keep from `Documents` (original table index 2):\n- `Document_ID` (original global index 9): PK, needed for COUNT\n- `Template_ID` (original global index 10): FK, join\n\nNow, construct the filtered schema:\n\n1.  `db_id`: \"cre_Doc_Template_Mgt\" (remains unchanged)\n2.  `table_names_original`: `[\"Templates\", \"Documents\"]` (only kept tables)\n\n3.  `column_names_original`:\n    We need to create new table-specific column indices and map them to the original global indices.\n    - `[-1, \"*\"]` (general selector, always included)\n    - `[0, \"Template_ID\"]` (from `Templates`, original index 3)\n    - `[0, \"Template_Type_Code\"]` (from `Templates`, original index 5)\n    - `[1, \"Document_ID\"]` (from `Documents`, original index 9)\n    - `[1, \"Template_ID\"]` (from `Documents`, original index 10)\n\n    New global indices (after filtering):\n    - 0: `[-1, \"*\"]`\n    - 1: `[0, \"Template_ID\"]` (originally global index 3)\n    - 2: `[0, \"Template_Type_Code\"]` (originally global index 5)\n    - 3: `[1, \"Document_ID\"]` (originally global index 9)\n    - 4: `[1, \"Template_ID\"]` (originally global index 10)\n\n4.  `column_types`:\n    Based on the new global indices:\n    - 0: \"text\" (for `*`)\n    - 1: \"number\" (from `Templates.Template_ID`)\n    - 2: \"text\" (from `Templates.Template_Type_Code`)\n    - 3: \"number\" (from `Documents.Document_ID`)\n    - 4: \"number\" (from `Documents.Template_ID`)\n    So: `[\"text\", \"number\", \"text\", \"number\", \"number\"]`\n\n5.  `primary_keys`:\n    Original PKs relevant to kept columns:\n    - `Templates.Template_ID` (original global index 3)\n    - `Documents.Document_ID` (original global index 9)\n    Mapping to new global indices:\n    - `Templates.Template_ID` -> new index 1\n    - `Documents.Document_ID` -> new index 3\n    So: `[1, 3]`\n\n6.  `foreign_keys`:\n    Original FKs relevant to kept columns:\n    - `[10, 3]` (`Documents.Template_ID` references `Templates.Template_ID`)\n    Mapping to new global indices:\n    - `Documents.Template_ID` (original 10) -> new index 4\n    - `Templates.Template_ID` (original 3) -> new index 1\n    So: `[[4, 1]]`\n\nThis filtered schema contains all necessary tables and columns, with PK/FK relationships preserved for the required join and output.```json\n{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Templates\", \"Documents\"], \"column_names_original\": [[-1, \"*\"], [0, \"Template_ID\"], [0, \"Template_Type_Code\"], [1, \"Document_ID\"], [1, \"Template_ID\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": []}\n```",
+      "token_usage": {
+        "total_tokens": 4671,
+        "prompt_tokens": 921,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3750,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:25:12.411672"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.559,
+      "raw_response": "{\"sql\": \"SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID, Templates.Template_Type_Code ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1331,
+        "prompt_tokens": 1274,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 57,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:25:13.971572"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.784,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis, ensuring it meets all the specified criteria.\n\nHere's the plan:\n1.  **Check SELECT clause:**\n    *   `SELECT Templates.Template_ID, Templates.Template_Type_Code` matches `expected_output_fields: [\"Template_ID\", \"Template_Type_Code\"]` in content and order. This is correct.\n2.  **Check Joins:**\n    *   `JOIN Documents ON Templates.Template_ID = Documents.Template_ID` is necessary to count document usage for each template. The join condition `Templates.Template_ID = Documents.Template_ID` is correct based on the foreign key `[[4,1]]` (Documents.Template_ID -> Templates.Template_ID). This is correct.\n3.  **Check Group By:**\n    *   `GROUP BY Templates.Template_ID, Templates.Template_Type_Code` is correct as all non-aggregated columns in SELECT must be in GROUP BY.\n4.  **Check Order By and Limit:**\n    *   The question asks for \"the template that is used for the greatest number of documents\". This implies ordering by the count of documents in descending order and limiting to 1.\n    *   The SQL has `ORDER BY COUNT(*) DESC LIMIT 1`. This is correct for finding the greatest number.\n    *   The `analysis.order_by` suggests `[{\"table\": \"Documents\", \"column\": \"Template_ID\", \"direction\": \"DESC\"}]`, but this is a mistake in the analysis itself. The correct ordering should be by the *count* of documents, not by a specific column from the `Documents` table. The SQL's `ORDER BY COUNT(*) DESC` is appropriate.\n5.  **Check for unnecessary elements:**\n    *   No unnecessary joins or `ORDER BY` clauses (other than the one needed for the `LIMIT 1`). `COUNT(*)` is used correctly.\n6.  **Text literals, column/table names:**\n    *   All column and table names (`Templates`, `Documents`, `Template_ID`, `Template_Type_Code`) exist in the schema.\n7.  **SQL completeness and format:**\n    *   The SQL is complete and on one line.\n\nThe SQL appears to be correct and matches the intent of the question. The `analysis.order_by` was slightly off, but the provided SQL correctly interpreted the \"greatest number\" requirement.\n\nTherefore, no correction is needed.```json\n{\n \"sql\": \"SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID, Templates.Template_Type_Code ORDER BY COUNT(*) DESC LIMIT 1\",\n \"explain\": \"The query correctly selects the template ID and type code. It joins `Templates` with `Documents` to count document usage per template. The `GROUP BY` clause includes all non-aggregated `SELECT` columns. `ORDER BY COUNT(*) DESC LIMIT 1` correctly identifies the template used for the greatest number of documents.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1580,
+        "prompt_tokens": 895,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 685,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:25:17.758055"
+    }
+  ],
+  "final_sql": "SELECT Templates.Template_ID, Templates.Template_Type_Code FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID GROUP BY Templates.Template_ID, Templates.Template_Type_Code ORDER BY COUNT(*) DESC LIMIT 1",
+  "explain": "The query correctly selects the template ID and type code. It joins `Templates` with `Documents` to count document usage per template. The `GROUP BY` clause includes all non-aggregated `SELECT` columns. `ORDER BY COUNT(*) DESC LIMIT 1` correctly identifies the template used for the greatest number of documents.",
+  "error": "",
+  "timestamp": "2026-07-25T04:25:17.759933"
+}

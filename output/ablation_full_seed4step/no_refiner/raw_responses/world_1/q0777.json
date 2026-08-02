@@ -1,0 +1,383 @@
+{
+  "question_index": 777,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "world_1",
+  "question": "What are the Asian countries which have a population larger than that of any country in Africa?",
+  "gold_query": "SELECT Name FROM country WHERE Continent  =  \"Asia\"  AND population  >  (SELECT min(population) FROM country WHERE Continent  =  \"Africa\")",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"country\", \"column\": \"Continent\", \"purpose\": \"FILTER\"},\n    {\"table\": \"country\", \"column\": \"Population\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Asia\", \"value_type\": \"STRING\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Africa\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"Asia\", \"table\": \"country\", \"column\": \"Continent\", \"evidence\": \"QUESTION\"},\n    {\"literal\": \"Africa\", \"table\": \"country\", \"column\": \"Continent\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"INDEPENDENT_BRANCHES\", \"logic\": \"NONE\", \"branch_ids\": [\"b1\", \"b2\"], \"reason\": \"Each continent filter is independent\"},\n    {\"scope_id\": \"s2\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b2\"], \"reason\": \"Finding the maximum population in Africa as a threshold\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"EXCEPT\", \"branches\": [\n    {\"branch_id\": \"b1\", \"scope_id\": \"s1\", \"required_tables\": [\"country\"], \"required_columns\": [{\"table\": \"country\", \"column\": \"Population\"}], \"purpose\": \"Find Asian countries\"},\n    {\"branch_id\": \"b2\", \"scope_id\": \"s2\", \"required_tables\": [\"country\"], \"required_columns\": [{\"table\": \"country\", \"column\": \"Population\"}], \"purpose\": \"Find maximum population in Africa\"}\n  ], \"reason\": \"Asian countries with population greater than the maximum of any African country's population\"},\n  \"extreme_row\": {\n    \"table\": \"country\",\n    \"column\": \"Population\",\n    \"use_as\": \"SCALAR_THRESHOLD\",\n    \"rank_direction\": \"DESC\"\n  },\n  \"scalar_comparisons\": [{\"table\": \"country\", \"column\": \"Population\", \"operator\": \">\", \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"MAX\", \"table\": \"country\", \"column\": \"Population\"}}],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"country\"], \"columns\": [\"Name\", \"Continent\", \"Population\"], \"values\": [\"Asia\", \"Africa\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:20.343757"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"country\"], \"column_names_original\": [[\"country\", \"Code\"], [\"country\", \"Name\"], [\"country\", \"Continent\"], [\"country\", \"Population\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:18:20.350672"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 5.511,
+      "raw_response": "{\n  \"steps\": [\n    \"Filter countries from 'country' table where Continent is 'Asia' or 'Africa'.\",\n    \"Determine maximum population from countries where Continent is 'Africa'.\",\n    \"Use a subquery to compare each Asian country's population against the African maximum.\",\n    \"Select the names of Asian countries satisfying the condition.\"\n  ],\n  \"select\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"order_index\": 0}\n  ],\n  \"joins\": [],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"country.Continent = 'Asia'\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"expression\": \"country.Continent = 'Africa'\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"EXCEPT\",\n    \"branches\": [\n      {\n        \"branch_id\": \"b1\",\n        \"scope_id\": \"s1\",\n        \"required_tables\": [\"country\"],\n        \"required_columns\": [{\"table\": \"country\", \"column\": \"Population\"}],\n        \"purpose\": \"Find Asian countries\"\n      },\n      {\n        \"branch_id\": \"b2\",\n        \"scope_id\": \"s2\",\n        \"required_tables\": [\"country\"],\n        \"required_columns\": [{\"table\": \"country\", \"column\": \"Population\"}],\n        \"purpose\": \"Find maximum population in Africa\"\n      }\n    ]\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3578,
+        "prompt_tokens": 3111,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 467,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:25.878204"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Name FROM country WHERE Continent = 'Asia' AND Population > (SELECT MAX(Population) FROM country WHERE Continent = 'Africa')\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:25.882099",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where continent = 'africa'",
+                "where continent = 'asia' and population > (select max(population) from country where continent = 'africa')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "SET_OPERATION_MISSING",
+                "message": "Expected EXCEPT, found []."
+              },
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where country.continent = 'africa'",
+                "where country.continent = 'asia' and country.population > (select max(country.population) from country where country.continent = 'africa')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "SET_OPERATION_MISSING",
+                "message": "Expected EXCEPT, found []."
+              },
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.346,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT country.Name FROM country WHERE country.Continent = 'Asia' AND country.Population > (SELECT MAX(country.Population) FROM country WHERE country.Continent = 'Africa')\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3554,
+        "prompt_tokens": 3484,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 70,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:27.300164",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where continent = 'africa'",
+                "where continent = 'asia' and population > (select max(population) from country where continent = 'africa')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "SET_OPERATION_MISSING",
+                "message": "Expected EXCEPT, found []."
+              },
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where country.continent = 'africa'",
+                "where country.continent = 'asia' and country.population > (select max(country.population) from country where country.continent = 'africa')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "SET_OPERATION_MISSING",
+                "message": "Expected EXCEPT, found []."
+              },
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:18:27.316737"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.807,
+      "raw_response": "{\n  \"sql\": \"SELECT Name FROM country WHERE Continent = 'Asia' AND Population > (SELECT MAX(Population) FROM country WHERE Continent = 'Africa')\",\n  \"explain\": \"The SQL selects names of Asian countries where their population is greater than the maximum population of any African country using a subquery.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3477,
+        "prompt_tokens": 3250,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 227,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:30.151631",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "country"
+          ],
+          "joins": [],
+          "where": [
+            "where continent = 'africa'",
+            "where continent = 'asia' and population > (select max(population) from country where continent = 'africa')"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "SET_OPERATION_MISSING",
+            "message": "Expected EXCEPT, found []."
+          },
+          {
+            "code": "EXTREME_LIMIT_MISSING",
+            "message": "Extreme-row contract requires LIMIT."
+          }
+        ],
+        "risk_reasons": [
+          "complexity=HARD"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "country"
+          ],
+          "joins": [],
+          "where": [
+            "where continent = 'africa'",
+            "where continent = 'asia' and population > (select max(population) from country where continent = 'africa')"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "SET_OPERATION_MISSING",
+            "message": "Expected EXCEPT, found []."
+          },
+          {
+            "code": "EXTREME_LIMIT_MISSING",
+            "message": "Extreme-row contract requires LIMIT."
+          }
+        ],
+        "risk_reasons": [
+          "complexity=HARD"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Name FROM country WHERE Continent = 'Asia' AND Population > (SELECT MAX(Population) FROM country WHERE Continent = 'Africa')",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:18:30.171598"
+}

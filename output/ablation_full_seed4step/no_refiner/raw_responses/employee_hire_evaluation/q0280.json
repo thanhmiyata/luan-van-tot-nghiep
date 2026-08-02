@@ -1,0 +1,292 @@
+{
+  "question_index": 280,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "employee_hire_evaluation",
+  "question": "Which employee received the biggest bonus? Give me the employee name.",
+  "gold_query": "SELECT t1.name FROM employee AS t1 JOIN evaluation AS t2 ON t1.Employee_ID  =  t2.Employee_ID ORDER BY t2.bonus DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"employee\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"evaluation\", \"column\": \"Bonus\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"employee\", \"to_table\": \"evaluation\", \"reason\": \"employee_id relationship\"}],\n  \"entities\": {\"tables\": [\"employee\", \"evaluation\"], \"columns\": [\"Name\", \"Bonus\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:28:47.110491"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"employee_hire_evaluation\",\n  \"table_names_original\": [\n    \"employee\",\n    \"evaluation\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Employee_ID\"\n    ],\n    [\n      0,\n      \"Name\"\n    ],\n    [\n      1,\n      \"Employee_ID\"\n    ],\n    [\n      1,\n      \"Bonus\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      3,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"George Chuter\",\n      \"Lee Mears\",\n      \"Mark Regan\",\n      \"Jason Hobson\"\n    ],\n    [\n      \"1\",\n      \"10\",\n      \"2\",\n      \"4\"\n    ],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:28:47.111810"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.631,
+      "raw_response": "{\n  \"steps\": [\n    \"Join employee and evaluation tables using Employee_ID.\",\n    \"Order the joined records by evaluation.Bonus in descending order.\",\n    \"Project employee.Name for the record with the maximum bonus by limiting output to 1.\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"employee\",\n      \"column\": \"Name\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"employee\",\n      \"to_table\": \"evaluation\",\n      \"condition\": \"evaluation.Employee_ID = employee.Employee_ID\"\n    }\n  ],\n  \"predicates\": [],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [\n    {\n      \"table\": \"evaluation\",\n      \"column\": \"Bonus\",\n      \"direction\": \"DESC\"\n    }\n  ],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2929,
+        "prompt_tokens": 2082,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 847,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:28:51.753981"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Name FROM employee JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID ORDER BY Bonus DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:28:51.756777",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "employee",
+                "evaluation"
+              ],
+              "joins": [
+                "join evaluation on employee.employee_id = evaluation.employee_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by bonus desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "employee.name"
+              ],
+              "tables": [
+                "employee",
+                "evaluation"
+              ],
+              "joins": [
+                "inner join evaluation on employee.employee_id = evaluation.employee_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by evaluation.bonus desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.989,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT employee.Name FROM employee INNER JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID ORDER BY evaluation.Bonus DESC LIMIT 1\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2252,
+        "prompt_tokens": 2188,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 64,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T03:28:53.767641",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "employee",
+                "evaluation"
+              ],
+              "joins": [
+                "join evaluation on employee.employee_id = evaluation.employee_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by bonus desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "employee.name"
+              ],
+              "tables": [
+                "employee",
+                "evaluation"
+              ],
+              "joins": [
+                "inner join evaluation on employee.employee_id = evaluation.employee_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by evaluation.bonus desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:28:53.777969"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:28:53.781241",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "employee",
+            "evaluation"
+          ],
+          "joins": [
+            "join evaluation on employee.employee_id = evaluation.employee_id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by bonus desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT Name FROM employee JOIN evaluation ON employee.Employee_ID = evaluation.Employee_ID ORDER BY Bonus DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:28:53.784814"
+}

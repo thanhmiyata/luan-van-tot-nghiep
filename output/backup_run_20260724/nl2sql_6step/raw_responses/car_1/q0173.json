@@ -1,0 +1,97 @@
+{
+  "question_index": 173,
+  "pipeline": "6step",
+  "db_id": "car_1",
+  "question": "What are the name of the countries where there is not a single car maker?",
+  "gold_query": "SELECT CountryName FROM countries EXCEPT SELECT T1.CountryName FROM countries AS T1 JOIN CAR_MAKERS AS T2 ON T1.countryId  =  T2.Country;",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.071,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"CountryName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"car_makers\", \"column\": \"Country\", \"operator\": \"IS\", \"value\": \"NULL\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"countries\", \"to_table\": \"car_makers\", \"reason\": \"to find countries without car makers\"}],\n  \"entities\": {\"tables\": [\"countries\", \"car_makers\"], \"columns\": [\"CountryName\", \"Country\"], \"values\": []},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"SQL_NULL\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1685,
+        "prompt_tokens": 1423,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 262,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:57:24.891409"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 22.176,
+      "raw_response": "{\"db_id\":\"car_1\",\"table_names_original\":[\"continents\",\"countries\",\"car_makers\",\"model_list\",\"car_names\",\"cars_data\"],\"column_names_original\":[[-1,\"*\"],[1,\"CountryId\"],[1,\"CountryName\"],[2,\"Country\"]],\"column_types\":[\"text\",\"number\",\"text\",\"text\"],\"foreign_keys\":[[3,1]],\"primary_keys\":[1]}",
+      "token_usage": {
+        "total_tokens": 6132,
+        "prompt_tokens": 890,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5242,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:57:47.085407"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.882,
+      "raw_response": "{ \"steps\": [ { \"action\": \"list_tables\", \"tables\": [\"countries\", \"car_makers\"], \"explanation\": \"Countries table is needed to get the names of the countries and car_makers table is needed to check for existence of car makers.\" }, { \"action\": \"join_tables\", \"tables\": [\"countries\", \"car_makers\"], \"on\": \"countries.CountryName = car_makers.Country\", \"explanation\": \"Join countries with car_makers to identify which countries have car makers by matching CountryName with Country.\" }, { \"action\": \"filter\", \"conditions\": [\"car_makers.Country IS NULL\"], \"explanation\": \"Filter countries that are not associated with any car maker (i.e., the corresponding row in car_makers is NULL).\" }, { \"action\": \"select\", \"columns\": [\"countries.CountryName\"], \"explanation\": \"Select the country names from countries table where there is no corresponding entry in car_makers.\" }, { \"action\": \"distinct\", \"columns\": [\"countries.CountryName\"], \"explanation\": \"Ensure that the list of country names is distinct, though given the join and filter, this may inherently be the case.\" } ] }",
+      "token_usage": {
+        "total_tokens": 1554,
+        "prompt_tokens": 1295,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 259,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:57:49.987227"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.115,
+      "raw_response": "{\"sql\": \"SELECT CountryName FROM countries LEFT JOIN car_makers ON countries.CountryName = car_makers.Country WHERE car_makers.Country IS NULL\"}",
+      "token_usage": {
+        "total_tokens": 1797,
+        "prompt_tokens": 1755,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 42,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:57:51.121580"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.986,
+      "raw_response": "{\"sql\": \"SELECT CountryName FROM countries LEFT JOIN car_makers ON countries.CountryName = car_makers.Country WHERE car_makers.Country IS NULL\", \"notes\": \"The initial SQL aligns well with the expected output. It selects the 'CountryName' from 'countries' where there is no matching country in 'car_makers' (i.e., countries with no car makers). The join keys and filter are correctly used, and the SQL is already a single-line executable statement.\", \"diagnostics\": [\"SQL matches expected output fields: ['CountryName']\", \"Join and filter logic correctly identifies countries without car makers.\"]}",
+      "token_usage": {
+        "total_tokens": 1627,
+        "prompt_tokens": 1489,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 138,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:57:53.126715"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.893,
+      "raw_response": "{\"sql\": \"SELECT CountryName FROM countries LEFT JOIN car_makers ON countries.CountryId = car_makers.Country WHERE car_makers.Country IS NULL\", \"explain\": \"The original SQL used `countries.CountryName = car_makers.Country` for the join. Based on the schema `countries.CountryId` is the primary key and `car_makers.Country` is a foreign key referencing a country. It is safer and more robust to join on the primary key `CountryId` instead of the name `CountryName` to avoid potential issues with name mismatches or non-unique names.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1990,
+        "prompt_tokens": 1270,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 720,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T02:57:58.037609"
+    }
+  ],
+  "final_sql": "SELECT CountryName FROM countries LEFT JOIN car_makers ON countries.CountryId = car_makers.Country WHERE car_makers.Country IS NULL",
+  "explain": "The original SQL used `countries.CountryName = car_makers.Country` for the join. Based on the schema `countries.CountryId` is the primary key and `car_makers.Country` is a foreign key referencing a country. It is safer and more robust to join on the primary key `CountryId` instead of the name `CountryName` to avoid potential issues with name mismatches or non-unique names.",
+  "error": "",
+  "timestamp": "2026-07-24T02:57:58.040429"
+}

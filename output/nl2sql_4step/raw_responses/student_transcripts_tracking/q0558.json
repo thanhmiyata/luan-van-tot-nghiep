@@ -1,0 +1,69 @@
+{
+  "question_index": 558,
+  "pipeline": "4step",
+  "db_id": "student_transcripts_tracking",
+  "question": "What is the first, middle, and last name of the earliest school graduate?",
+  "gold_query": "SELECT first_name ,  middle_name ,  last_name FROM Students ORDER BY date_left ASC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.61,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"first_name\", \"middle_name\", \"last_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Students\", \"column\": \"middle_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 2}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"direction\": \"ASC\"}],\n  \"join_hints\": [{\"from_table\": \"Students\", \"to_table\": \"Transcripts\", \"reason\": \"Get graduation date\"}],\n  \"entities\": {\"tables\": [\"Students\", \"Transcripts\"], \"columns\": [\"first_name\", \"middle_name\", \"last_name\", \"transcript_date\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2274,
+        "prompt_tokens": 1988,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 286,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:11:41.798110"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.554,
+      "raw_response": "{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Students\", \"Student_Enrolment\", \"Transcripts\", \"Student_Enrolment_Courses\", \"Transcript_Contents\"], \"column_names_original\": [[-1, \"*\"], [6, \"student_id\"], [6, \"first_name\"], [6, \"middle_name\"], [6, \"last_name\"], [7, \"student_enrolment_id\"], [7, \"student_id\"], [8, \"student_course_id\"], [8, \"student_enrolment_id\"], [9, \"transcript_id\"], [9, \"transcript_date\"], [10, \"student_course_id\"], [10, \"transcript_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\", \"text\", \"number\", \"number\", \"number\", \"number\", \"number\", \"time\", \"number\", \"number\"], \"foreign_keys\": [[6, 1], [8, 5], [11, 7], [12, 9]], \"primary_keys\": [1, 5, 7, 9], \"column_sample_values\": [[], [], [\"Timmothy\", \"Hobart\", \"Warren\", \"Jarvis\"], [\"Anna\", \"Lorenz\", \"Violet\", \"Aaliyah\"], [\"Ward\", \"Balistreri\", \"Gleichner\", \"Carroll\"], [], [], [], [], [], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 4338,
+        "prompt_tokens": 1766,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2572,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:11:53.354119"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.714,
+      "raw_response": "{\"sql\": \"SELECT s.first_name, s.middle_name, s.last_name FROM Students s JOIN Transcripts t ON s.student_id = t.transcript_id ORDER BY t.transcript_date ASC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1498,
+        "prompt_tokens": 1444,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 54,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:11:55.068772"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 17.754,
+      "raw_response": "```json\n{\n \"sql\": \"SELECT T1.first_name, T1.middle_name, T1.last_name FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id = T2.student_id JOIN Student_Enrolment_Courses AS T3 ON T2.student_enrolment_id = T3.student_enrolment_id JOIN Transcript_Contents AS T4 ON T3.student_course_id = T4.student_course_id JOIN Transcripts AS T5 ON T4.transcript_id = T5.transcript_id ORDER BY T5.transcript_date ASC LIMIT 1\",\n \"explain\": \"The original SQL had an incorrect join condition (s.student_id = t.transcript_id) which does not align with the provided schema's foreign key relationships. To correctly link Students to Transcripts (for transcript_date), a join path through Student_Enrolment, Student_Enrolment_Courses, and Transcript_Contents is required based on the defined foreign keys. The corrected SQL uses this full join path while maintaining the correct SELECT fields, ORDER BY, and LIMIT clauses for the 'earliest school graduate' question.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 4908,
+        "prompt_tokens": 1059,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3849,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:12:12.824440"
+    }
+  ],
+  "final_sql": "SELECT T1.first_name, T1.middle_name, T1.last_name FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id = T2.student_id JOIN Student_Enrolment_Courses AS T3 ON T2.student_enrolment_id = T3.student_enrolment_id JOIN Transcript_Contents AS T4 ON T3.student_course_id = T4.student_course_id JOIN Transcripts AS T5 ON T4.transcript_id = T5.transcript_id ORDER BY T5.transcript_date ASC LIMIT 1",
+  "explain": "The original SQL had an incorrect join condition (s.student_id = t.transcript_id) which does not align with the provided schema's foreign key relationships. To correctly link Students to Transcripts (for transcript_date), a join path through Student_Enrolment, Student_Enrolment_Courses, and Transcript_Contents is required based on the defined foreign keys. The corrected SQL uses this full join path while maintaining the correct SELECT fields, ORDER BY, and LIMIT clauses for the 'earliest school graduate' question.",
+  "error": "",
+  "timestamp": "2026-07-25T00:12:12.825452"
+}

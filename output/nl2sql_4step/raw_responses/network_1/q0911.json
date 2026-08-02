@@ -1,0 +1,69 @@
+{
+  "question_index": 911,
+  "pipeline": "4step",
+  "db_id": "network_1",
+  "question": "What are the names of high schoolers who have a grade of over 5 and have 2 or more friends?",
+  "gold_query": "SELECT T2.name FROM Friend AS T1 JOIN Highschooler AS T2 ON T1.student_id  =  T2.id WHERE T2.grade  >  5 GROUP BY T1.student_id HAVING count(*)  >=  2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.809,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Highschooler\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Highschooler\", \"column\": \"grade\", \"operator\": \">\", \"value\": 5, \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Highschooler\", \"to_table\": \"Friend\", \"reason\": \"to count number of friends\"}\n  ],\n  \"entities\": {\"tables\": [\"Highschooler\", \"Friend\"], \"columns\": [\"name\", \"grade\"], \"values\": [\"5\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1181,
+        "prompt_tokens": 955,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 226,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:05:16.481240"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.369,
+      "raw_response": "```json\n{\n  \"db_id\": \"network_1\",\n  \"table_names_original\": [\n    \"Highschooler\",\n    \"Friend\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"ID\"],\n    [0, \"name\"],\n    [0, \"grade\"],\n    [1, \"student_id\"],\n    [1, \"friend_id\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [5, 1],\n    [4, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    4\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Jordan\",\n      \"Gabriel\",\n      \"Tiffany\",\n      \"Cassandra\"\n    ],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 3400,
+        "prompt_tokens": 711,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2689,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:05:27.851193"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.186,
+      "raw_response": "{\"sql\": \"SELECT name FROM Highschooler WHERE grade > 5 AND ID IN (SELECT student_id FROM Friend GROUP BY student_id HAVING COUNT(friend_id) >= 2)\"}",
+      "token_usage": {
+        "total_tokens": 1156,
+        "prompt_tokens": 1106,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 50,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:05:30.039273"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.185,
+      "raw_response": "I need to validate the given SQL query against the provided schema, question, and analysis.\n\nHere's the plan:\n1.  **Check SELECT clause:** Ensure `SELECT name` matches `expected_output_fields: [\"name\"]`.\n2.  **Check Filters:** `WHERE grade > 5` matches `filters`.\n3.  **Check Joins/Subquery:** The subquery `ID IN (SELECT student_id FROM Friend GROUP BY student_id HAVING COUNT(friend_id) >= 2)` effectively joins `Highschooler` and `Friend` to count friends.\n    *   `student_id` is a foreign key to `Highschooler.ID`.\n    *   `COUNT(friend_id)`: `friend_id` refers to another student, so `COUNT(friend_id)` correctly counts the number of friends for each `student_id`. No `DISTINCT` is needed here as `friend_id` refers to an individual friend.\n    *   `HAVING COUNT(friend_id) >= 2` matches \"2 or more friends\".\n4.  **Check Column/Table Names:** All names (`name`, `Highschooler`, `grade`, `ID`, `Friend`, `student_id`, `friend_id`) exist in the schema.\n5.  **Check Completeness and Format:** SQL is complete and on one line. No comments.\n6.  **Unnecessary Joins/ORDER BY:** No unnecessary joins, and no `ORDER BY` clause, which is correct as the question doesn't ask for any specific order.\n\nThe SQL appears to be correct and aligns with all requirements.\n\n**SQL:** `SELECT name FROM Highschooler WHERE grade > 5 AND ID IN (SELECT student_id FROM Friend GROUP BY student_id HAVING COUNT(friend_id) >= 2)`\n**Expected output fields:** `[\"name\"]` (matches)\n**Filters:** `grade > 5` (matches)\n**Join logic:** The subquery correctly identifies students with 2 or more friends using `GROUP BY` and `HAVING COUNT(friend_id) >= 2`, and `ID IN (...)` links it back to `Highschooler`. `student_id` is a foreign key to `Highschooler.ID`. `friend_id` is a foreign key to `Highschooler.ID`.\n**Column/Table names:** All names are present and correctly cased as per `column_names_original` and `table_names_original`.\n**Minimal joins:** The subquery approach is efficient and minimal.\n**No needless ORDER BY:** Correct, no `ORDER BY`.\n**COUNT(*)/COUNT(DISTINCT):** `COUNT(friend_id)` is appropriate here, as `friend_id` itself represents a distinct friend in the `Friend` table for a given `student_id`. If `friend_id` could be duplicated for a single `student_id` meaning the same friend listed multiple times, then `COUNT(DISTINCT friend_id)` would be necessary. However, typically `Friend` tables store unique friend relationships. Assuming `(student_id, friend_id)` is a unique pair in `Friend`, `COUNT(friend_id)` is sufficient. Given the schema and common database practices, `COUNT(friend_id)` is correct for counting the number of friends.\n\nThe SQL is correct.{\n \"sql\": \"SELECT name FROM Highschooler WHERE grade > 5 AND ID IN (SELECT student_id FROM Friend GROUP BY student_id HAVING COUNT(friend_id) >= 2)\",\n \"explain\": \"The SQL query correctly selects the 'name' from the 'Highschooler' table. It filters for students with 'grade' greater than 5 and uses a subquery to identify 'Highschooler' IDs (linked via 'student_id') that appear at least twice in the 'Friend' table (indicating 2 or more friends) using `GROUP BY student_id HAVING COUNT(friend_id) >= 2`. All column and table names exist, and the query is efficient with no unnecessary joins or ordering.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1657,
+        "prompt_tokens": 770,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 887,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T18:05:36.225362"
+    }
+  ],
+  "final_sql": "SELECT name FROM Highschooler WHERE grade > 5 AND ID IN (SELECT student_id FROM Friend GROUP BY student_id HAVING COUNT(friend_id) >= 2)",
+  "explain": "The SQL query correctly selects the 'name' from the 'Highschooler' table. It filters for students with 'grade' greater than 5 and uses a subquery to identify 'Highschooler' IDs (linked via 'student_id') that appear at least twice in the 'Friend' table (indicating 2 or more friends) using `GROUP BY student_id HAVING COUNT(friend_id) >= 2`. All column and table names exist, and the query is efficient with no unnecessary joins or ordering.",
+  "error": "",
+  "timestamp": "2026-07-24T18:05:36.227084"
+}

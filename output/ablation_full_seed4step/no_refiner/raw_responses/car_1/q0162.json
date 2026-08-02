@@ -1,0 +1,359 @@
+{
+  "question_index": 162,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "car_1",
+  "question": "What is the number of countries with more than 2 car makers ?",
+  "gold_query": "select count(*) from countries as t1 join car_makers as t2 on t1.countryid  =  t2.country group by t1.countryid having count(*)  >  2",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"COUNT(*)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"countries\", \"car_makers\"],\n  \"required_columns\": [\n    {\"table\": \"countries\", \"column\": \"CountryId\", \"purpose\": \"OUTPUT|FILTER|GROUP|JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"Country\", \"purpose\": \"JOIN|GROUP|HAVING\"},\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"purpose\": \"HAVING\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"countries\", \"column\": \"*\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Counting countries with more than 2 car makers\"}\n  ],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"countries\", \"column\": \"CountryId\"}],\n  \"having\": [{\"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"Id\", \"agg\": \"COUNT\", \"operator\": \">\", \"value\": 2}],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": [],\n    \"reason\": \"\"\n  },\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"car_makers\", \"to_table\": \"countries\", \"reason\": \"to relate car makers to their respective countries\"}\n  ],\n  \"entities\": {\n    \"tables\": [\"countries\", \"car_makers\"],\n    \"columns\": [\"CountryId\", \"Country\"],\n    \"values\": []\n  },\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:40:51.653980"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"countries\", \"car_makers\"], \"column_names_original\": [[\"countries\", \"CountryId\"], [\"countries\", \"Continent\"], [\"car_makers\", \"Id\"], [\"car_makers\", \"Country\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:40:51.657935"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.96,
+      "raw_response": "{\n  \"steps\": [\"Count countries with more than 2 car makers by joining countries and car_makers tables\"],\n  \"select\": [{\"table\": \"countries\", \"column\": \"CountryId\", \"agg\": \"COUNT\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"countries\", \"to_table\": \"car_makers\", \"condition\": \"car_makers.Country = countries.CountryId\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"countries\", \"column\": \"CountryId\"}],\n  \"having\": [{\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"COUNT(car_makers.Id) > 2\"}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2589,
+        "prompt_tokens": 2196,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 393,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:40:58.634878"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) FROM countries JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY countries.CountryId HAVING COUNT(car_makers.Id) > 2\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:40:58.636889",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countries.countryid"
+              ],
+              "having": [
+                "having count(car_makers.id) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "inner join car_makers on car_makers.country = countries.countryid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countries.countryid"
+              ],
+              "having": [
+                "having count(car_makers.id) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.333,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT COUNT(*) FROM countries INNER JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY countries.CountryId HAVING COUNT(car_makers.Id) > 2\", \"disagreement_reason\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2507,
+        "prompt_tokens": 2443,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 64,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:40:59.987895",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countries.countryid"
+              ],
+              "having": [
+                "having count(car_makers.id) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "inner join car_makers on car_makers.country = countries.countryid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countries.countryid"
+              ],
+              "having": [
+                "having count(car_makers.id) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:41:00.000172"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.474,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) FROM countries JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY countries.CountryId HAVING COUNT(car_makers.Id) > 2\", \"explain\": \"The SQL query passes both deterministic and semantic validation checks without any errors. It correctly counts the number of countries with more than 2 car makers using an INNER JOIN on CountryId.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2723,
+        "prompt_tokens": 2627,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 96,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:41:01.496470",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*)"
+          ],
+          "tables": [
+            "car_makers",
+            "countries"
+          ],
+          "joins": [
+            "join car_makers on car_makers.country = countries.countryid"
+          ],
+          "where": [],
+          "group_by": [
+            "group by countries.countryid"
+          ],
+          "having": [
+            "having count(car_makers.id) > 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_makers",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*)"
+          ],
+          "tables": [
+            "car_makers",
+            "countries"
+          ],
+          "joins": [
+            "join car_makers on car_makers.country = countries.countryid"
+          ],
+          "where": [],
+          "group_by": [
+            "group by countries.countryid"
+          ],
+          "having": [
+            "having count(car_makers.id) > 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_makers",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) FROM countries JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY countries.CountryId HAVING COUNT(car_makers.Id) > 2",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:41:01.507972"
+}

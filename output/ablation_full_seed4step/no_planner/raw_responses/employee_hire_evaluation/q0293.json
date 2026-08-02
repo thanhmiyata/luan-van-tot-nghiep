@@ -1,0 +1,403 @@
+{
+  "question_index": 293,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "employee_hire_evaluation",
+  "question": "Which district has both stores with less than 3000 products and stores with more than 10000 products?",
+  "gold_query": "SELECT district FROM shop WHERE Number_products  <  3000 INTERSECT SELECT district FROM shop WHERE Number_products  >  10000",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"District\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"shop\", \"column\": \"District\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"shop\", \"column\": \"Number_products\", \"operator\": \"<\", \"value\": 3000, \"value_type\": \"NUMBER\"},\n    {\"table\": \"shop\", \"column\": \"Number_products\", \"operator\": \">\", \"value\": 10000, \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [{\"table\": \"shop\", \"column\": \"District\"}],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"shop\"], \"columns\": [\"District\", \"Number_products\"], \"values\": [\"3000\", \"10000\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:25:29.265576"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have analyzed the user's request, the provided schema, and the analysis.\nThe goal is to filter the schema to include only the necessary tables and columns for the given question.\n\n1.  **Identify relevant tables from `Analysis`**: The `entities.tables` array indicates \"shop\". The `output_fields_detailed` and `filters` also point exclusively to the `shop` table.\n2.  **Identify relevant columns from `Analysis` within the `shop` table**:\n    *   `District` (from `output_fields_detailed` and `group_by`)\n    *   `Number_products` (from `filters`)\n3.  **Identify PK/FK for connectivity**:\n    *   The `shop` table's primary key `Shop_ID` (original index 5) must be kept, as it's the primary key of a kept table.\n    *   No other tables are required, so no foreign keys for joining are necessary.\n\n**Detailed mapping of original to new schema:**\n\n*   **`table_names_original`**: Only \"shop\" (original index 1) is needed. So, `[\"shop\"]`.\n*   **`column_names_original`**:\n    *   Original column `[1, \"Shop_ID\"]` (index 5) is kept. Its new table_id will be 0, and its new column_id will be 0. So, `[0, \"Shop_ID\"]`.\n    *   Original column `[1, \"District\"]` (index 8) is kept. Its new table_id will be 0, and its new column_id will be 1. So, `[0, \"District\"]`.\n    *   Original column `[1, \"Number_products\"]` (index 9) is kept. Its new table_id will be 0, and its new column_id will be 2. So, `[0, \"Number_products\"]`.\n*   **`column_types`**: Based on the original indices:\n    *   Original index 5 (`Shop_ID`): \"number\"\n    *   Original index 8 (`District`): \"text\"\n    *   Original index 9 (`Number_products`): \"number\"\n    So, `[\"number\", \"text\", \"number\"]`.\n*   **`primary_keys`**: The `Shop_ID` (original index 5) is the primary key. In the new schema, it's the column at index 0. So, `[0]`.\n*   **`foreign_keys`**: No other tables are included, so no foreign keys are needed for joins. `[]`.\n*   **`column_sample_values`**:\n    *   Original index 5 (`Shop_ID`): `[]`\n    *   Original index 8 (`District`): `[\"Tehtaan kenttä\",\"Finnair Stadium\",\"Tapiolan Urheilupuisto\",\"Veritas Stadion\"]`\n    *   Original index 9 (`Number_products`): `[]`\n    So, `[[], [\"Tehtaan kenttä\",\"Finnair Stadium\",\"Tapiolan Urheilupuisto\",\"Veritas Stadion\"], []]`.\n\nAll necessary components are identified and mapped. I will now construct the final JSON.{\"db_id\": \"employee_hire_evaluation\", \"table_names_original\": [\"shop\"], \"column_names_original\": [[0, \"Shop_ID\"], [0, \"District\"], [0, \"Number_products\"]], \"column_types\": [\"number\", \"text\", \"number\"], \"foreign_keys\": [], \"primary_keys\": [0], \"column_sample_values\": [[], [\"Tehtaan kenttä\", \"Finnair Stadium\", \"Tapiolan Urheilupuisto\", \"Veritas Stadion\"], []]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:25:29.266956"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:25:29.267688"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT District FROM shop WHERE District IN (SELECT District FROM shop WHERE Number_products < 3000) AND District IN (SELECT District FROM shop WHERE Number_products > 10000)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:25:29.268251",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "district"
+              ],
+              "tables": [
+                "shop"
+              ],
+              "joins": [],
+              "where": [
+                "where district in (select district from shop where number_products < 3000) and district in (select district from shop where number_products > 10000)",
+                "where number_products < 3000",
+                "where number_products > 10000"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "district"
+              ],
+              "tables": [
+                "shop"
+              ],
+              "joins": [],
+              "where": [
+                "where district in (select district from shop where number_products < 3000) and district in (select district from shop where number_products > 10000)",
+                "where number_products < 3000",
+                "where number_products > 10000"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:25:29.268256",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "district"
+              ],
+              "tables": [
+                "shop"
+              ],
+              "joins": [],
+              "where": [
+                "where district in (select district from shop where number_products < 3000) and district in (select district from shop where number_products > 10000)",
+                "where number_products < 3000",
+                "where number_products > 10000"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "district"
+              ],
+              "tables": [
+                "shop"
+              ],
+              "joins": [],
+              "where": [
+                "where district in (select district from shop where number_products < 3000) and district in (select district from shop where number_products > 10000)",
+                "where number_products < 3000",
+                "where number_products > 10000"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 8.735,
+      "raw_response": "{\"sql\": \"SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000\", \"selected_candidate\": \"repaired\", \"notes\": \"Use INTERSECT to find districts having both store conditions and avoid duplicate district outputs.\", \"diagnostics\": []}",
+      "token_usage": {
+        "total_tokens": 4242,
+        "prompt_tokens": 2672,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1570,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:25:38.018646",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "district"
+          ],
+          "tables": [
+            "shop"
+          ],
+          "joins": [],
+          "where": [
+            "where number_products < 3000",
+            "where number_products > 10000"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.532,
+      "raw_response": "{\"sql\": \"SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000\", \"explain\": \"The INTERSECT operation correctly identifies districts containing both stores with fewer than 3000 products and stores with more than 10000 products, automatically returning distinct district names.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3613,
+        "prompt_tokens": 2196,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1417,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:25:45.580653",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "district"
+          ],
+          "tables": [
+            "shop"
+          ],
+          "joins": [],
+          "where": [
+            "where number_products < 3000",
+            "where number_products > 10000"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/employee_hire_evaluation/employee_hire_evaluation.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "district"
+          ],
+          "tables": [
+            "shop"
+          ],
+          "joins": [],
+          "where": [
+            "where number_products < 3000",
+            "where number_products > 10000"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT District FROM shop WHERE Number_products < 3000 INTERSECT SELECT District FROM shop WHERE Number_products > 10000",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:25:45.593108"
+}

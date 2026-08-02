@@ -1,0 +1,69 @@
+{
+  "question_index": 505,
+  "pipeline": "4step",
+  "db_id": "battle_death",
+  "question": "Show names, results and bulgarian commanders of the battles with no ships lost in the 'English Channel'.",
+  "gold_query": "SELECT name ,  RESULT ,  bulgarian_commander FROM battle EXCEPT SELECT T1.name ,  T1.result ,  T1.bulgarian_commander FROM battle AS T1 JOIN ship AS T2 ON T1.id  =  T2.lost_in_battle WHERE T2.location  =  'English Channel'",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 4.724,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\", \"result\", \"bulgarian_commander\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"battle\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"battle\", \"column\": \"result\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"battle\", \"column\": \"bulgarian_commander\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 2}\n  ],\n  \"filters\": [\n    {\"table\": \"ship\", \"column\": \"lost_in_battle\", \"operator\": \"=\", \"value\": \"0\", \"value_type\": \"NUMBER\"},\n    {\"table\": \"ship\", \"column\": \"location\", \"operator\": \"=\", \"value\": \"English Channel\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"ship\", \"to_table\": \"battle\", \"reason\": \"define battles by ship location and loss status\"}],\n  \"entities\": {\"tables\": [\"battle\", \"ship\"], \"columns\": [\"name\", \"result\", \"bulgarian_commander\", \"lost_in_battle\", \"location\"], \"values\": [\"0\", \"English Channel\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1562,
+        "prompt_tokens": 1213,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 349,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T04:07:35.245806"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 17.135,
+      "raw_response": "```json\n{\n  \"db_id\": \"battle_death\",\n  \"table_names_original\": [\n    \"battle\",\n    \"ship\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"id\"\n    ],\n    [\n      0,\n      \"name\"\n    ],\n    [\n      0,\n      \"bulgarian_commander\"\n    ],\n    [\n      0,\n      \"result\"\n    ],\n    [\n      1,\n      \"lost_in_battle\"\n    ],\n    [\n      1,\n      \"id\"\n    ],\n    [\n      1,\n      \"location\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      5,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    6\n  ],\n  \"column_sample_values\": []\n}\n```",
+      "token_usage": {
+        "total_tokens": 4788,
+        "prompt_tokens": 1084,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3704,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T04:07:52.382764"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.493,
+      "raw_response": "{\"sql\": \"SELECT battle.name, battle.result, battle.bulgarian_commander FROM battle JOIN ship ON battle.id = ship.lost_in_battle WHERE ship.lost_in_battle = 0 AND ship.location = 'English Channel'\"}",
+      "token_usage": {
+        "total_tokens": 1372,
+        "prompt_tokens": 1310,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 62,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T04:07:53.877820"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 13.376,
+      "raw_response": "```json\n{\n \"sql\": \"SELECT T1.name, T1.result, T1.bulgarian_commander FROM battle AS T1 LEFT JOIN ship AS T2 ON T1.id = T2.lost_in_battle AND T2.location = 'English Channel' WHERE T2.id IS NULL\",\n \"explain\": \"The original query's `JOIN` condition `battle.id = ship.lost_in_battle` combined with `WHERE ship.lost_in_battle = 0` implied `battle.id = 0`, which is likely invalid for a primary key and would return no results. To find 'battles with no ships lost in the English Channel', a LEFT JOIN to the ship table filtered by location, followed by checking for NULL in the joined table (T2.id IS NULL), correctly identifies battles that do not have any associated ships lost in the 'English Channel'.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 4114,
+        "prompt_tokens": 979,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3135,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T04:08:07.255554"
+    }
+  ],
+  "final_sql": "SELECT T1.name, T1.result, T1.bulgarian_commander FROM battle AS T1 LEFT JOIN ship AS T2 ON T1.id = T2.lost_in_battle AND T2.location = 'English Channel' WHERE T2.id IS NULL",
+  "explain": "The original query's `JOIN` condition `battle.id = ship.lost_in_battle` combined with `WHERE ship.lost_in_battle = 0` implied `battle.id = 0`, which is likely invalid for a primary key and would return no results. To find 'battles with no ships lost in the English Channel', a LEFT JOIN to the ship table filtered by location, followed by checking for NULL in the joined table (T2.id IS NULL), correctly identifies battles that do not have any associated ships lost in the 'English Channel'.",
+  "error": "",
+  "timestamp": "2026-07-24T04:08:07.257893"
+}

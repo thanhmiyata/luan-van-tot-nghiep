@@ -1,0 +1,355 @@
+{
+  "question_index": 698,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "voter_1",
+  "question": "What is the area code in which the most voters voted?",
+  "gold_query": "SELECT T1.area_code FROM area_code_state AS T1 JOIN votes AS T2 ON T1.state  =  T2.state GROUP BY T1.area_code ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"area_code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"AREA_CODE_STATE\", \"column\": \"area_code\", \"agg\": null, \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"AREA_CODE_STATE\", \"column\": \"area_code\"}],\n  \"order_by\": [{\"table\": \"VOTES\", \"column\": \"vote_id\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"VOTES\", \"to_table\": \"AREA_CODE_STATE\", \"reason\": \"link votes to area codes via common attributes\"}],\n  \"entities\": {\"tables\": [\"AREA_CODE_STATE\", \"VOTES\"], \"columns\": [\"area_code\", \"vote_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:49:19.057159"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"voter_1\",\n  \"table_names_original\": [\n    \"AREA_CODE_STATE\",\n    \"VOTES\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"area_code\"],\n    [0, \"state\"],\n    [1, \"vote_id\"],\n    [1, \"state\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [4, 2]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"NJ\",\n      \"DC\",\n      \"CT\",\n      \"AL\"\n    ],\n    [],\n    [\n      \"NY\",\n      \"CA\",\n      \"NJ\\n\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:49:19.059475"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 9.791,
+      "raw_response": "{\n  \"steps\": [\n    \"Join AREA_CODE_STATE with VOTES using VOTES.state = AREA_CODE_STATE.state\",\n    \"Group the rows by AREA_CODE_STATE.area_code\",\n    \"Order the grouped results by COUNT(*) in descending order\",\n    \"Apply LIMIT 1 to return the area code with the highest vote count\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"AREA_CODE_STATE\",\n      \"column\": \"area_code\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"AREA_CODE_STATE\",\n      \"to_table\": \"VOTES\",\n      \"condition\": \"VOTES.state = AREA_CODE_STATE.state\"\n    }\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\n      \"table\": \"AREA_CODE_STATE\",\n      \"column\": \"area_code\"\n    }\n  ],\n  \"having\": [],\n  \"order_by\": [\n    {\n      \"table\": \"VOTES\",\n      \"column\": \"*\",\n      \"agg\": \"COUNT\",\n      \"direction\": \"DESC\"\n    }\n  ],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 4160,
+        "prompt_tokens": 2138,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2022,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:49:28.868148"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT area_code FROM AREA_CODE_STATE JOIN VOTES ON AREA_CODE_STATE.state = VOTES.state GROUP BY area_code ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:49:28.870616",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "votes"
+              ],
+              "joins": [
+                "join votes on area_code_state.state = votes.state"
+              ],
+              "where": [],
+              "group_by": [
+                "group by area_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "area_code_state.area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "votes"
+              ],
+              "joins": [
+                "join votes on votes.state = area_code_state.state"
+              ],
+              "where": [],
+              "group_by": [
+                "group by area_code_state.area_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.376,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT AREA_CODE_STATE.area_code FROM AREA_CODE_STATE JOIN VOTES ON VOTES.state = AREA_CODE_STATE.state GROUP BY AREA_CODE_STATE.area_code ORDER BY COUNT(*) DESC LIMIT 1\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2323,
+        "prompt_tokens": 2253,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 70,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T03:49:30.268060",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "votes"
+              ],
+              "joins": [
+                "join votes on area_code_state.state = votes.state"
+              ],
+              "where": [],
+              "group_by": [
+                "group by area_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "area_code_state.area_code"
+              ],
+              "tables": [
+                "area_code_state",
+                "votes"
+              ],
+              "joins": [
+                "join votes on votes.state = area_code_state.state"
+              ],
+              "where": [],
+              "group_by": [
+                "group by area_code_state.area_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:49:30.277225"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.333,
+      "raw_response": "{\"sql\": \"SELECT area_code FROM AREA_CODE_STATE JOIN VOTES ON AREA_CODE_STATE.state = VOTES.state GROUP BY area_code ORDER BY COUNT(*) DESC LIMIT 1\", \"explain\": \"The SQL query is semantically valid and passes all deterministic checks without violations.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3412,
+        "prompt_tokens": 2229,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1183,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:49:36.630606",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "area_code"
+          ],
+          "tables": [
+            "area_code_state",
+            "votes"
+          ],
+          "joins": [
+            "join votes on area_code_state.state = votes.state"
+          ],
+          "where": [],
+          "group_by": [
+            "group by area_code"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/voter_1/voter_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "area_code"
+          ],
+          "tables": [
+            "area_code_state",
+            "votes"
+          ],
+          "joins": [
+            "join votes on area_code_state.state = votes.state"
+          ],
+          "where": [],
+          "group_by": [
+            "group by area_code"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT area_code FROM AREA_CODE_STATE JOIN VOTES ON AREA_CODE_STATE.state = VOTES.state GROUP BY area_code ORDER BY COUNT(*) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:49:36.642253"
+}

@@ -1,0 +1,373 @@
+{
+  "question_index": 886,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "network_1",
+  "question": "What is the name of the high schooler who has the greatest number of friends?",
+  "gold_query": "SELECT T2.name FROM Friend AS T1 JOIN Highschooler AS T2 ON T1.student_id  =  T2.id GROUP BY T1.student_id ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Highschooler\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Highschooler\", \"column\": \"ID\"}],\n  \"order_by\": [{\"table\": \"count(Friend.student_id)\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"Highschooler\", \"to_table\": \"Friend\", \"reason\": \"To count the number of friends each high schooler has\"}],\n  \"entities\": {\"tables\": [\"Highschooler\", \"Friend\"], \"columns\": [\"name\", \"ID\", \"student_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:41:04.129576"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\"db_id\": \"network_1\", \"table_names_original\": [\"Highschooler\", \"Friend\"], \"column_names_original\": [[-1, \"*\"], [0, \"ID\"], [0, \"name\"], [1, \"student_id\"], [1, \"friend_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[4, 1], [3, 1]], \"primary_keys\": [1, 3], \"column_sample_values\": [[], [], [\"Jordan\", \"Gabriel\", \"Tiffany\", \"Cassandra\"], [], []]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:41:04.132849"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 7.973,
+      "raw_response": "{\n  \"steps\": [\n    \"Join Highschooler with Friend on Highschooler.ID = Friend.student_id.\",\n    \"Group by Highschooler.ID.\",\n    \"Order by COUNT(*) descending.\",\n    \"Limit result to 1 to find the high schooler with the greatest number of friends.\",\n    \"Project Highschooler.name.\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"Highschooler\",\n      \"column\": \"name\",\n      \"agg\": \"NONE\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"Highschooler\",\n      \"to_table\": \"Friend\",\n      \"condition\": \"Highschooler.ID = Friend.student_id\"\n    }\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\n      \"table\": \"Highschooler\",\n      \"column\": \"ID\"\n    }\n  ],\n  \"having\": [],\n  \"order_by\": [\n    {\n      \"expression\": \"COUNT(*)\",\n      \"direction\": \"DESC\"\n    }\n  ],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3781,
+        "prompt_tokens": 2194,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1587,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:41:12.121867"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT H.name FROM Highschooler H JOIN Friend F ON H.ID = F.student_id GROUP BY H.ID ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:41:12.124576",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/network_1/network_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "h.name"
+              ],
+              "tables": [
+                "friend",
+                "highschooler"
+              ],
+              "joins": [
+                "join friend as f on h.id = f.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by h.id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(friend.student_id) is absent."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/network_1/network_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "highschooler.name"
+              ],
+              "tables": [
+                "friend",
+                "highschooler"
+              ],
+              "joins": [
+                "inner join friend on highschooler.id = friend.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by highschooler.id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(friend.student_id) is absent."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.799,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT Highschooler.name FROM Highschooler INNER JOIN Friend ON Highschooler.ID = Friend.student_id GROUP BY Highschooler.ID ORDER BY COUNT(*) DESC LIMIT 1\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2397,
+        "prompt_tokens": 2323,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 74,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:41:13.945223",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/network_1/network_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "h.name"
+              ],
+              "tables": [
+                "friend",
+                "highschooler"
+              ],
+              "joins": [
+                "join friend as f on h.id = f.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by h.id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(friend.student_id) is absent."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/network_1/network_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "highschooler.name"
+              ],
+              "tables": [
+                "friend",
+                "highschooler"
+              ],
+              "joins": [
+                "inner join friend on highschooler.id = friend.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by highschooler.id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(friend.student_id) is absent."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:41:13.949749"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.754,
+      "raw_response": "{\n  \"sql\": \"SELECT H.name FROM Highschooler AS H JOIN Friend AS F ON H.ID = F.student_id GROUP BY H.ID ORDER BY COUNT(*) DESC LIMIT 1\",\n  \"explain\": \"The SQL query correctly joins Highschooler and Friend tables on student_id, groups by the high schooler ID, orders by the count of friends descending, and returns the name of the high schooler with the greatest number of friends using LIMIT 1.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3456,
+        "prompt_tokens": 2232,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1224,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:41:20.716280",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/network_1/network_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "h.name"
+          ],
+          "tables": [
+            "friend",
+            "highschooler"
+          ],
+          "joins": [
+            "join friend as f on h.id = f.student_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by h.id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count(friend.student_id) is absent."
+          }
+        ],
+        "risk_reasons": []
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/network_1/network_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "h.name"
+          ],
+          "tables": [
+            "friend",
+            "highschooler"
+          ],
+          "joins": [
+            "join friend as f on h.id = f.student_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by h.id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count(friend.student_id) is absent."
+          }
+        ],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT H.name FROM Highschooler AS H JOIN Friend AS F ON H.ID = F.student_id GROUP BY H.ID ORDER BY COUNT(*) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T02:41:20.728560"
+}

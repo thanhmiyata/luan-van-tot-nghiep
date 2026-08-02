@@ -1,0 +1,381 @@
+{
+  "question_index": 547,
+  "pipeline": "ablation_no_refiner",
+  "db_id": "student_transcripts_tracking",
+  "question": "What's the name of the course with most number of enrollments?",
+  "gold_query": "SELECT  T1.course_name FROM Courses AS T1 JOIN Student_Enrolment_Courses AS T2 ON T1.course_id  =  T2.course_id GROUP BY T1.course_name ORDER BY count(*) DESC LIMIT 1",
+  "hardness": "extra",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"course_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Courses\", \"column\": \"course_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Student_Enrolment_Courses\", \"column\": \"course_id\"}],\n  \"order_by\": [{\"table\": \"COUNT\", \"column\": \"course_id\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"Courses\", \"to_table\": \"Student_Enrolment_Courses\", \"reason\": \"identifying course with most enrollments\"}],\n  \"entities\": {\"tables\": [\"Courses\", \"Student_Enrolment_Courses\"], \"columns\": [\"course_id\", \"course_name\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-29T16:58:53.559459"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Courses\", \"Student_Enrolment_Courses\"], \"column_names_original\": [[-1, \"*\"], [1, \"course_id\"], [1, \"course_name\"], [8, \"student_course_id\"], [8, \"course_id\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[50, 10]], \"primary_keys\": [10, 49], \"column_sample_values\": [[], [], [\"ds\", \"math\", \"os\", \"en\"], [], []]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-29T16:58:53.561753"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 8.668,
+      "raw_response": "{\n  \"steps\": [\"Join the tables 'Courses' and 'Student_Enrolment_Courses' using course_id.\", \"Group by 'Student_Enrolment_Courses.course_id' to count enrollments.\", \"Order by the count of enrollments descending.\", \"Select the course name with the highest count of enrollments.\"],\n  \"select\": [{\"table\": \"Courses\", \"column\": \"course_name\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"Courses\", \"to_table\": \"Student_Enrolment_Courses\", \"condition\": \"Student_Enrolment_Courses.course_id = Courses.course_id\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"Student_Enrolment_Courses\", \"column\": \"course_id\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"COUNT\", \"column\": \"course_id\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2386,
+        "prompt_tokens": 2036,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 350,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-29T16:59:02.244361"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 1,
+      "elapsed_seconds": 1.895,
+      "raw_response": "{\"direct_sql\": \"SELECT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id GROUP BY Courses.course_id ORDER BY COUNT(*) DESC LIMIT 1\", \"planned_sql\": \"\", \"disagreement_reason\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3443,
+        "prompt_tokens": 3373,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 70,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-29T16:59:04.161027",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "courses.course_name"
+              ],
+              "tables": [
+                "courses",
+                "student_enrolment_courses"
+              ],
+              "joins": [
+                "join student_enrolment_courses on courses.course_id = student_enrolment_courses.course_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by courses.course_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "courses.course_name"
+              ],
+              "tables": [
+                "courses",
+                "student_enrolment_courses"
+              ],
+              "joins": [
+                "join student_enrolment_courses on courses.course_id = student_enrolment_courses.course_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by student_enrolment_courses.course_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(student_enrolment_courses.course_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.429,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id GROUP BY Student_Enrolment_Courses.course_id ORDER BY COUNT(Student_Enrolment_Courses.course_id) DESC LIMIT 1\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2428,
+        "prompt_tokens": 2333,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 95,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-29T16:59:05.609709",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "courses.course_name"
+              ],
+              "tables": [
+                "courses",
+                "student_enrolment_courses"
+              ],
+              "joins": [
+                "join student_enrolment_courses on courses.course_id = student_enrolment_courses.course_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by courses.course_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "courses.course_name"
+              ],
+              "tables": [
+                "courses",
+                "student_enrolment_courses"
+              ],
+              "joins": [
+                "join student_enrolment_courses on courses.course_id = student_enrolment_courses.course_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by student_enrolment_courses.course_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(student_enrolment_courses.course_id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-29T16:59:05.619496"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.696,
+      "raw_response": "{\n  \"sql\": \"SELECT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id GROUP BY Student_Enrolment_Courses.course_id ORDER BY COUNT(Student_Enrolment_Courses.course_id) DESC LIMIT 1\",\n  \"explain\": \"Changed the GROUP BY clause to match the correct column from Student_Enrolment_Courses to ensure that the query correctly identifies the course with the most enrollments.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3825,
+        "prompt_tokens": 3705,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 120,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-29T16:59:07.335765",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "courses.course_name"
+          ],
+          "tables": [
+            "courses",
+            "student_enrolment_courses"
+          ],
+          "joins": [
+            "join student_enrolment_courses on courses.course_id = student_enrolment_courses.course_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by student_enrolment_courses.course_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(student_enrolment_courses.course_id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count is absent."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "courses.course_name"
+          ],
+          "tables": [
+            "courses",
+            "student_enrolment_courses"
+          ],
+          "joins": [
+            "join student_enrolment_courses on courses.course_id = student_enrolment_courses.course_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by student_enrolment_courses.course_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(student_enrolment_courses.course_id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count is absent."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Courses.course_name FROM Courses JOIN Student_Enrolment_Courses ON Courses.course_id = Student_Enrolment_Courses.course_id GROUP BY Student_Enrolment_Courses.course_id ORDER BY COUNT(Student_Enrolment_Courses.course_id) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "question_analysis",
+    "schema_selector"
+  ],
+  "timestamp": "2026-07-29T16:59:07.346802"
+}

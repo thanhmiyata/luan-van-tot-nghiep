@@ -1,0 +1,69 @@
+{
+  "question_index": 378,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Give the ids of documents that have between one and two paragraphs.",
+  "gold_query": "SELECT document_id FROM Paragraphs GROUP BY document_id HAVING count(*) BETWEEN 1 AND 2",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.443,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Document_ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Paragraphs\", \"column\": \"Document_ID\", \"operator\": \"IN\", \"value\": \"(SELECT Document_ID FROM Paragraphs GROUP BY Document_ID HAVING COUNT(Paragraph_ID) BETWEEN 1 AND 2)\", \"value_type\": \"SUBQUERY\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"Document_ID is needed to count paragraphs per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\", \"Paragraph_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1534,
+        "prompt_tokens": 1285,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 249,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:50:21.469951"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 15.525,
+      "raw_response": "{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Documents\", \"Paragraphs\"], \"column_names_original\": [[-1, \"*\"], [0, \"Document_ID\"], [1, \"Paragraph_ID\"], [1, \"Document_ID\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [], [], []]}",
+      "token_usage": {
+        "total_tokens": 4278,
+        "prompt_tokens": 901,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3377,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:50:36.996567"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.162,
+      "raw_response": "{\"sql\": \"SELECT Document_ID FROM Paragraphs GROUP BY Document_ID HAVING COUNT(Paragraph_ID) BETWEEN 1 AND 2\"}",
+      "token_usage": {
+        "total_tokens": 1279,
+        "prompt_tokens": 1240,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 39,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:50:38.159755"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.798,
+      "raw_response": "I need to validate the provided SQL query against the given schema, question, and analysis, ensuring it meets all the specified criteria.\n\nHere's the checklist breakdown:\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"Document_ID\"]`\n    *   SQL `SELECT`: `Document_ID`\n    *   Match: Yes.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   The SQL is `SELECT Document_ID FROM Paragraphs GROUP BY Document_ID HAVING COUNT(Paragraph_ID) BETWEEN 1 AND 2`.\n    *   No joins are present.\n    *   No `ORDER BY` is present.\n    *   `COUNT(Paragraph_ID)` is used. Since `Paragraph_ID` is a primary key for the `Paragraphs` table (and unique), `COUNT(Paragraph_ID)` is equivalent to `COUNT(*)` in this context for counting paragraphs per document. Both are acceptable here, but `COUNT(*)` is generally preferred for simplicity and minor performance benefits as it doesn't need to check for nulls. However, changing `COUNT(Paragraph_ID)` to `COUNT(*)` is a minor style preference and not a critical error here as the result is identical. I will stick to `COUNT(*)` as per the preferred instruction.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available:**\n    *   No text literals are used in the query.\n\n4.  **Column/table names exist; SQL is complete and one line:**\n    *   `Document_ID` exists in `Documents` and `Paragraphs`.\n    *   `Paragraph_ID` exists in `Paragraphs`.\n    *   `Paragraphs` table exists.\n    *   SQL is complete and one line.\n\n**Summary of potential fix:**\n*   Change `COUNT(Paragraph_ID)` to `COUNT(*)` as `COUNT(*)` is preferred.\n\nLet's apply this minor fix.\n\nOriginal SQL: `SELECT Document_ID FROM Paragraphs GROUP BY Document_ID HAVING COUNT(Paragraph_ID) BETWEEN 1 AND 2`\nCorrected SQL: `SELECT Document_ID FROM Paragraphs GROUP BY Document_ID HAVING COUNT(*) BETWEEN 1 AND 2`\n\nExplain: `COUNT(*)` is preferred over `COUNT(column_name)` when counting rows, as it is slightly more efficient and clearer that the intent is to count all rows within each group. In this specific case, `Paragraph_ID` is a non-nullable primary key, so `COUNT(Paragraph_ID)` would yield the same result as `COUNT(*)`.{\n \"sql\": \"SELECT Document_ID FROM Paragraphs GROUP BY Document_ID HAVING COUNT(*) BETWEEN 1 AND 2\",\n \"explain\": \"Changed COUNT(Paragraph_ID) to COUNT(*) as it is the preferred method for counting rows and yields the same result when counting non-null primary keys.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1502,
+        "prompt_tokens": 829,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 673,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:50:41.959278"
+    }
+  ],
+  "final_sql": "SELECT Document_ID FROM Paragraphs GROUP BY Document_ID HAVING COUNT(*) BETWEEN 1 AND 2",
+  "explain": "Changed COUNT(Paragraph_ID) to COUNT(*) as it is the preferred method for counting rows and yields the same result when counting non-null primary keys.",
+  "error": "",
+  "timestamp": "2026-07-25T04:50:41.960141"
+}

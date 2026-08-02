@@ -1,0 +1,143 @@
+question_analysis_task:
+  description: >
+    4-step: Analyzer. Produce a typed semantic contract before schema filtering.
+
+    Inputs:
+    - Question: {question}
+    - Raw Schema (Spider JSON, including named_foreign_keys, sample values, and question_value_matches): ```{raw_db_schema}```
+
+    Requirements:
+    1) Map every table and column to an identifier present in the schema. Never invent or rename identifiers.
+    2) `output_fields_detailed` is authoritative for SELECT and overrides any conflicting shorthand based on expected_output_fields. It contains only real fields explicitly requested for display and preserves their order. Filtering, grouping, and ranking columns are not outputs unless requested.
+    3) Populate `required_tables` and `required_columns` with the safe semantic superset needed for projection, predicates, grouping, ranking, and joins. If multiple columns share a label, prefer the table that reaches all filter/rank columns by the shortest declared FK path; never choose by name alone.
+    4) Set `single_table_ok=true` only when one table contains every required column. Use named_foreign_keys for relationships; never infer a join from similar names or from two ID/PK-looking columns.
+    5) Bind every literal to a real column and preserve the whole phrase from the question. Treat question_value_matches as authoritative database evidence: prefer the longest complete match and never split it into shorter literals. If a sample value matches case-insensitively, use the exact stored sample spelling/casing; otherwise keep the question literal intact. Never split, translate, or invent a value.
+    6) Classify predicate scope before choosing Boolean/set logic. Set set_operation.operator to NONE|UNION|INTERSECT|EXCEPT and use branches=[] when it is NONE. For every independent set branch, add `{"branch_id":"b1","scope_id":"s1","required_tables":["t"],"required_columns":[{"table":"t","column":"c"}],"purpose":"..."}` to set_operation.branches, and tag its filters/group_by/having with that branch_id:
+       - SAME_ROW: all predicates must hold on one row, including lower/upper bounds on the same numeric column; use AND or BETWEEN, never INTERSECT.
+       - RELATED_ROWS: one entity must have multiple related rows carrying different values; plan EXISTS, INTERSECT, or GROUP BY/HAVING as appropriate.
+       - INDEPENDENT_BRANCHES: the question combines separate result sets; use UNION, INTERSECT, or EXCEPT only when that set meaning is explicit.
+    7) Negation over related rows ("without", "never", "do not have") requires NOT EXISTS, NOT IN, or EXCEPT on the entity key; a joined-row `<>` is not equivalent.
+    8) For "per/for each/by/different X", include X in output_fields_detailed and group_by when the question asks one result per X.
+    9) Represent "the row with highest/lowest Y, return X" as `extreme_row`: project X, rank by Y in the stated direction, and LIMIT 1. Set use_as=RESULT_ROW when X is the outer result, or SCALAR_THRESHOLD when that X is used by an outer filter/aggregate. Do not rewrite it as MAX(Y)/MIN(Y) unless Y itself is requested. Return extreme_row=null when no such construct exists.
+    10) ORDER BY defaults to ASC only for explicit sorting; highest/most/latest uses DESC and lowest/least/earliest uses ASC.
+    11) Generic "how many/number of/count of" uses {"agg":"COUNT","column":"*"} and distinct=false. Use COUNT_DISTINCT only when different/distinct/unique is explicit in the question. Do not choose COUNT(column) merely because the output label names an entity.
+    12) Words such as minimum/lowest, maximum/highest, and average are aggregate operands when they describe a numeric threshold, not string literals. Represent them in a filter value as {"kind":"SCALAR_AGGREGATE","agg":"MIN|MAX|AVG","table":"t","column":"c"} with value_type=SUBQUERY; never bind "minimum" or similar words as a literal.
+    13) Resolve ambiguous output columns in this order: exact lexical column match, then a single table that covers all requested outputs, then shortest declared FK distance to filter/rank tables. Distinguish labels such as "make" from "maker"; do not choose a semantically different near-synonym.
+    14) Before returning, compare every independent condition in the original Question against filters, predicate_scope, set_operation, having, and scalar_comparisons. The contract is incomplete if any stated condition is missing.
+
+    Return ONLY raw JSON (No markdown backticks, no ```json, no quotes around the entire object):
+    {
+      "intent": "COUNT|LIST|MAX_MIN|AGGREGATION|BOOLEAN|OTHER",
+      "complexity": "EASY|MEDIUM|HARD",
+      "expected_output_fields": ["field1", "field2"],
+      "field_order_critical": true,
+      "single_table_ok": true,
+      "required_tables": ["t"],
+      "required_columns": [
+        {"table": "t", "column": "c", "purpose": "OUTPUT|FILTER|GROUP|ORDER|JOIN"}
+      ],
+      "output_fields_detailed": [
+        {"table": "t", "column": "c", "agg": "NONE|COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "alias": null, "order_index": 0}
+      ],
+      "distinct": false,
+      "filters": [{"scope_id": "s1", "branch_id": "b1", "table": "t", "column": "c", "operator": "=|<>|>|<|>=|<=|LIKE|IN|BETWEEN", "value": "literal_or_SCALAR_AGGREGATE_object", "value_type": "NUMBER|STRING|DATE|OTHER|SUBQUERY"}],
+      "literal_bindings": [{"literal": "v", "table": "t", "column": "c", "evidence": "QUESTION|SAMPLE_VALUE|QUESTION_EXACT_DB_MATCH"}],
+      "predicate_scope": [{"scope_id": "s1", "scope": "SAME_ROW|RELATED_ROWS|INDEPENDENT_BRANCHES", "logic": "AND|OR|BETWEEN|EXISTS|NOT_EXISTS", "branch_ids": ["b1"], "reason": "short reason"}],
+      "group_by": [{"branch_id": "b1", "table": "t", "column": "c"}],
+      "having": [{"branch_id": "b1", "table": "t", "column": "c", "agg": "COUNT|COUNT_DISTINCT|SUM|AVG|MAX|MIN", "operator": "=|<>|>|<|>=|<=", "value": 1}],
+      "order_by": [{"table": "t", "column": "c", "direction": "ASC|DESC"}],
+      "set_operation": {"operator": "NONE", "branches": [], "reason": ""},
+      "extreme_row": null,
+      "scalar_comparisons": [{"table": "t", "column": "c", "operator": ">|<|>=|<=|=|<>", "value": {"kind": "SCALAR_AGGREGATE", "agg": "MIN|MAX|AVG", "table": "t", "column": "c"}}],
+      "join_hints": [{"from_table": "a", "to_table": "b", "reason": "why join"}],
+      "entities": {"tables": ["t1"], "columns": ["c1"], "values": ["v1"]},
+      "confidence": 0.95
+    }
+  expected_output: >
+    Typed semantic-contract JSON with real identifiers and explicit predicate scope.
+  agent: question_analyzer
+
+select_needed_schema_task:
+  description: >
+    Filter schema by names while preserving every endpoint and bridge needed for joins.
+
+    Inputs:
+    - Question: {question}
+    - Original Schema: ```{raw_db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Named FK Graph: ```{named_fk_graph}```
+
+    Steps:
+    1) Start from analysis.required_tables and every table referenced by outputs, filters, literal bindings, group_by, having, order_by, and extreme_row.
+    2) Keep every required column plus the PK/FK columns of retained tables.
+    3) Follow Named FK Graph and retain all intermediate bridge tables/columns on a shortest connection between required endpoint tables.
+    4) Copy only table/column names that occur in Original Schema. Do not calculate replacement FK/PK indices and do not invent a direct relationship.
+    5) Prefer a small safe superset over dropping a required or bridge column. main.py will deterministically rebuild indices and FK metadata from these names.
+
+    Return ONLY names-only raw JSON:
+    {"table_names_original": ["real_table"], "column_names_original": ["real_column"]}.
+    FK/PK/index fields may be omitted because main.py ignores and rebuilds them. NO markdown backticks.
+  expected_output: >
+    Filtered schema JSON whose names preserve endpoint and bridge connectivity.
+  agent: schema_selector
+
+generate_sql_task:
+  description: >
+    4-step: SQL Expert. Generate one executable SQL statement from the typed contract.
+
+    Inputs:
+    - Question: "{question}"
+    - Schema (including named_foreign_keys): ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Deterministic Join Plan: ```{join_plan}```
+
+    Core rules:
+    1) Treat `output_fields_detailed` as authoritative and as overriding any conflicting agent-level shorthand about expected_output_fields: SELECT exactly those real expressions in order. Do not add IDs or rank/filter columns. `{"agg":"COUNT","column":"*"}` means COUNT(*), not SELECT *. Never use SELECT * unless explicitly requested.
+    2) Use only real identifiers in Schema. Preserve each complete literal span; when evidence=SAMPLE_VALUE or QUESTION_EXACT_DB_MATCH, copy the stored spelling/casing exactly. A longest question_value_match must not be split across multiple columns. Use LIKE only for explicit partial matching.
+    3) main.py normalizes single_table_ok=false when multiple tables are required. If it remains true, do not join. Otherwise treat Deterministic Join Plan as the allowed global superset. In a non-set query, use only steps needed to connect its required tables; in each set-operation branch, use only steps needed to connect that branch's required_tables, never tables from another branch. Each step's allowed_edges are alternatives: when ambiguous=false use the sole edge; when ambiguous=true select only the candidate whose columns match required_columns and question semantics. Never combine all alternatives automatically or infer a join from names, PK resemblance, or numeric indices.
+    4) If Schema.join_plan_warnings says no FK path exists, a non-FK join is allowed only for that unresolved semantic relationship; do not replace any known plan step.
+    5) Generic counting always renders COUNT(*), even when the output label names an entity. COUNT(column) requires explicit null-sensitive wording; COUNT(DISTINCT column) requires explicit different/distinct/unique wording. An included join is not by itself permission to add DISTINCT. GROUP BY every requested non-aggregate and do not add GROUP BY to a scalar aggregate.
+    6) Follow scope_id/branch_id exactly: SAME_ROW uses AND/BETWEEN; RELATED_ROWS uses EXISTS/NOT EXISTS or GROUP BY/HAVING; INDEPENDENT_BRANCHES builds each declared branch and combines them only with set_operation. Never apply blanket INTERSECT merely because two predicates mention the same column.
+    7) For extreme_row use_as=RESULT_ROW, SELECT project and ORDER BY rank_by with LIMIT 1. For SCALAR_THRESHOLD, keep the outer output_fields_detailed and make the scalar subquery `SELECT project ORDER BY rank_by ... LIMIT 1`. Never substitute MAX(rank_by)/MIN(rank_by) when project is a different column.
+    8) Negation over related rows uses NOT EXISTS, NOT IN, or EXCEPT on the entity key, not `<>` on a joined row.
+    9) ORDER BY only when requested. Order aggregates by the real aggregate expression or a SELECT alias; never invent a column name.
+    10) Return one read-only, single-line SQLite SELECT/CTE with no comments. Express every join explicitly as JOIN ... ON qualified_alias.column = qualified_alias.column; do not use comma joins, NATURAL JOIN, USING, or unqualified join columns.
+    11) INNER JOIN is the default relationship. Use LEFT JOIN only when the question explicitly requires retaining unmatched outer entities.
+    12) When a grouped descriptive label is functionally dependent on a stable entity PK/FK, group by the stable key and project the label; avoid grouping entities solely by a non-unique name.
+    13) If OR predicates share the same projection and join graph without incompatible aggregation, prefer one SELECT with OR. Use UNION only for incompatible result branches, and INTERSECT only for genuinely independent existence/aggregate conditions.
+    14) Render a SCALAR_AGGREGATE filter value as `(SELECT MIN|MAX|AVG(column) FROM table)`. Never quote aggregate words such as 'minimum'.
+    
+    Return ONLY raw JSON (No markdown backticks).
+  expected_output: >
+    JSON {"sql": "<single-line SQL>"} honoring the typed contract and join plan.
+  agent: sql_expert
+
+validate_sql_task:
+  description: >
+    4-step: Final Validator. Make only evidence-backed corrections.
+
+    Inputs:
+    - SQL: "{sql}"
+    - Question: "{question}"
+    - Schema: ```{db_schema}```
+    - Analysis: ```{question_analysis}```
+    - Deterministic Join Plan: ```{join_plan}```
+    - Deterministic Constraint Report: ```{constraint_report}```
+
+    Validate:
+    1) Treat fatal checks in Deterministic Constraint Report as authoritative for an empty/non-read-only/multiple statement, nonexistent identifier, SQLite syntax error, or invalid aggregate use.
+    2) The original Question outranks Analysis. Analysis is a proposed contract, not authority to omit a condition stated in the Question. If the report has no fatal error, preserve the SQL unless one specific question/contract violation is identified. Do not rewrite a valid query merely to make it look more conventional.
+    3) When a fatal error exists, change only the responsible identifier/expression. Every replacement table/column must exist in Schema.
+    4) Treat Deterministic Join Plan as an allowed global superset: each set branch may use only the steps needed for its branch.required_tables and must not inherit another branch's joins. An ambiguous step lists alternative allowed_edges: keep only the semantically matching candidate(s), never combine every alternative automatically. Never replace an allowed FK with a plausible-looking ID/PK join or invent an identifier.
+    5) NON_FK_JOIN, OUTSIDE_JOIN_PLAN, and UNPARSED_JOIN are warnings, not automatic fatal errors. Resolve a warning only when the schema and semantic contract provide a supported replacement; never sacrifice an executable query merely to remove a warning.
+    6) SELECT must equal output_fields_detailed in content/order; this detailed contract overrides conflicting expected_output_fields shorthand. Check COUNT/GROUP BY, scope_id/branch_id, literal_bindings, set_operation, negation, scalar_comparisons, and extreme_row.use_as without adding unrequested output columns or ORDER BY.
+    7) Never change COUNT(*) to COUNT(column) or COUNT(DISTINCT column) unless the original Question explicitly asks for null-sensitive or different/distinct/unique counting. Never split or replace the longest question_value_match.
+    8) Compare Generator SQL and the candidate structurally. Do not add a table or join unless a missing output, predicate, grouping, or relationship in the original Question requires it. Prefer INNER JOIN unless unmatched entities must be retained explicitly.
+    9) Re-read the original Question before returning and verify that every stated condition appears in the candidate even if Analysis omitted it.
+    10) The final SQL must remain one read-only, single-line SQLite statement without comments. Keep explain brief and factual. Whenever executable SQL is returned, set error=""; put unresolved warning-only notes in explain. Use a nonempty error only when no executable SQL can be produced. Return the JSON object directly with no prose before or after it.
+
+    Return ONLY raw JSON (No markdown backticks).
+    { "sql": "...", "explain": "...", "error": "" }.
+  expected_output: >
+    Final validated SQL JSON.
+  agent: sql_validator

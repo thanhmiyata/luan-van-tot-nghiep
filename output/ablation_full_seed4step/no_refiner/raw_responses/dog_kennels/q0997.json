@@ -1,0 +1,359 @@
+{
+  "question_index": 997,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "dog_kennels",
+  "question": "Find the distinct breed type and size type combinations for dogs.",
+  "gold_query": "SELECT DISTINCT breed_code ,  size_code FROM dogs",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"breed_name\", \"size_description\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Breeds\", \"column\": \"breed_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Sizes\", \"column\": \"size_description\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Breeds\", \"column\": \"breed_name\"}, {\"table\": \"Sizes\", \"column\": \"size_description\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Dogs\", \"to_table\": \"Breeds\", \"reason\": \"match breed_code\"}, {\"from_table\": \"Dogs\", \"to_table\": \"Sizes\", \"reason\": \"match size_code\"}],\n  \"entities\": {\"tables\": [\"Breeds\", \"Sizes\", \"Dogs\"], \"columns\": [\"breed_name\", \"size_description\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:00:57.394811"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the original schema to include only the tables and columns necessary to answer the question: \"Find the distinct breed type and size type combinations for dogs.\"\n\nBased on the analysis:\n1.  **Output fields**: `Breeds.breed_name`, `Sizes.size_description`.\n2.  **Group By fields**: `Breeds.breed_name`, `Sizes.size_description`.\n3.  **Tables involved**: `Breeds`, `Sizes`, `Dogs`. `Dogs` is required to join `Breeds` and `Sizes`.\n4.  **Join conditions**:\n    *   `Dogs.breed_code` (FK) joins `Breeds.breed_code` (PK).\n    *   `Dogs.size_code` (FK) joins `Sizes.size_code` (PK).\n\n**Steps to filter:**\n1.  **Identify necessary tables**: `Breeds` (table_id 0), `Sizes` (table_id 2), `Dogs` (table_id 5).\n2.  **Identify necessary columns**:\n    *   From `Breeds` (original table_id 0):\n        *   `breed_code` (original column_id 1): PK, used in join.\n        *   `breed_name` (original column_id 2): Output, Group By.\n    *   From `Sizes` (original table_id 2):\n        *   `size_code` (original column_id 6): PK, used in join.\n        *   `size_description` (original column_id 7): Output, Group By.\n    *   From `Dogs` (original table_id 5):\n        *   `dog_id` (original column_id 20): PK for `Dogs` table (keeping all PKs of kept tables as a safe superset).\n        *   `breed_code` (original column_id 23): FK for joining with `Breeds`.\n        *   `size_code` (original column_id 24): FK for joining with `Sizes`.\n3.  **Filter `table_names_original`**: Keep \"Breeds\", \"Sizes\", \"Dogs\".\n4.  **Filter `column_names_original`**: Retain `[-1, \"*\"]` and the identified columns. Map original column_ids to new column_ids sequentially.\n5.  **Filter `column_types`**: Retain types corresponding to the selected columns.\n6.  **Filter `foreign_keys`**: Retain only FKs that connect the selected tables (`[23,1]` and `[24,6]`) and map their column_ids to the new scheme.\n7.  **Filter `primary_keys`**: Retain PKs of the selected tables (`1`, `6`, `20`) and map their column_ids to the new scheme.\n8.  **Filter `column_sample_values`**: Retain samples corresponding to the selected columns.\n\n**Mapping Table IDs:**\n*   `Breeds` (original index 0) -> New index 0\n*   `Sizes` (original index 2) -> New index 1\n*   `Dogs` (original index 5) -> New index 2\n\n**Mapping Column IDs (Original -> New):**\n*   `-1` -> `0` (for `*`)\n*   `1` (`Breeds.breed_code`) -> `1` (New table 0)\n*   `2` (`Breeds.breed_name`) -> `2` (New table 0)\n*   `6` (`Sizes.size_code`) -> `3` (New table 1)\n*   `7` (`Sizes.size_description`) -> `4` (New table 1)\n*   `20` (`Dogs.dog_id`) -> `5` (New table 2)\n*   `23` (`Dogs.breed_code`) -> `6` (New table 2)\n*   `24` (`Dogs.size_code`) -> `7` (New table 2)\n\n**Constructing the filtered schema:**\n\n*   `db_id`: \"dog_kennels\" (remains the same)\n*   `table_names_original`: `[\"Breeds\", \"Sizes\", \"Dogs\"]`\n*   `column_names_original`:\n    `[[-1,\"*\"], [0,\"breed_code\"], [0,\"breed_name\"], [1,\"size_code\"], [1,\"size_description\"], [2,\"dog_id\"], [2,\"breed_code\"], [2,\"size_code\"]]`\n*   `column_types`:\n    `[\"text\", \"text\", \"text\", \"text\", \"text\", \"number\", \"text\", \"text\"]` (corresponding to the new column order)\n*   `foreign_keys`:\n    *   Original `[23,1]` becomes `[6,1]`\n    *   Original `[24,6]` becomes `[7,3]`\n    `[[6,1], [7,3]]`\n*   `primary_keys`:\n    *   Original `1` becomes `1`\n    *   Original `6` becomes `3`\n    *   Original `20` becomes `5`\n    `[1, 3, 5]`\n*   `column_sample_values`: Filtered to match the new column set:\n    `[[], [\"BUL\",\"ESK\",\"HUS\"], [\"Eskimo\",\"Husky\",\"Bulldog\"], [\"LGE\",\"MED\",\"SML\"], [\"Small\",\"Medium\",\"Large\"], [], [\"ESK\",\"BUL\",\"HUS\"], [\"LGE\",\"MED\",\"SML\"]]````json\n{\"db_id\": \"dog_kennels\", \"table_names_original\": [\"Breeds\", \"Sizes\", \"Dogs\"], \"column_names_original\": [[-1, \"*\"], [0, \"breed_code\"], [0, \"breed_name\"], [1, \"size_code\"], [1, \"size_description\"], [2, \"dog_id\"], [2, \"breed_code\"], [2, \"size_code\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\", \"text\", \"number\", \"text\", \"text\"], \"foreign_keys\": [[6, 1], [7, 3]], \"primary_keys\": [1, 3, 5], \"column_sample_values\": [[], [\"BUL\", \"ESK\", \"HUS\"], [\"Eskimo\", \"Husky\", \"Bulldog\"], [\"LGE\", \"MED\", \"SML\"], [\"Small\", \"Medium\", \"Large\"], [], [\"ESK\", \"BUL\", \"HUS\"], [\"LGE\", \"MED\", \"SML\"]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:00:57.397538"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:00:57.399507"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT DISTINCT Breeds.breed_name, Sizes.size_description FROM Dogs JOIN Breeds ON Dogs.breed_code = Breeds.breed_code JOIN Sizes ON Dogs.size_code = Sizes.size_code\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:00:57.400905",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "breeds.breed_name",
+                "sizes.size_description"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "sizes"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join sizes on dogs.size_code = sizes.size_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "breeds.breed_name",
+                "sizes.size_description"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "sizes"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join sizes on dogs.size_code = sizes.size_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:00:57.400915",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "breeds.breed_name",
+                "sizes.size_description"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "sizes"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join sizes on dogs.size_code = sizes.size_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "breeds.breed_name",
+                "sizes.size_description"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "sizes"
+              ],
+              "joins": [
+                "join breeds on dogs.breed_code = breeds.breed_code",
+                "join sizes on dogs.size_code = sizes.size_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:00:57.408625"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.842,
+      "raw_response": "{\n  \"sql\": \"SELECT Breeds.breed_name, Sizes.size_description FROM Dogs JOIN Breeds ON Dogs.breed_code = Breeds.breed_code JOIN Sizes ON Dogs.size_code = Sizes.size_code GROUP BY Breeds.breed_name, Sizes.size_description\",\n  \"explain\": \"Replaced DISTINCT with GROUP BY due to semantic constraint report requiring grouping for uniqueness.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3534,
+        "prompt_tokens": 3352,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 182,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:01:00.267690",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "breeds.breed_name",
+            "sizes.size_description"
+          ],
+          "tables": [
+            "breeds",
+            "dogs",
+            "sizes"
+          ],
+          "joins": [
+            "join breeds on dogs.breed_code = breeds.breed_code",
+            "join sizes on dogs.size_code = sizes.size_code"
+          ],
+          "where": [],
+          "group_by": [
+            "group by breeds.breed_name, sizes.size_description"
+          ],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: dogs"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "breeds.breed_name",
+            "sizes.size_description"
+          ],
+          "tables": [
+            "breeds",
+            "dogs",
+            "sizes"
+          ],
+          "joins": [
+            "join breeds on dogs.breed_code = breeds.breed_code",
+            "join sizes on dogs.size_code = sizes.size_code"
+          ],
+          "where": [],
+          "group_by": [
+            "group by breeds.breed_name, sizes.size_description"
+          ],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: dogs"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Breeds.breed_name, Sizes.size_description FROM Dogs JOIN Breeds ON Dogs.breed_code = Breeds.breed_code JOIN Sizes ON Dogs.size_code = Sizes.size_code GROUP BY Breeds.breed_name, Sizes.size_description",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:01:00.280460"
+}

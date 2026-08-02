@@ -1,0 +1,454 @@
+{
+  "question_index": 927,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "dog_kennels",
+  "question": "Find the first names that are used for professionals or owners but are not used as dog names.",
+  "gold_query": "SELECT first_name FROM Professionals UNION SELECT first_name FROM Owners EXCEPT SELECT name FROM Dogs",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"first_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Owners\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Professionals\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Dogs\", \"to_table\": \"Owners\", \"reason\": \"Exclude names used as dog names\"},\n    {\"from_table\": \"Dogs\", \"to_table\": \"Professionals\", \"reason\": \"Exclude names used as dog names\"}\n  ],\n  \"entities\": {\"tables\": [\"Owners\", \"Professionals\", \"Dogs\"], \"columns\": [\"first_name\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:53:39.292377"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\n1.  **Identify Required Tables**: From the `analysis.entities.tables` and `analysis.output_fields_detailed`, the tables `Owners`, `Professionals`, and `Dogs` are explicitly mentioned.\n2.  **Identify Required Columns**:\n    *   `Owners.first_name` (output)\n    *   `Professionals.first_name` (output)\n    *   `Dogs.name` (for comparison/filter)\n3.  **Identify Primary Keys**: For each of the identified tables, their primary key is needed to uniquely identify rows, even if not directly used in the query logic.\n    *   `Owners.owner_id`\n    *   `Professionals.professional_id`\n    *   `Dogs.dog_id`\n4.  **Identify Foreign Keys**: Check if any foreign keys connect these tables and are relevant to the query. The query involves set operations (UNION and EXCEPT) on `first_name`/`name` columns, not explicit joins via FKs. While `Dogs.owner_id` connects to `Owners.owner_id`, it is not directly required for the name comparison specified in the question. Therefore, no FKs are strictly necessary for this specific query's logic.\n5.  **Map Original IDs to New Filtered IDs**: Create a mapping for table and column IDs to construct the new filtered schema accurately.\n    *   Original Table IDs: `Owners` (4), `Dogs` (5), `Professionals` (6). New Table IDs: `Owners` (0), `Dogs` (1), `Professionals` (2).\n    *   Original Column IDs and their content:\n        *   `[-1, \"*\"]` (ID 0) -> New ID 0\n        *   `[4, \"owner_id\"]` (ID 10) -> New ID 1 (table 0)\n        *   `[4, \"first_name\"]` (ID 11) -> New ID 2 (table 0)\n        *   `[5, \"dog_id\"]` (ID 20) -> New ID 3 (table 1)\n        *   `[5, \"name\"]` (ID 25) -> New ID 4 (table 1)\n        *   `[6, \"professional_id\"]` (ID 33) -> New ID 5 (table 2)\n        *   `[6, \"first_name\"]` (ID 35) -> New ID 6 (table 2)\n6.  **Filter Schema Components**:\n    *   `table_names_original`: Keep \"Owners\", \"Dogs\", \"Professionals\".\n    *   `column_names_original`: Keep `[-1, \"*\"]` and the selected columns, adjusting table IDs.\n    *   `column_types`: Extract types for the selected columns based on their original indices and then re-order according to the new column mapping.\n    *   `primary_keys`: Filter to include only the PKs of the kept tables, using new column IDs.\n    *   `foreign_keys`: None are necessary for this query's logic.\n    *   `column_sample_values`: Filter and re-order based on the new column mapping.\n\n**Detailed mapping for `column_types` and `column_sample_values`**:\nOriginal `column_names_original` indices (excluding `[-1,\"*\"]` at index 0):\n1: breed_code (text)\n...\n10: owner_id (number)\n11: first_name (text)\n...\n20: dog_id (number)\n...\n25: name (text)\n...\n33: professional_id (number)\n...\n35: first_name (text)\n\nOriginal `column_types` (corresponds to `column_names_original` from index 1 onwards):\n`column_types[0]` corresponds to `column_names_original[1]`\n...\n`column_types[9]` corresponds to `column_names_original[10]` (owner_id: number)\n`column_types[10]` corresponds to `column_names_original[11]` (first_name: text)\n...\n`column_types[19]` corresponds to `column_names_original[20]` (dog_id: number)\n...\n`column_types[24]` corresponds to `column_names_original[25]` (name: text)\n...\n`column_types[32]` corresponds to `column_names_original[33]` (professional_id: number)\n...\n`column_types[34]` corresponds to `column_names_original[35]` (first_name: text)\n\nNew `column_types`:\n1. `owner_id` (orig ID 10, orig `column_types` index 9): `number`\n2. `first_name` (orig ID 11, orig `column_types` index 10): `text`\n3. `dog_id` (orig ID 20, orig `column_types` index 19): `number`\n4. `name` (orig ID 25, orig `column_types` index 24): `text`\n5. `professional_id` (orig ID 33, orig `column_types` index 32): `number`\n6. `first_name` (orig ID 35, orig `column_types` index 34): `text`\n\nNew `column_sample_values`:\n0. `[-1, \"*\"]`: `[]`\n1. `owner_id` (orig ID 10): `[]`\n2. `first_name` (orig ID 11): `[\"Nora\",\"Melisa\",\"Jaclyn\",\"Tre\"]`\n3. `dog_id` (orig ID 20): `[]`\n4. `name` (orig ID 25): `[\"Kacey\",\"Hipolito\",\"Mavis\",\"Houston\"]`\n5. `professional_id` (orig ID 33): `[]`\n6. `first_name` (orig ID 35): `[\"Taryn\",\"Jayson\",\"Olaf\",\"Vernice\"]````json\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Owners\",\n    \"Dogs\",\n    \"Professionals\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"owner_id\"\n    ],\n    [\n      0,\n      \"first_name\"\n    ],\n    [\n      1,\n      \"dog_id\"\n    ],\n    [\n      1,\n      \"name\"\n    ],\n    [\n      2,\n      \"professional_id\"\n    ],\n    [\n      2,\n      \"first_name\"\n    ]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Nora\",\n      \"Melisa\",\n      \"Jaclyn\",\n      \"Tre\"\n    ],\n    [],\n    [\n      \"Kacey\",\n      \"Hipolito\",\n      \"Mavis\",\n      \"Houston\"\n    ],\n    [],\n    [\n      \"Taryn\",\n      \"Jayson\",\n      \"Olaf\",\n      \"Vernice\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:53:39.294772"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:53:39.296888"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"(SELECT first_name FROM Owners) UNION (SELECT first_name FROM Professionals) EXCEPT (SELECT name FROM Dogs)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:53:39.298519",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": null,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "NON_READ_ONLY_SQL",
+                "message": "Only a read-only SELECT/CTE is allowed."
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "professionals"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "EXCEPT",
+                "UNION"
+              ]
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_COUNT_MISMATCH",
+                "message": "SQL projects 1 field(s), contract expects 2."
+              },
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 0 does not contain expected column first_name."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": null,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "NON_READ_ONLY_SQL",
+                "message": "Only a read-only SELECT/CTE is allowed."
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "professionals"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "EXCEPT",
+                "UNION"
+              ]
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_COUNT_MISMATCH",
+                "message": "SQL projects 1 field(s), contract expects 2."
+              },
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 0 does not contain expected column first_name."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:53:39.298528",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": null,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "NON_READ_ONLY_SQL",
+                "message": "Only a read-only SELECT/CTE is allowed."
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "professionals"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "EXCEPT",
+                "UNION"
+              ]
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_COUNT_MISMATCH",
+                "message": "SQL projects 1 field(s), contract expects 2."
+              },
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 0 does not contain expected column first_name."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": false,
+            "sqlite_explain_ok": null,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [
+              {
+                "code": "NON_READ_ONLY_SQL",
+                "message": "Only a read-only SELECT/CTE is allowed."
+              }
+            ],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "professionals"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "EXCEPT",
+                "UNION"
+              ]
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_COUNT_MISMATCH",
+                "message": "SQL projects 1 field(s), contract expects 2."
+              },
+              {
+                "code": "OUTPUT_FIELD_MISMATCH",
+                "message": "Projection 0 does not contain expected column first_name."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.561,
+      "raw_response": "{\"sql\": \"(SELECT first_name FROM Owners) UNION (SELECT first_name FROM Professionals) EXCEPT (SELECT name FROM Dogs)\", \"selected_candidate\": \"direct\", \"notes\": \"specific correction or preserved\", \"diagnostics\": [\"direct SQL has a deterministic error\", \"direct SQL violates semantic contract\", \"planned SQL has a deterministic error\", \"planned SQL violates semantic contract\"]}",
+      "token_usage": {
+        "total_tokens": 3897,
+        "prompt_tokens": 3809,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 88,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:53:40.879236",
+      "deterministic_audit": {
+        "valid": false,
+        "sqlite_explain_ok": null,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [
+          {
+            "code": "NON_READ_ONLY_SQL",
+            "message": "Only a read-only SELECT/CTE is allowed."
+          }
+        ],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "dogs",
+            "owners",
+            "professionals"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "EXCEPT",
+            "UNION"
+          ]
+        },
+        "violations": [
+          {
+            "code": "OUTPUT_COUNT_MISMATCH",
+            "message": "SQL projects 1 field(s), contract expects 2."
+          },
+          {
+            "code": "OUTPUT_FIELD_MISMATCH",
+            "message": "Projection 0 does not contain expected column first_name."
+          }
+        ],
+        "risk_reasons": []
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.449,
+      "raw_response": "{ \"sql\": \"(SELECT first_name FROM Owners) UNION (SELECT first_name FROM Professionals) EXCEPT (SELECT name FROM Dogs)\", \"explain\": \"Classified as non-read-only by mistake. Query is read-only and semantically correct as per schema and question intent.\", \"error\": \"\" }",
+      "token_usage": {
+        "total_tokens": 3677,
+        "prompt_tokens": 3438,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 239,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:53:44.353388",
+      "deterministic_audit": {
+        "valid": false,
+        "sqlite_explain_ok": null,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [
+          {
+            "code": "NON_READ_ONLY_SQL",
+            "message": "Only a read-only SELECT/CTE is allowed."
+          }
+        ],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "dogs",
+            "owners",
+            "professionals"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "EXCEPT",
+            "UNION"
+          ]
+        },
+        "violations": [
+          {
+            "code": "OUTPUT_COUNT_MISMATCH",
+            "message": "SQL projects 1 field(s), contract expects 2."
+          },
+          {
+            "code": "OUTPUT_FIELD_MISMATCH",
+            "message": "Projection 0 does not contain expected column first_name."
+          }
+        ],
+        "risk_reasons": []
+      },
+      "final_deterministic_audit": {
+        "valid": false,
+        "sqlite_explain_ok": null,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [
+          {
+            "code": "NON_READ_ONLY_SQL",
+            "message": "Only a read-only SELECT/CTE is allowed."
+          }
+        ],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "dogs",
+            "owners",
+            "professionals"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "EXCEPT",
+            "UNION"
+          ]
+        },
+        "violations": [
+          {
+            "code": "OUTPUT_COUNT_MISMATCH",
+            "message": "SQL projects 1 field(s), contract expects 2."
+          },
+          {
+            "code": "OUTPUT_FIELD_MISMATCH",
+            "message": "Projection 0 does not contain expected column first_name."
+          }
+        ],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "",
+  "error": "RuntimeError: Final SQL failed the executable-output invariant: NON_READ_ONLY_SQL",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:53:44.361897"
+}

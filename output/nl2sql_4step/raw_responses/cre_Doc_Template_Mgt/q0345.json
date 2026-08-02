@@ -1,0 +1,69 @@
+{
+  "question_index": 345,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Show all template type codes that are not used by any document.",
+  "gold_query": "SELECT template_type_code FROM Templates EXCEPT SELECT template_type_code FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id  =  T2.template_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.482,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Ref_Template_Types\", \"to_table\": \"Templates\", \"reason\": \"to check if template type code exists in Templates\"},\n    {\"from_table\": \"Templates\", \"to_table\": \"Documents\", \"reason\": \"to check if Templates are used by any Documents\"}\n  ],\n  \"entities\": {\"tables\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"columns\": [\"Template_Type_Code\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1516,
+        "prompt_tokens": 1285,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 231,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:37:43.895749"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 18.162,
+      "raw_response": "{\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Ref_Template_Types\", \"Templates\", \"Documents\"], \"column_names_original\": [[\"-1\", \"*\"], [0, \"Template_Type_Code\"], [1, \"Template_ID\"], [1, \"Template_Type_Code\"], [2, \"Document_ID\"], [2, \"Template_ID\"]], \"column_types\": [\"text\", \"text\", \"number\", \"text\", \"number\", \"number\"], \"foreign_keys\": [[3, 1], [5, 2]], \"primary_keys\": [1, 2, 4], \"column_sample_values\": [[], [\"AD\", \"BK\", \"CV\", \"PP\"], [], [\"PP\", \"BK\", \"PPT\", \"AD\"], [], []]}",
+      "token_usage": {
+        "total_tokens": 5143,
+        "prompt_tokens": 884,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 4259,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:38:02.059778"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.342,
+      "raw_response": "{\"sql\": \"SELECT Template_Type_Code FROM Ref_Template_Types WHERE Template_Type_Code NOT IN (SELECT Template_Type_Code FROM Templates WHERE Template_ID IN (SELECT Template_ID FROM Documents))\"}",
+      "token_usage": {
+        "total_tokens": 1317,
+        "prompt_tokens": 1268,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 49,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:38:03.402743"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.901,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\nThe validation checklist includes:\n1.  **SELECT matches `expected_output_fields` (content/order):** The `expected_output_fields` is `[\"Template_Type_Code\"]`. The SQL `SELECT Template_Type_Code` matches this.\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   The SQL uses nested `NOT IN` subqueries, which is an acceptable way to express \"not used by any document\".\n    *   `Ref_Template_Types.Template_Type_Code` is linked to `Templates.Template_Type_Code` (FK: `Templates.Template_Type_Code` references `Ref_Template_Types.Template_Type_Code`).\n    *   `Templates.Template_ID` is linked to `Documents.Template_ID` (FK: `Documents.Template_ID` references `Templates.Template_ID`).\n    *   The subqueries seem correctly structured to find `Template_Type_Code` from `Ref_Template_Types` that are *not* in `Templates` that *are* in `Documents`.\n    *   There is no `ORDER BY`, which is correct as the analysis doesn't specify one.\n    *   No `COUNT(*)` is needed as the question is about listing codes, not counting.\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available:** No text literals are used in the SQL.\n4.  **Column/table names exist; SQL is complete and one line:**\n    *   `Ref_Template_Types`, `Templates`, `Documents` exist.\n    *   `Template_Type_Code`, `Template_ID` exist.\n    *   SQL is complete and one line.\n\nThe SQL query `SELECT Template_Type_Code FROM Ref_Template_Types WHERE Template_Type_Code NOT IN (SELECT Template_Type_Code FROM Templates WHERE Template_ID IN (SELECT Template_ID FROM Documents))` correctly addresses the question \"Show all template type codes that are not used by any document.\"\n\nIt first finds `Template_ID`s that are present in `Documents`.\nThen, it finds `Template_Type_Code`s from `Templates` corresponding to those `Template_ID`s.\nFinally, it selects `Template_Type_Code`s from `Ref_Template_Types` that are *not* among the `Template_Type_Code`s found in the previous step (i.e., not associated with any document).\n\nThe query appears correct and efficient for the given task. No changes are needed.{\"sql\": \"SELECT Template_Type_Code FROM Ref_Template_Types WHERE Template_Type_Code NOT IN (SELECT Template_Type_Code FROM Templates WHERE Template_ID IN (SELECT Template_ID FROM Documents))\", \"explain\": \"The SQL query correctly identifies template type codes from 'Ref_Template_Types' that are not associated with any document by using nested NOT IN clauses, matching the problem description and schema.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1562,
+        "prompt_tokens": 878,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 684,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:38:07.305432"
+    }
+  ],
+  "final_sql": "SELECT Template_Type_Code FROM Ref_Template_Types WHERE Template_Type_Code NOT IN (SELECT Template_Type_Code FROM Templates WHERE Template_ID IN (SELECT Template_ID FROM Documents))",
+  "explain": "The SQL query correctly identifies template type codes from 'Ref_Template_Types' that are not associated with any document by using nested NOT IN clauses, matching the problem description and schema.",
+  "error": "",
+  "timestamp": "2026-07-25T04:38:07.306683"
+}

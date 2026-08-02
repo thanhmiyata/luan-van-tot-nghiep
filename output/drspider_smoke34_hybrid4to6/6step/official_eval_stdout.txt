@@ -1,0 +1,87 @@
+extra pred: select teacher.first_name, teacher.last_name, count(*) from teacher join course_arrange on teacher.Teacher_ID = course_arrange.Teacher_ID group by teacher.Teacher_ID
+extra gold: SELECT teacher.first_name , teacher.last_name , count(*) FROM course_arrange JOIN teacher ON course_arrange.Teacher_ID = teacher.Teacher_ID GROUP BY teacher.first_name , teacher.last_name
+
+extra pred: select distinct Semesters.semester_id from Semesters inner join Student_Enrolment on Student_Enrolment.semester_id = Semesters.semester_id inner join Degree_Programs on Student_Enrolment.degree_program_id = Degree_Programs.degree_program_id where (Degree_Programs.is_bachelor = "T") intersect select distinct Semesters.semester_id from Semesters inner join Student_Enrolment on Student_Enrolment.semester_id = Semesters.semester_id inner join Degree_Programs on Student_Enrolment.degree_program_id = Degree_Programs.degree_program_id where (Degree_Programs.is_master = "T")
+extra gold: SELECT DISTINCT Student_Enrolment.semester_id FROM Degree_Programs JOIN Student_Enrolment ON Degree_Programs.degree_program_id = Student_Enrolment.degree_program_id WHERE Degree_Programs.is_master = "T" INTERSECT SELECT DISTINCT Student_Enrolment.semester_id FROM Degree_Programs JOIN Student_Enrolment ON Degree_Programs.degree_program_id = Student_Enrolment.degree_program_id WHERE Degree_Programs.is_bachelor = "T"
+
+hard pred: select category_cipher from Ref_Template_Types except select template_kind_codification from Templates join Documents on Templates.Template_ID = Documents.Template_ID
+hard gold: SELECT Templates.template_kind_codification FROM Templates EXCEPT SELECT Templates.template_kind_codification FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID
+
+hard pred: select players.first_name, players.last_name from players join matches on matches.winner_id = players.player_id where matches.tourney_name = "Australian Open" order by matches.winner_rank desc limit 1
+hard gold: SELECT winner_name FROM matches WHERE tourney_name = 'Australian Open' ORDER BY winner_rank_points DESC LIMIT 1
+
+hard pred: select stadium.Name from stadium where not EXISTS(select 1 from concert where concert.Stadium_ID = stadium.Stadium_ID and concert.Year = "2014")
+hard gold: SELECT name FROM stadium EXCEPT SELECT T2.name FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id = T2.stadium_id WHERE T1.year = 2014
+
+hard pred: select Template_Type_Code from Ref_Template_Types where not Template_Type_Code in (select T1.Template_Type_Code from Templates as T1 join Documents as T2 on T1.Template_ID = T2.Template_ID)
+hard gold: SELECT template_type_code FROM Templates EXCEPT SELECT template_type_code FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id = T2.template_id
+
+medium pred: select people.Name from poker_player inner join people on poker_player.People_ID = people.People_ID where poker_player.Earnings > 300000
+medium gold: SELECT T1.Name FROM people AS T1 JOIN poker_player AS T2 ON T1.People_ID = T2.People_ID WHERE T2.Earnings > 300000
+
+easy pred: select distinct Year from cars_data where Weight < 4000 and Weight > 3000
+easy gold: select distinct year from cars_data where weight between 3000 and 4000
+
+medium pred: select count(*) from Highschooler inner join Friend on Highschooler.ID = Friend.student_id where Highschooler.name = "Kyle"
+medium gold: SELECT count(*) FROM Friend AS T1 JOIN Highschooler AS T2 ON T1.student_id = T2.id WHERE T2.name = "Kyle"
+
+medium pred: select Ref_Template_Types.Template_Type_Code, count(*) from Ref_Template_Types join Templates on Templates.Template_Type_Code = Ref_Template_Types.Template_Type_Code join Documents on Documents.Template_ID = Templates.Template_ID group by Ref_Template_Types.Template_Type_Code
+medium gold: SELECT T1.template_type_code , count(*) FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id = T2.template_id GROUP BY T1.template_type_code
+
+extra pred: select Name from country where Continent = "Africa" and Population < (select Population from country where Continent = "Asia" order by Population asc limit 1)
+extra gold: SELECT Name FROM country WHERE Continent = "Africa" AND population < (SELECT min(population) FROM country WHERE Continent = "Asia")
+
+extra pred: select cars_data.Id from cars_data join car_names on cars_data.Id = car_names.MakeId join model_list on car_names.Model = model_list.Model join car_makers on model_list.Maker = car_makers.Id where cars_data.Weight < 3500 and car_makers.Maker <> "ford"
+extra gold: SELECT DISTINCT T1.model FROM MODEL_LIST AS T1 JOIN CAR_NAMES AS T2 ON T1.Model = T2.Model JOIN CARS_DATA AS T3 ON T2.MakeId = T3.Id JOIN CAR_MAKERS AS T4 ON T1.Maker = T4.Id WHERE T3.weight < 3500 AND T4.FullName != 'Ford Motor Company'
+
+easy pred: select Documents.Document_ID from Documents join Paragraphs on Documents.Document_ID = Paragraphs.Document_ID group by Documents.Document_ID having count(*) >= 3
+easy gold: SELECT document_id FROM Paragraphs GROUP BY document_id HAVING count(*) >= 3
+
+easy pred: select id from TV_Channel where Country in (select Country from TV_Channel group by Country having count(*) < 2)
+easy gold: SELECT id FROM tv_channel GROUP BY country HAVING count(*) < 2
+
+extra pred: select Name from conductor join orchestra on conductor.Conductor_ID = orchestra.Conductor_ID group by Name order by count(*) asc limit 1
+extra gold: SELECT T1.Name FROM conductor AS T1 JOIN orchestra AS T2 ON T1.Conductor_ID = T2.Conductor_ID GROUP BY T2.Conductor_ID ORDER BY COUNT(*) ASC LIMIT 1
+
+                     easy                 medium               hard                 extra                all                 
+count                8                    14                   6                    6                    34                  
+=====================   EXECUTION ACCURACY     =====================
+execution            1.000                1.000                0.833                0.667                0.912               
+
+====================== EXACT MATCHING ACCURACY =====================
+exact match          0.625                0.786                0.333                0.167                0.559               
+
+---------------------PARTIAL MATCHING ACCURACY----------------------
+select               1.000                1.000                0.750                1.000                0.964               
+select(no AGG)       1.000                1.000                0.750                1.000                0.964               
+where                0.500                1.000                1.000                0.500                0.800               
+where(no OP)         0.500                1.000                1.000                1.000                0.867               
+group(no Having)     1.000                1.000                0.000                0.333                0.714               
+group                1.000                1.000                0.000                0.333                0.714               
+order                1.000                1.000                0.000                1.000                0.857               
+and/or               1.000                1.000                1.000                0.833                0.970               
+IUEN                 0.000                0.000                0.000                0.000                0.000               
+keywords             0.857                1.000                1.000                1.000                0.962               
+---------------------- PARTIAL MATCHING RECALL ----------------------
+select               1.000                0.857                0.500                0.667                0.794               
+select(no AGG)       1.000                0.857                0.500                0.667                0.794               
+where                0.667                0.750                1.000                0.250                0.667               
+where(no OP)         0.667                0.750                1.000                0.500                0.722               
+group(no Having)     0.667                1.000                0.000                0.333                0.625               
+group                0.667                1.000                0.000                0.333                0.625               
+order                1.000                1.000                0.000                1.000                0.857               
+and/or               0.875                1.000                1.000                1.000                0.970               
+IUEN                 0.000                0.000                0.000                0.000                0.000               
+keywords             0.857                0.846                0.667                0.667                0.781               
+---------------------- PARTIAL MATCHING F1 --------------------------
+select               1.000                0.923                0.600                0.800                0.871               
+select(no AGG)       1.000                0.923                0.600                0.800                0.871               
+where                0.571                0.857                1.000                0.333                0.727               
+where(no OP)         0.571                0.857                1.000                0.667                0.788               
+group(no Having)     0.800                1.000                1.000                0.333                0.667               
+group                0.800                1.000                1.000                0.333                0.667               
+order                1.000                1.000                1.000                1.000                0.857               
+and/or               0.933                1.000                1.000                0.909                0.970               
+IUEN                 1.000                1.000                1.000                1.000                1.000               
+keywords             0.857                0.917                0.800                0.800                0.862               
+

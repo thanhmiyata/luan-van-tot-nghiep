@@ -1,0 +1,447 @@
+{
+  "question_index": 817,
+  "pipeline": "6step",
+  "run_signature": "64c5affd8908480edf76",
+  "db_id": "world_1",
+  "question": "What are the country codes of the different countries, and what are the languages spoken by the greatest percentage of people for each?",
+  "gold_query": "SELECT LANGUAGE ,  CountryCode ,  max(Percentage) FROM countrylanguage GROUP BY CountryCode",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Code\", \"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"purpose\": \"ORDER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": true,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Language with greatest percentage per country\"}],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"country\", \"column\": \"Code\"}],\n  \"having\": [{\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Percentage\", \"agg\": \"MAX\", \"operator\": \"=\", \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"MAX\", \"table\": \"countrylanguage\", \"column\": \"Percentage\"}}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"To get the country codes associated with each language\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"CountryCode\", \"Language\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-27T01:26:47.795930"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [\"Code\", \"CountryCode\", \"Language\", \"Percentage\"]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T01:26:47.799557"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.132,
+      "raw_response": "{\n  \"steps\": [\n    \"Identify required tables and fields: `country` table for country codes and `countrylanguage` table for languages and percentages.\",\n    \"Execute join between `country` and `countrylanguage` using `country.Code = countrylanguage.CountryCode`.\",\n    \"Select `country.Code` and `countrylanguage.Language` as outputs.\",\n    \"Group by `country.Code` to ensure a distinct country code listing.\",\n    \"Use a scalar subquery to filter for languages with the maximum percentage for each country.\"\n  ],\n  \"select\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"order_index\": 1}\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"country\",\n      \"to_table\": \"countrylanguage\",\n      \"condition\": \"countrylanguage.CountryCode = country.Code\"\n    }\n  ],\n  \"predicates\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"expression\": \"countrylanguage.Percentage = (SELECT MAX(cl.Percentage) FROM countrylanguage AS cl WHERE cl.CountryCode = country.Code)\"\n    }\n  ],\n  \"group_by\": [\n    {\"table\": \"country\", \"column\": \"Code\"}\n  ],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2961,
+        "prompt_tokens": 2614,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 347,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-27T01:26:50.947890"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT country.Code, countrylanguage.Language FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Percentage = (SELECT MAX(cl2.Percentage) FROM countrylanguage cl2 WHERE cl2.CountryCode = countrylanguage.CountryCode)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-27T01:26:50.951675",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.code",
+                "countrylanguage.language"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "inner join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [
+                "where cl2.countrycode = countrylanguage.countrycode",
+                "where countrylanguage.percentage = (select max(cl2.percentage) from countrylanguage as cl2 where cl2.countrycode = countrylanguage.countrycode)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              },
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.code",
+                "countrylanguage.language"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [
+                "where cl.countrycode = country.code",
+                "where countrylanguage.percentage = (select max(cl.percentage) from countrylanguage as cl where cl.countrycode = country.code)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              },
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.567,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Percentage = (SELECT MAX(cl.Percentage) FROM countrylanguage AS cl WHERE cl.CountryCode = country.Code)\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2978,
+        "prompt_tokens": 2866,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 112,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-27T01:26:52.539538",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.code",
+                "countrylanguage.language"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "inner join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [
+                "where cl2.countrycode = countrylanguage.countrycode",
+                "where countrylanguage.percentage = (select max(cl2.percentage) from countrylanguage as cl2 where cl2.countrycode = countrylanguage.countrycode)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              },
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.code",
+                "countrylanguage.language"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [
+                "where cl.countrycode = country.code",
+                "where countrylanguage.percentage = (select max(cl.percentage) from countrylanguage as cl where cl.countrycode = country.code)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              },
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.456,
+      "raw_response": "{\"sql\": \"SELECT country.Code, countrylanguage.Language FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Percentage = (SELECT MAX(cl2.Percentage) FROM countrylanguage AS cl2 WHERE cl2.CountryCode = countrylanguage.CountryCode) GROUP BY country.Code\", \"selected_candidate\": \"repaired\", \"notes\": \"Added GROUP BY on country.Code to satisfy semantic check requirements.\", \"diagnostics\": [\"Added GROUP BY to fix semantic violation for missing group by clause.\"]}",
+      "token_usage": {
+        "total_tokens": 3469,
+        "prompt_tokens": 3353,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 116,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-27T01:26:54.014098",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country.code",
+            "countrylanguage.language"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "inner join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [
+            "where cl2.countrycode = countrylanguage.countrycode",
+            "where countrylanguage.percentage = (select max(cl2.percentage) from countrylanguage as cl2 where cl2.countrycode = countrylanguage.countrycode)"
+          ],
+          "group_by": [
+            "group by country.code"
+          ],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "HAVING_MISSING",
+            "message": "Contract requires HAVING."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.821,
+      "raw_response": "{\n  \"sql\": \"SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Code, countrylanguage.Language HAVING countrylanguage.Percentage = (SELECT MAX(cl.Percentage) FROM countrylanguage AS cl WHERE cl.CountryCode = country.Code)\",\n  \"explain\": \"Moved the condition to the HAVING clause to filter by the maximum percentage of language spoken within each country.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3177,
+        "prompt_tokens": 2994,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 183,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-27T01:26:55.866217",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country.code",
+            "countrylanguage.language"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [
+            "where cl.countrycode = country.code"
+          ],
+          "group_by": [
+            "group by country.code, countrylanguage.language"
+          ],
+          "having": [
+            "having countrylanguage.percentage = (select max(cl.percentage) from countrylanguage as cl where cl.countrycode = country.code)"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country.code",
+            "countrylanguage.language"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [
+            "where cl.countrycode = country.code"
+          ],
+          "group_by": [
+            "group by country.code, countrylanguage.language"
+          ],
+          "having": [
+            "having countrylanguage.percentage = (select max(cl.percentage) from countrylanguage as cl where cl.countrycode = country.code)"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT country.Code, countrylanguage.Language FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Code, countrylanguage.Language HAVING countrylanguage.Percentage = (SELECT MAX(cl.Percentage) FROM countrylanguage AS cl WHERE cl.CountryCode = country.Code)",
+  "explain": "Moved the condition to the HAVING clause to filter by the maximum percentage of language spoken within each country.",
+  "error": "",
+  "timestamp": "2026-07-27T01:26:55.882917",
+  "hybrid_seed_from_4step": {
+    "seed_root": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/nl2sql_4step",
+    "seeded_steps": [
+      "generate_sql_direct",
+      "question_analysis",
+      "schema_selector"
+    ],
+    "source_question_index": 817,
+    "source_db_id": "world_1"
+  }
+}

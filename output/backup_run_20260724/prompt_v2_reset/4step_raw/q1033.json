@@ -1,0 +1,69 @@
+{
+  "question_index": 1033,
+  "pipeline": "4step",
+  "db_id": "real_estate_properties",
+  "question": "What are the names of properties that are either houses or apartments with more than 1 room?",
+  "gold_query": "SELECT property_name FROM Properties WHERE property_type_code  =  \"House\" UNION SELECT property_name FROM Properties WHERE property_type_code  =  \"Apartment\" AND room_count  >  1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.76,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"property_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Properties\", \"column\": \"property_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Properties\", \"column\": \"room_count\", \"operator\": \">\", \"value\": \"1\", \"value_type\": \"NUMBER\"},\n    {\"table\": \"Properties\", \"column\": \"property_type_code\", \"operator\": \"IN\", \"value\": [\"House\", \"Apartment\"], \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Properties\", \"to_table\": \"Ref_Property_Types\", \"reason\": \"to access property_type_description\"}\n  ],\n  \"entities\": {\"tables\": [\"Properties\", \"Ref_Property_Types\"], \"columns\": [\"property_name\", \"room_count\", \"property_type_code\"], \"values\": [\"House\", \"Apartment\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1635,
+        "prompt_tokens": 1361,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 274,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:35:38.297115"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.136,
+      "raw_response": "{\"db_id\": \"real_estate_properties\", \"table_names_original\": [\"Ref_Property_Types\", \"Properties\"], \"column_names_original\": [[0, \"property_type_code\"], [1, \"property_id\"], [1, \"property_type_code\"], [1, \"property_name\"], [1, \"room_count\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\", \"number\"], \"foreign_keys\": [[2, 0]], \"primary_keys\": [0, 1], \"column_sample_values\": [[\"Apartment\", \"Field\", \"House\", \"Other\"], [], [\"House\", \"Other\", \"Field\", \"Apartment\"], [\"park\", \"the cole\", \"prism\", \"riverside\"], []]}",
+      "token_usage": {
+        "total_tokens": 4016,
+        "prompt_tokens": 1309,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2707,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:35:49.436025"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.424,
+      "raw_response": "{\"sql\": \"SELECT property_name FROM Properties WHERE room_count > 1 AND property_type_code IN ('House', 'Apartment')\"}",
+      "token_usage": {
+        "total_tokens": 1094,
+        "prompt_tokens": 1056,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 38,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:35:50.862388"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.955,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\n\n**Checklist:**\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"property_name\"]`\n    *   `SQL SELECT`: `SELECT property_name`\n    *   Match: Yes.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   The SQL query is `SELECT property_name FROM Properties WHERE room_count > 1 AND property_type_code IN ('House', 'Apartment')`.\n    *   `join_hints` in analysis suggests `Ref_Property_Types` is needed \"to access property_type_description\". However, the `property_type_code` column is directly available in the `Properties` table (column index 3 is `Properties.property_type_code`). The current query filters directly on `Properties.property_type_code` using literal values that are present in `column_sample_values` for `Ref_Property_Types.property_type_code` and `Properties.property_type_code`. Therefore, no join is needed.\n    *   The current SQL does not have any joins or ORDER BY.\n    *   Match: Yes, no unnecessary joins, no unnecessary ORDER BY.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available. Column/table names exist; SQL is complete and one line.**\n    *   `property_name`: exists in `Properties`.\n    *   `room_count`: exists in `Properties`.\n    *   `property_type_code`: exists in `Properties`.\n    *   `'House'`, `'Apartment'`: These values are present in `column_sample_values` for `Properties.property_type_code` and `Ref_Property_Types.property_type_code`.\n    *   SQL is complete and one line.\n    *   Match: Yes.\n\n4.  **Fix issues and return corrected SQL plus brief explain; surface error if unfixable.**\n    *   No issues found. The SQL matches all validation criteria.{\"sql\": \"SELECT property_name FROM Properties WHERE room_count > 1 AND property_type_code IN ('House', 'Apartment')\", \"explain\": \"The original SQL is correct. It selects property names from the Properties table, filtering for properties with more than 1 room and where the property type is either 'House' or 'Apartment'. No joins are needed as 'property_type_code' is directly available in the 'Properties' table. All column and table names are valid, and literals match sample values.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1453,
+        "prompt_tokens": 847,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 606,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T03:35:53.819709"
+    }
+  ],
+  "final_sql": "SELECT property_name FROM Properties WHERE room_count > 1 AND property_type_code IN ('House', 'Apartment')",
+  "explain": "The original SQL is correct. It selects property names from the Properties table, filtering for properties with more than 1 room and where the property type is either 'House' or 'Apartment'. No joins are needed as 'property_type_code' is directly available in the 'Properties' table. All column and table names are valid, and literals match sample values.",
+  "error": "",
+  "timestamp": "2026-07-24T03:35:53.821745"
+}

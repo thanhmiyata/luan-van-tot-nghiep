@@ -1,0 +1,97 @@
+{
+  "question_index": 549,
+  "pipeline": "6step",
+  "db_id": "student_transcripts_tracking",
+  "question": "Find the last name of the students who currently live in the state of North Carolina but have not registered in any degree program.",
+  "gold_query": "SELECT T1.last_name FROM Students AS T1 JOIN Addresses AS T2 ON T1.current_address_id  =  T2.address_id WHERE T2.state_province_county  =  'NorthCarolina' EXCEPT SELECT DISTINCT T3.last_name FROM Students AS T3 JOIN Student_Enrolment AS T4 ON T3.student_id  =  T4.student_id",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.382,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"last_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Addresses\", \"column\": \"state_province_county\", \"operator\": \"=\", \"value\": \"North Carolina\", \"value_type\": \"STRING\"},\n    {\"table\": \"Student_Enrolment\", \"column\": \"degree_program_id\", \"operator\": \"IS\", \"value\": \"NULL\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Students\", \"to_table\": \"Addresses\", \"reason\": \"Students table references Addresses for current address\"},\n    {\"from_table\": \"Students\", \"to_table\": \"Student_Enrolment\", \"reason\": \"Check if student is enrolled in any degree program\"}\n  ],\n  \"entities\": {\"tables\": [\"Students\", \"Addresses\", \"Student_Enrolment\"], \"columns\": [\"last_name\", \"state_province_county\", \"degree_program_id\"], \"values\": [\"North Carolina\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"SQL_NULL\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2785,
+        "prompt_tokens": 2431,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 354,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:45:07.206927"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 10.688,
+      "raw_response": "Thought: The user wants to filter the given database schema based on the provided NL2SQL analyzer output.\nI need to identify the minimal set of tables and columns required to answer the question \"Find the last name of the students who currently live in the state of North Carolina but have not registered in any degree program.\"\n\nHere's my plan:\n1.  **Identify core tables and columns:**\n    *   From `expected_output_fields`: `Students.last_name`\n    *   From `filters`:\n        *   `Addresses.state_province_county` (value: \"North Carolina\")\n        *   `Student_Enrolment.degree_program_id` (operator: IS NULL)\n    *   From `join_hints` (implicitly confirms tables needed for joins): `Students`, `Addresses`, `Student_Enrolment`.\n\n2.  **Determine necessary joins:**\n    *   `Students` to `Addresses`: To filter by student's current address state. The `Students` table has `current_address_id` (FK to `Addresses.address_id`).\n    *   `Students` to `Student_Enrolment`: To check if a student is enrolled in a degree program. `Student_Enrolment` has `student_id` (FK to `Students.student_id`).\n\n3.  **List all required columns (output, filter, join PK/FK):**\n    *   `Students`:\n        *   `last_name` (output)\n        *   `student_id` (PK, for join with `Student_Enrolment`)\n        *   `current_address_id` (FK, for join with `Addresses`)\n    *   `Addresses`:\n        *   `state_province_county` (filter)\n        *   `address_id` (PK, for join with `Students`)\n    *   `Student_Enrolment`:\n        *   `degree_program_id` (filter - check for NULL)\n        *   `student_enrolment_id` (PK - always keep PKs for tables included)\n        *   `student_id` (FK, for join with `Students`)\n\n4.  **Construct the filtered schema:**\n    *   Include only the identified tables and columns.\n    *   Ensure all necessary PK/FK relationships are preserved for the included tables.\n\nLet's map column indices from the original schema:\n*   `Students`: table index 6\n    *   `student_id`: index 32 (PK)\n    *   `current_address_id`: index 33 (FK)\n    *   `last_name`: index 37\n*   `Addresses`: table index 0\n    *   `address_id`: index 1 (PK)\n    *   `state_province_county`: index 7\n*   `Student_Enrolment`: table index 7\n    *   `student_enrolment_id`: index 44 (PK)\n    *   `degree_program_id`: index 45\n    *   `student_id`: index 47 (FK)\n\n**Original FKs to consider:**\n*   `[33, 1]` (Students.current_address_id -> Addresses.address_id) - **KEEP**\n*   `[47, 32]` (Student_Enrolment.student_id -> Students.student_id) - **KEEP**\n\nNow, I will build the `table_names_original`, `column_names_original`, `column_types`, `foreign_keys`, and `primary_keys` for the filtered schema.\n\n**Tables to keep:**\n*   `Addresses` (index 0)\n*   `Students` (index 6)\n*   `Student_Enrolment` (index 7)\n\n**Columns to keep (with their original indices):**\n*   `Addresses`: `address_id` (1), `state_province_county` (7)\n*   `Students`: `student_id` (32), `current_address_id` (33), `last_name` (37)\n*   `Student_Enrolment`: `student_enrolment_id` (44), `degree_program_id` (45), `student_id` (47)\n\n**Constructing the new schema components:**\n\n`table_names_original`:\n\"Addresses\", \"Students\", \"Student_Enrolment\"\n\n`column_names_original`:\nNeed to re-map based on only selected columns. The first element of each inner array is the table index. This index needs to correspond to the *new* table_names_original order.\n\nOriginal indices:\nAddresses: 0\nStudents: 6\nStudent_Enrolment: 7\n\nSelected columns and their original table/column index:\n[0, \"address_id\"] (1)\n[0, \"state_province_county\"] (7)\n[6, \"student_id\"] (32)\n[6, \"current_address_id\"] (33)\n[6, \"last_name\"] (37)\n[7, \"student_enrolment_id\"] (44)\n[7, \"degree_program_id\"] (45)\n[7, \"student_id\"] (47)\n\nNew mapping for `column_names_original`:\n*   Addresses (new table_idx 0):\n    *   [0, \"address_id\"]\n    *   [0, \"state_province_county\"]\n*   Students (new table_idx 1):\n    *   [1, \"student_id\"]\n    *   [1, \"current_address_id\"]\n    *   [1, \"last_name\"]\n*   Student_Enrolment (new table_idx 2):\n    *   [2, \"student_enrolment_id\"]\n    *   [2, \"degree_program_id\"]\n    *   [2, \"student_id\"]\n\nNew `column_names_original` array and their new column indices:\n`[-1, \"*\"]` (0) - *always keep this*\n`[0, \"address_id\"]` (1)\n`[0, \"state_province_county\"]` (2)\n`[1, \"student_id\"]` (3)\n`[1, \"current_address_id\"]` (4)\n`[1, \"last_name\"]` (5)\n`[2, \"student_enrolment_id\"]` (6)\n`[2, \"degree_program_id\"]` (7)\n`[2, \"student_id\"]` (8)\n\n`column_types`:\nOriginal column types for the selected columns (based on original indices):\n1: number\n7: text\n32: number\n33: number\n37: text\n44: number\n45: number\n47: number\n\nNew `column_types`:\n\"text\", \"number\", \"text\", \"number\", \"number\", \"text\", \"number\", \"number\", \"number\" (includes the `*` type)\n\n`foreign_keys`:\nOriginal FKs involving selected columns:\n`[33, 1]` (Students.current_address_id -> Addresses.address_id)\n`[47, 32]` (Student_Enrolment.student_id -> Students.student_id)\n\nMap these to new column indices:\n`[4, 1]`\n`[8, 3]`\n\n`primary_keys`:\nOriginal PKs for selected columns:\n`address_id` (1)\n`student_id` (32)\n`student_enrolment_id` (44)\n\nMap these to new column indices:\n`1`\n`3`\n`6`\n\nLet's double-check everything.\nThe tables are: `Addresses`, `Students`, `Student_Enrolment`.\n`Addresses` needs `address_id` (PK, for join) and `state_province_county` (filter).\n`Students` needs `student_id` (PK, for join), `current_address_id` (FK, for join with Addresses), and `last_name` (output).\n`Student_Enrolment` needs `student_enrolment_id` (PK), `degree_program_id` (filter), and `student_id` (FK, for join with Students).\n\nThis seems correct and minimal.```json\n{\"db_id\":\"student_transcripts_tracking\",\"table_names_original\":[\"Addresses\",\"Students\",\"Student_Enrolment\"],\"column_names_original\":[[-1,\"*\"],[0,\"address_id\"],[0,\"state_province_county\"],[1,\"student_id\"],[1,\"current_address_id\"],[1,\"last_name\"],[2,\"student_enrolment_id\"],[2,\"degree_program_id\"],[2,\"student_id\"]],\"column_types\":[\"text\",\"number\",\"text\",\"number\",\"number\",\"text\",\"number\",\"number\",\"number\"],\"foreign_keys\":[[4,1],[8,3]],\"primary_keys\":[1,3,6],\"column_sample_values\":[[],[],[\"2294 Grant Square Apt. 235\",\"3999 Aufderhar Ways Suite 593\",\"67942 Carlotta Ferry Apt. 686\",\"0144 Lamar Plaza Apt. 346\"],[\"Virginia\",\"Kentucky\",\"Kansas\",\"Washington\"],[],[],[\"Timmothy\",\"Hobart\",\"Warren\",\"Jarvis\"],[\"Ward\",\"Balistreri\",\"Gleichner\",\"Carroll\"],[],[],[],[]]}\n```",
+      "token_usage": {
+        "total_tokens": 4031,
+        "prompt_tokens": 1874,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2157,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:45:17.914094"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.439,
+      "raw_response": "{ \"steps\": [ { \"description\": \"Identify required tables and necessary joins based on foreign keys.\", \"tables\": [\"Students\", \"Addresses\", \"Student_Enrolment\"], \"joins\": [ {\"from_table\": \"Students\", \"from_column\": \"current_address_id\", \"to_table\": \"Addresses\", \"to_column\": \"address_id\"}, {\"from_table\": \"Students\", \"from_column\": \"student_id\", \"to_table\": \"Student_Enrolment\", \"to_column\": \"student_id\"} ] }, { \"description\": \"Apply filters according to the task requirements.\", \"filters\": { \"Addresses\": {\"state_province_county\": \"North Carolina\"}, \"Student_Enrolment\": {\"degree_program_id\": null} } }, { \"description\": \"Structure the SELECT statement to return last names only.\", \"select\": [\"Students.last_name\"], \"expected_output_fields_order\": [\"last_name\"] }, { \"description\": \"No ORDER BY clause is needed as the task does not imply ranking or sorting.\", \"order_by\": [] }, { \"description\": \"No GROUP BY required as we are not aggregating data.\", \"group_by\": [] }, { \"description\": \"Specify final query components using WHERE to combine filters.\", \"where_clause_representation\": \"SELECT Students.last_name FROM Students JOIN Addresses ON Students.current_address_id = Addresses.address_id LEFT JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id WHERE Addresses.state_province_county = 'North Carolina' AND Student_Enrolment.degree_program_id IS NULL\" } ] }",
+      "token_usage": {
+        "total_tokens": 1940,
+        "prompt_tokens": 1605,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 335,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:45:22.370802"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.32,
+      "raw_response": "{ \"sql\": \"SELECT Students.last_name FROM Students JOIN Addresses ON Students.current_address_id = Addresses.address_id LEFT JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id WHERE Addresses.state_province_county = 'North Carolina' AND Student_Enrolment.degree_program_id IS NULL\" }",
+      "token_usage": {
+        "total_tokens": 2395,
+        "prompt_tokens": 2318,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 77,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:45:23.712698"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.418,
+      "raw_response": "{\"sql\": \"SELECT Students.last_name FROM Students JOIN Addresses ON Students.current_address_id = Addresses.address_id LEFT JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id WHERE Addresses.state_province_county = 'North Carolina' AND Student_Enrolment.degree_program_id IS NULL\", \"notes\": \"SQL correctly selects the last name of students living in 'North Carolina' who are not enrolled in any degree program. Joins and filters are correctly implemented per schema and requirements.\", \"diagnostics\": [\"The joins use correct keys based on foreign key relationships.\", \"Filters align with the task's question, targeting 'North Carolina' and null enrollment.\", \"No ORDER BY needed as output order is not specified.\"]}",
+      "token_usage": {
+        "total_tokens": 2073,
+        "prompt_tokens": 1911,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 162,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:45:27.151338"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.451,
+      "raw_response": "I need to validate the given SQL query against the provided schema, question, and analysis, following the 6-step validation checklist.\n\nHere's the plan:\n1.  **SELECT clause**: Check if `SELECT Students.last_name` matches `expected_output_fields: [\"last_name\"]`. The content and order match.\n2.  **JOINs**:\n    *   `Students JOIN Addresses ON Students.current_address_id = Addresses.address_id`: This join is correct. `current_address_id` (Students) is a FK to `address_id` (Addresses). It's needed for the `Addresses.state_province_county` filter.\n    *   `LEFT JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id`: This join is correct. `student_id` (Students) is a PK, and `student_id` (Student_Enrolment) is a FK. A `LEFT JOIN` is appropriate because we want students *not* enrolled, which means we need to include students even if they don't have a matching entry in `Student_Enrolment`.\n    *   The joins are minimal and on correct PK/FK.\n3.  **WHERE clause**:\n    *   `Addresses.state_province_county = 'North Carolina'`: Matches `filters` and `values` in analysis. `column_sample_values` confirms 'North Carolina' is a valid string.\n    *   `Student_Enrolment.degree_program_id IS NULL`: Matches `filters` and `null_handling` in analysis. This is crucial for \"not registered in any degree program\" when using a `LEFT JOIN`.\n4.  **No extra ORDER BY, GROUP BY, or COUNT() issues**: The SQL has none, and the analysis does not require any.\n5.  **Negation**: The `LEFT JOIN` combined with `IS NULL` correctly handles the negation (\"not registered\").\n6.  **Names exist**: All table and column names (`Students`, `Addresses`, `Student_Enrolment`, `last_name`, `current_address_id`, `address_id`, `state_province_county`, `student_id`, `degree_program_id`) exist in the schema.\n7.  **SQL completeness**: The SQL is complete and executable.\n8.  **Self-Join, Set Operation, WHERE Condition, GROUP BY, ORDER BY, DISTINCT**:\n    *   `self_join_hint`: false - No self-join in SQL, which is correct.\n    *   `set_operation_type`: NONE - No set operation in SQL, which is correct.\n    *   `where_condition_type`: EQUALS and `null_handling`: SQL_NULL - `='North Carolina'` and `IS NULL` are correct.\n    *   `group_by`: [] - No GROUP BY in SQL, which is correct.\n    *   `order_by`: [] - No ORDER BY in SQL, which is correct.\n    *   `DISTINCT`: Not required by analysis and not present, which is correct.\n\nAll checks pass. The SQL looks good as is.```json\n{\"sql\": \"SELECT T1.last_name FROM Students AS T1 JOIN Addresses AS T2 ON T1.current_address_id = T2.address_id LEFT JOIN Student_Enrolment AS T3 ON T1.student_id = T3.student_id WHERE T2.state_province_county = 'North Carolina' AND T3.degree_program_id IS NULL\", \"explain\": \"The SQL query is correct based on the provided schema, question, and analysis. It correctly joins Students with Addresses and uses a LEFT JOIN to Student_Enrolment to identify students who are not enrolled in any degree program (degree_program_id IS NULL) while also filtering for the specified state.\", \"error\": \"\"}\n```",
+      "token_usage": {
+        "total_tokens": 2466,
+        "prompt_tokens": 1614,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 852,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T00:45:31.624268"
+    }
+  ],
+  "final_sql": "SELECT T1.last_name FROM Students AS T1 JOIN Addresses AS T2 ON T1.current_address_id = T2.address_id LEFT JOIN Student_Enrolment AS T3 ON T1.student_id = T3.student_id WHERE T2.state_province_county = 'North Carolina' AND T3.degree_program_id IS NULL",
+  "explain": "The SQL query is correct based on the provided schema, question, and analysis. It correctly joins Students with Addresses and uses a LEFT JOIN to Student_Enrolment to identify students who are not enrolled in any degree program (degree_program_id IS NULL) while also filtering for the specified state.",
+  "error": "",
+  "timestamp": "2026-07-25T00:45:31.626273"
+}

@@ -1,0 +1,97 @@
+{
+  "question_index": 770,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "What is the total number of unique official languages spoken in the countries that are founded before 1930?",
+  "gold_query": "SELECT count(DISTINCT T2.Language) FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE  IndepYear  <  1930 AND T2.IsOfficial  =  \"T\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.12,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"total_unique_languages\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT_DISTINCT\", \"alias\": \"total_unique_languages\", \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"country\", \"column\": \"IndepYear\", \"operator\": \"<\", \"value\": \"1930\", \"value_type\": \"NUMBER\"}, {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"=\", \"value\": \"T\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"Match countries with their languages using CountryCode\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"IndepYear\", \"IsOfficial\"], \"values\": [\"1930\", \"T\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1729,
+        "prompt_tokens": 1425,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 304,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:29.721461"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 11.897,
+      "raw_response": "Thought: The user wants to filter the `world_1` schema based on the provided analysis. I need to identify the minimal set of tables and columns required to answer the question, while preserving all necessary PK/FK relationships for joins.\n\nHere's my plan:\n1.  **Identify Required Tables:**\n    *   `entities.tables`: `country`, `countrylanguage`\n    *   `output_fields_detailed`: `countrylanguage`\n    *   `filters`: `country`, `countrylanguage`\n    *   No `group_by` or `order_by` specified in the analysis.\n    *   So, the required tables are `country` and `countrylanguage`.\n\n2.  **Identify Required Columns:**\n    *   **`country` table:**\n        *   `filters`: `IndepYear`\n        *   PK/FK: `Code` (PK for `country`, FK referenced by `countrylanguage.CountryCode`)\n    *   **`countrylanguage` table:**\n        *   `expected_output_fields`: `Language` (for `COUNT_DISTINCT`)\n        *   `filters`: `IsOfficial`\n        *   PK/FK: `CountryCode` (FK referencing `country.Code`), `Language` (part of composite PK with CountryCode and IsOfficial, but analysis says `PK` is 23 (CountryCode) which is incorrect, `PK`s for `countrylanguage` are 23 (`CountryCode`) and 24 (`Language`), making it a composite PK.) Let's assume `CountryCode` is the critical FK for joining `countrylanguage` to `country`. `Language` is needed for the `COUNT_DISTINCT`.\n\n3.  **Construct the Filtered Schema:**\n\n    *   **`country` (table_id: 2):**\n        *   `Code` (PK, FK target)\n        *   `IndepYear` (filter)\n        *   Original column indices: `Code` (8), `IndepYear` (13)\n        *   Original table name: `country`\n    *   **`countrylanguage` (table_id: 3):**\n        *   `CountryCode` (FK source, part of PK)\n        *   `Language` (output, part of PK)\n        *   `IsOfficial` (filter)\n        *   Original column indices: `CountryCode` (23), `Language` (24), `IsOfficial` (25)\n        *   Original table name: `countrylanguage`\n\n4.  **Map New Indices and Reconstruct Schema:**\n\n    *   `db_id`: `world_1`\n    *   `table_names_original`: `country`, `countrylanguage`\n    *   `column_names_original`:\n        *   `country`: `Code` (8), `IndepYear` (13)\n        *   `countrylanguage`: `CountryCode` (23), `Language` (24), `IsOfficial` (25)\n    *   `column_types`: Map types based on original indices.\n    *   `primary_keys`: `Code` (original index 8), `CountryCode` (original index 23), `Language` (original index 24).\n    *   `foreign_keys`: `countrylanguage.CountryCode` (original index 23) references `country.Code` (original index 8).\n\nLet's carefully map the new indices and reconstruct the JSON.\n\nOriginal `column_names_original` map:\n0: city\n    1: ID\n    2: Name\n    3: CountryCode\n    4: District\n    5: Population\n1: sqlite_sequence\n    6: name\n    7: seq\n2: country\n    8: Code (PK)\n    9: Name\n    10: Continent\n    11: Region\n    12: SurfaceArea\n    13: IndepYear (used in filter)\n    14: Population\n    15: LifeExpectancy\n    16: GNP\n    17: GNPOld\n    18: LocalName\n    19: GovernmentForm\n    20: HeadOfState\n    21: Capital\n    22: Code2\n3: countrylanguage\n    23: CountryCode (FK, part of PK)\n    24: Language (part of PK, used in output)\n    25: IsOfficial (used in filter)\n    26: Percentage\n\nOriginal PKs: `1` (city.ID), `8` (country.Code), `23` (countrylanguage.CountryCode). Note: `countrylanguage` has a composite PK of `(CountryCode, Language, IsOfficial)` or `(CountryCode, Language)` based on common design, but here it's just `CountryCode`. However, the analysis uses `Language` for `COUNT_DISTINCT` and `IsOfficial` for filter, so they must be kept. It's safer to keep `Language` as part of a PK if `(CountryCode, Language)` is the PK. Let's verify original `primary_keys`: `[1,8,23]`. This means `countrylanguage.CountryCode` is *a* primary key, implying it's unique within the `countrylanguage` table, which is unusual for a language table (a country can have multiple languages, and a language can be spoken in multiple countries). More likely, `(CountryCode, Language)` is the actual PK. The original `primary_keys` list might be simplified. Given the task \"Prefer keeping a small safe superset\", I'll include `Language` in the filtered PKs if it seems logical for the table. However, sticking to the provided `primary_keys` list, only `CountryCode` (23) is listed for `countrylanguage`. Given `Language` is an output field, it will be preserved regardless.\n\nLet's re-evaluate PK/FK for `countrylanguage`.\nIf `countrylanguage.CountryCode` (23) is *the* PK, it means each country has only one language entry, which is highly unlikely.\nIf `countrylanguage.CountryCode` (23) is *part of* a composite PK, then `Language` (24) is likely the other part.\nThe `foreign_keys` list is `[[3,8],[23,8]]`. This means `city.CountryCode` (3) references `country.Code` (8) AND `countrylanguage.CountryCode` (23) references `country.Code` (8). This confirms the FK relationship.\n\nGiven that `Language` is used in `COUNT_DISTINCT`, it must be preserved. `IsOfficial` is a filter. `CountryCode` is the FK to `country` and is listed as a PK.\n\nLet's list the selected columns and their original indices:\n*   `country`:\n    *   `Code` (8) - PK, FK target\n    *   `IndepYear` (13) - Filter\n*   `countrylanguage`:\n    *   `CountryCode` (23) - FK source, listed as PK in original schema\n    *   `Language` (24) - Output field\n    *   `IsOfficial` (25) - Filter\n\nNow, create the new schema mapping:\n\n**New table names and IDs:**\n*   `country` (original table id 2) -> new table id 0\n*   `countrylanguage` (original table id 3) -> new table id 1\n\n**New column indices and mapping to original:**\n\n**Table 0: `country`**\n*   Original Column 8 (`Code`, type `text`) -> New Column 0\n*   Original Column 13 (`IndepYear`, type `number`) -> New Column 1\n\n**Table 1: `countrylanguage`**\n*   Original Column 23 (`CountryCode`, type `text`) -> New Column 2\n*   Original Column 24 (`Language`, type `text`) -> New Column 3\n*   Original Column 25 (`IsOfficial`, type `text`) -> New Column 4\n\n**Reconstruct `table_names_original`:**\n`[\"country\", \"countrylanguage\"]`\n\n**Reconstruct `column_names_original`:**\n`[[-1,\"*\"], [0,\"Code\"], [0,\"IndepYear\"], [1,\"CountryCode\"], [1,\"Language\"], [1,\"IsOfficial\"]]`\n\n**Reconstruct `column_types`:**\n`[\"text\", \"number\", \"text\", \"text\", \"text\"]` (corresponding to new columns 0, 1, 2, 3, 4)\n\n**Reconstruct `primary_keys`:**\nOriginal PKs were `[1, 8, 23]`.\n`1` (city.ID) is not needed.\n`8` (country.Code) -> new index 1 (table 0, col 0)\n`23` (countrylanguage.CountryCode) -> new index 3 (table 1, col 0)\nSo, new `primary_keys`: `[1, 3]`\n\n**Reconstruct `foreign_keys`:**\nOriginal FK: `countrylanguage.CountryCode` (23) references `country.Code` (8).\nNew mapping: `countrylanguage.CountryCode` (new index 2) references `country.Code` (new index 1).\nSo, new `foreign_keys`: `[[2, 1]]` (Remember `[FK_column_idx, PK_column_idx]`)\n\nLet's double-check the `primary_keys` and `foreign_keys` indices.\n`primary_keys` contains global column indices.\n`foreign_keys` contains `[FK_global_idx, PK_global_idx]`.\n\nOriginal global column indices:\n`country.Code` is 8.\n`countrylanguage.CountryCode` is 23.\n\nNew global column indices:\n`country.Code` is 1 (index 0 is `*`)\n`country.IndepYear` is 2\n`countrylanguage.CountryCode` is 3\n`countrylanguage.Language` is 4\n`countrylanguage.IsOfficial` is 5\n\nSo:\n`primary_keys`:\nOriginal `8` (country.Code) -> New `1`\nOriginal `23` (countrylanguage.CountryCode) -> New `3`\nResult: `[1, 3]`\n\n`foreign_keys`:\nOriginal `[23, 8]`\nNew `[3, 1]`\nResult: `[[3, 1]]`\n\nThis seems correct.\nI'll now construct the JSON.```json\n{\"db_id\": \"world_1\", \"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[-1, \"*\"], [0, \"Code\"], [0, \"IndepYear\"], [1, \"CountryCode\"], [1, \"Language\"], [1, \"IsOfficial\"]], \"column_types\": [\"text\", \"number\", \"text\", \"text\", \"text\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 3]}\n```",
+      "token_usage": {
+        "total_tokens": 3423,
+        "prompt_tokens": 937,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2486,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:41.638084"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.934,
+      "raw_response": "{ \"steps\": [ \"1. List minimal tables: The required tables are 'country' and 'countrylanguage'.\", \"2. Join needed: Yes. Use the provided foreign key mapping between 'country.Code' (PK) and 'countrylanguage.CountryCode' (FK).\", \"3. COUNT vs COUNT(DISTINCT): Use COUNT(DISTINCT) for unique official languages. No GROUP BY needed, as we're counting distinct values.\", \"4. Filters: Apply a filter on 'country.IndepYear' to be less than 1930, and on 'countrylanguage.IsOfficial' to be 'T'.\", \"5. ORDER BY: Not needed. The question does not imply ranking or sorting.\", \"6. Set operations: NONE. The task does not require set operations.\" ] }",
+      "token_usage": {
+        "total_tokens": 1523,
+        "prompt_tokens": 1348,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 175,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:44.588640"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.963,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT cl.Language) AS total_unique_languages FROM country c JOIN countrylanguage cl ON c.Code = cl.CountryCode WHERE c.IndepYear < 1930 AND cl.IsOfficial = 'T'\"}",
+      "token_usage": {
+        "total_tokens": 1792,
+        "prompt_tokens": 1730,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 62,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:45.574394"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.687,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT cl.Language) AS total_unique_languages FROM country c JOIN countrylanguage cl ON c.Code = cl.CountryCode WHERE c.IndepYear < 1930 AND cl.IsOfficial = 'T'\", \"notes\": \"The SQL query correctly matches the expected output fields that account for the total number of unique official languages; no unnecessary joins or groupings are included.\", \"diagnostics\": [\"SQL fields and filters align with expected output fields and plan.\", \"COUNT(DISTINCT) is used correctly for getting unique languages.\", \"Filters on IndepYear and IsOfficial are correctly applied.\"]}",
+      "token_usage": {
+        "total_tokens": 1618,
+        "prompt_tokens": 1481,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 137,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:47.279789"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.737,
+      "raw_response": "I need to perform a 6-step validation on the provided SQL query based on the given question, schema, and analysis.\n\n1.  **SELECT matches expected_output_fields:**\n    *   Expected: `[\"total_unique_languages\"]`\n    *   SQL: `SELECT COUNT(DISTINCT cl.Language) AS total_unique_languages`\n    *   Match: Yes, `COUNT(DISTINCT cl.Language) AS total_unique_languages` is precisely what's expected.\n\n2.  **Counts - COUNT(*), COUNT(DISTINCT ...), GROUP BY minimal:**\n    *   Analysis explicitly asks for `COUNT_DISTINCT` for `Language`.\n    *   SQL uses `COUNT(DISTINCT cl.Language)`. This is correct.\n    *   No `GROUP BY` is present, which is correct as it's a single aggregate count.\n\n3.  **Extremum patterns:**\n    *   Not applicable here, as it's a COUNT, not an extremum query.\n\n4.  **No unnecessary joins; correct PK/FK; single_table_ok:**\n    *   Analysis `single_table_ok`: `false`\n    *   Join hints: `{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"Match countries with their languages using CountryCode\"}`\n    *   SQL join: `JOIN countrylanguage cl ON c.Code = cl.CountryCode`\n    *   PK/FK: `country.Code` (PK 1) and `countrylanguage.CountryCode` (FK 3 to 1). The join `c.Code = cl.CountryCode` is correct.\n    *   The join is necessary to filter by `IndepYear` from `country` and `IsOfficial` from `countrylanguage`.\n\n5.  **Remove ORDER BY:**\n    *   No `ORDER BY` in the SQL. Correct.\n\n6.  **Names exist; SQL complete, single line, no comments:**\n    *   `country`, `countrylanguage`, `Code`, `IndepYear`, `CountryCode`, `Language`, `IsOfficial` all exist in the schema.\n    *   SQL is complete, single line, and has no comments.\n\n**CRITICAL Final Pattern Checks:**\n\n1.  **Self-Join Validation:**\n    *   Analysis `self_join_hint`: `false`. SQL does not use self-join, which is correct.\n\n2.  **Set Operation Validation:**\n    *   Analysis `set_operation_type`: `NONE`. SQL does not use set operations, which is correct.\n\n3.  **WHERE Condition Validation:**\n    *   Analysis `where_condition_type`: `EQUALS` (for `IsOfficial`), `RANGE` (for `IndepYear` - implicitly, `<` is a range condition).\n    *   `c.IndepYear < 1930`: Matches the range condition using `<`.\n    *   `cl.IsOfficial = 'T'`: Matches the equality condition.\n    *   Analysis `null_handling`: `UNKNOWN`. No `IS NULL` check, which is fine.\n    *   Conditions are correct as per analysis.\n\n4.  **GROUP BY Validation:**\n    *   Analysis `group_by`: `[]`. SQL has no `GROUP BY`. Correct.\n\n5.  **ORDER BY Validation:**\n    *   Analysis `order_by`: `[]`. SQL has no `ORDER BY`. Correct.\n\n6.  **DISTINCT Validation:**\n    *   SQL uses `COUNT(DISTINCT cl.Language)` which is required by the analysis for \"unique languages\". This is correct.\n\nThe SQL appears to be perfectly aligned with the analysis and schema, and passes all validation checks. No changes are needed.{\"sql\": \"SELECT COUNT(DISTINCT cl.Language) AS total_unique_languages FROM country c JOIN countrylanguage cl ON c.Code = cl.CountryCode WHERE c.IndepYear < 1930 AND cl.IsOfficial = 'T'\", \"explain\": \"The SQL query is correct and perfectly aligns with the analysis and schema. All validation checks passed, including SELECT fields, COUNT usage, joins, WHERE conditions, and absence of unnecessary clauses.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2274,
+        "prompt_tokens": 1349,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 925,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:52.035307"
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT cl.Language) AS total_unique_languages FROM country c JOIN countrylanguage cl ON c.Code = cl.CountryCode WHERE c.IndepYear < 1930 AND cl.IsOfficial = 'T'",
+  "explain": "The SQL query is correct and perfectly aligns with the analysis and schema. All validation checks passed, including SELECT fields, COUNT usage, joins, WHERE conditions, and absence of unnecessary clauses.",
+  "error": "",
+  "timestamp": "2026-07-24T00:37:52.037508"
+}

@@ -1,0 +1,93 @@
+extra pred: select teacher.first_name, teacher.last_name, count(course_arrange.Course_ID) from teacher join course_arrange on teacher.Teacher_ID = course_arrange.Teacher_ID group by teacher.first_name, teacher.last_name
+extra gold: SELECT teacher.first_name , teacher.last_name , count(*) FROM course_arrange JOIN teacher ON course_arrange.Teacher_ID = teacher.Teacher_ID GROUP BY teacher.first_name , teacher.last_name
+
+extra pred: select distinct s.semester_id from Semesters s join Student_Enrolment se on s.semester_id = se.semester_id join Degree_Programs dp on se.degree_program_id = dp.degree_program_id where dp.is_bachelor = true intersect select distinct s.semester_id from Semesters s join Student_Enrolment se on s.semester_id = se.semester_id join Degree_Programs dp on se.degree_program_id = dp.degree_program_id where dp.is_master = true
+extra gold: SELECT DISTINCT Student_Enrolment.semester_id FROM Degree_Programs JOIN Student_Enrolment ON Degree_Programs.degree_program_id = Student_Enrolment.degree_program_id WHERE Degree_Programs.is_master = "T" INTERSECT SELECT DISTINCT Student_Enrolment.semester_id FROM Degree_Programs JOIN Student_Enrolment ON Degree_Programs.degree_program_id = Student_Enrolment.degree_program_id WHERE Degree_Programs.is_bachelor = "T"
+
+hard pred: select Ref_Template_Types.category_cipher from Ref_Template_Types left join Templates on Ref_Template_Types.category_cipher = Templates.template_kind_codification left join Documents on Templates.Template_ID = Documents.Template_ID where Documents.Template_ID is null
+hard gold: SELECT Templates.template_kind_codification FROM Templates EXCEPT SELECT Templates.template_kind_codification FROM Templates JOIN Documents ON Templates.Template_ID = Documents.Template_ID
+
+hard pred: select m.winner_name from matches m inner join players p on m.winner_id = p.player_id inner join rankings r on p.player_id = r.player_id where m.tourney_name = "Australian Open" order by m.winner_rank desc limit 1
+hard gold: SELECT winner_name FROM matches WHERE tourney_name = 'Australian Open' ORDER BY winner_rank_points DESC LIMIT 1
+
+hard pred: select Name from stadium where Stadium_ID not in (select Stadium_ID from concert where Year = "2014")
+hard gold: SELECT name FROM stadium EXCEPT SELECT T2.name FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id = T2.stadium_id WHERE T1.year = 2014
+
+hard pred: select Ref_Template_Types.Template_Type_Code from Ref_Template_Types where not EXISTS (select 1 from Templates inner join Documents on Templates.Template_ID = Documents.Template_ID where Templates.Template_Type_Code = Ref_Template_Types.Template_Type_Code)
+hard gold: SELECT template_type_code FROM Templates EXCEPT SELECT template_type_code FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id = T2.template_id
+
+medium pred: select people.Name from poker_player inner join people on poker_player.People_ID = people.People_ID where poker_player.Earnings > 300000
+medium gold: SELECT T1.Name FROM people AS T1 JOIN poker_player AS T2 ON T1.People_ID = T2.People_ID WHERE T2.Earnings > 300000
+
+easy pred: select distinct Year from cars_data where Weight < 4000 and Weight > 3000
+easy gold: select distinct year from cars_data where weight between 3000 and 4000
+
+hard pred: select Students.first_name from Students left join Addresses on Students.permanent_address_id = Addresses.address_id where Addresses.country = "Haiti" or Students.cell_mobile_number = "09700166582"
+hard gold: select t1.first_name from students as t1 join addresses as t2 on t1.permanent_address_id = t2.address_id where t2.country = 'haiti' or t1.cell_mobile_number = '09700166582'
+
+medium pred: select count(*) from Highschooler inner join Friend on Highschooler.ID = Friend.student_id where Highschooler.name = "Kyle"
+medium gold: SELECT count(*) FROM Friend AS T1 JOIN Highschooler AS T2 ON T1.student_id = T2.id WHERE T2.name = "Kyle"
+
+medium pred: select Ref_Template_Types.Template_Type_Code, count(*) from Ref_Template_Types join Templates on Templates.Template_Type_Code = Ref_Template_Types.Template_Type_Code join Documents on Documents.Template_ID = Templates.Template_ID group by Ref_Template_Types.Template_Type_Code
+medium gold: SELECT T1.template_type_code , count(*) FROM Templates AS T1 JOIN Documents AS T2 ON T1.template_id = T2.template_id GROUP BY T1.template_type_code
+
+easy pred: select series_name, Package_Option from TV_Channel where series_name = "Sky Radio"
+easy gold: SELECT Package_Option FROM TV_Channel WHERE series_name = "Sky Radio"
+
+extra pred: select model_list.Model from model_list inner join car_makers on model_list.Maker = car_makers.Id inner join car_names on car_names.Model = model_list.Model inner join cars_data on cars_data.Id = car_names.MakeId where cars_data.Weight < 3500 and car_makers.Maker <> "ford"
+extra gold: SELECT DISTINCT T1.model FROM MODEL_LIST AS T1 JOIN CAR_NAMES AS T2 ON T1.Model = T2.Model JOIN CARS_DATA AS T3 ON T2.MakeId = T3.Id JOIN CAR_MAKERS AS T4 ON T1.Maker = T4.Id WHERE T3.weight < 3500 AND T4.FullName != 'Ford Motor Company'
+
+extra pred: select stadium.Name, stadium.Capacity from stadium join concert on concert.Stadium_ID = stadium.Stadium_ID where concert.Year > 2014 group by stadium.Stadium_ID having count(*) = (select max(concert_count) from (select count(*) as concert_count from concert where Year > 2014 group by Stadium_ID) subquery)
+extra gold: select t2.name , t2.capacity from concert as t1 join stadium as t2 on t1.stadium_id = t2.stadium_id where t1.year > 2014 group by t2.stadium_id order by count(*) desc limit 1
+
+easy pred: select Documents.Document_ID from Documents join Paragraphs on Documents.Document_ID = Paragraphs.Document_ID group by Documents.Document_ID having count(Paragraphs.Paragraph_ID) >= 3
+easy gold: SELECT document_id FROM Paragraphs GROUP BY document_id HAVING count(*) >= 3
+
+easy pred: select id from TV_Channel where Country in (select Country from TV_Channel group by Country having count(*) < 2)
+easy gold: SELECT id FROM tv_channel GROUP BY country HAVING count(*) < 2
+
+extra pred: select conductor.Name from conductor join orchestra on conductor.Conductor_ID = orchestra.Conductor_ID group by conductor.Conductor_ID having count(orchestra.Orchestra_ID) = (select min(cnt) from (select count(orchestra.Orchestra_ID) as cnt from orchestra group by orchestra.Conductor_ID))
+extra gold: SELECT T1.Name FROM conductor AS T1 JOIN orchestra AS T2 ON T1.Conductor_ID = T2.Conductor_ID GROUP BY T2.Conductor_ID ORDER BY COUNT(*) ASC LIMIT 1
+
+                     easy                 medium               hard                 extra                all                 
+count                8                    14                   6                    6                    34                  
+=====================   EXECUTION ACCURACY     =====================
+execution            0.875                1.000                0.667                0.500                0.824               
+
+====================== EXACT MATCHING ACCURACY =====================
+exact match          0.500                0.786                0.167                0.167                0.500               
+
+---------------------PARTIAL MATCHING ACCURACY----------------------
+select               0.875                1.000                1.000                0.500                0.917               
+select(no AGG)       0.875                1.000                1.000                0.500                0.917               
+where                0.500                1.000                0.500                1.000                0.769               
+where(no OP)         0.500                1.000                0.500                1.000                0.769               
+group(no Having)     1.000                1.000                0.000                1.000                1.000               
+group                0.500                1.000                0.000                1.000                0.800               
+order                1.000                1.000                0.000                0.000                1.000               
+and/or               1.000                1.000                0.833                0.833                0.939               
+IUEN                 0.000                0.000                0.000                0.000                0.000               
+keywords             0.857                1.000                0.500                1.000                0.909               
+---------------------- PARTIAL MATCHING RECALL ----------------------
+select               0.875                0.857                0.333                0.167                0.647               
+select(no AGG)       0.875                0.857                0.333                0.167                0.647               
+where                0.667                0.750                0.333                0.250                0.556               
+where(no OP)         0.667                0.750                0.333                0.250                0.556               
+group(no Having)     0.667                1.000                0.000                0.333                0.625               
+group                0.333                1.000                0.000                0.333                0.500               
+order                1.000                1.000                0.000                0.000                0.571               
+and/or               0.875                1.000                1.000                1.000                0.969               
+IUEN                 0.000                0.000                0.000                0.000                0.000               
+keywords             0.857                0.846                0.167                0.333                0.625               
+---------------------- PARTIAL MATCHING F1 --------------------------
+select               0.875                0.923                0.500                0.250                0.759               
+select(no AGG)       0.875                0.923                0.500                0.250                0.759               
+where                0.571                0.857                0.400                0.400                0.645               
+where(no OP)         0.571                0.857                0.400                0.400                0.645               
+group(no Having)     0.800                1.000                1.000                0.500                0.769               
+group                0.400                1.000                1.000                0.500                0.615               
+order                1.000                1.000                1.000                1.000                0.727               
+and/or               0.933                1.000                0.909                0.909                0.954               
+IUEN                 1.000                1.000                1.000                1.000                1.000               
+keywords             0.857                0.917                0.250                0.500                0.741               
+

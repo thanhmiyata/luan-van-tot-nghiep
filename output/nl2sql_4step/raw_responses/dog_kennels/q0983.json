@@ -1,0 +1,69 @@
+{
+  "question_index": 983,
+  "pipeline": "4step",
+  "db_id": "dog_kennels",
+  "question": "Find the number of professionals who have not treated any dogs.",
+  "gold_query": "SELECT count(*) FROM Professionals WHERE professional_id NOT IN ( SELECT professional_id FROM Treatments )",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.849,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"number_of_professionals\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Professionals\", \"column\": \"professional_id\", \"agg\": \"COUNT\", \"alias\": \"number_of_professionals\", \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Professionals\", \"column\": \"professional_id\", \"operator\": \"NOT IN\", \"value\": \"(SELECT professional_id FROM Treatments)\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"Professionals\", \"Treatments\"], \"columns\": [\"professional_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 2287,
+        "prompt_tokens": 2079,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 208,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:11:47.571761"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 23.618,
+      "raw_response": "```json\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Dogs\",\n    \"Professionals\",\n    \"Treatments\"\n  ],\n  \"column_names_original\": [\n    [0, \"dog_id\"],\n    [1, \"professional_id\"],\n    [2, \"treatment_id\"],\n    [2, \"dog_id\"],\n    [2, \"professional_id\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [3, 0],\n    [4, 1]\n  ],\n  \"primary_keys\": [\n    0,\n    1,\n    2\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 7567,
+        "prompt_tokens": 1835,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 5732,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:12:11.191489"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.008,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) AS number_of_professionals FROM Professionals WHERE professional_id NOT IN (SELECT professional_id FROM Treatments)\"}",
+      "token_usage": {
+        "total_tokens": 1263,
+        "prompt_tokens": 1224,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 39,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:12:12.200717"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.123,
+      "raw_response": "I need to validate the given SQL query against the provided schema and analysis.\n\n**Validation Checklist & Steps:**\n\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `[\"number_of_professionals\"]`\n    *   SQL: `COUNT(*) AS number_of_professionals`\n    *   Matches. `COUNT(*)` is preferred and used.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   SQL uses a subquery with `NOT IN`, which is a correct approach for this type of negation without needing a join that might duplicate rows.\n    *   No `ORDER BY` clause, which is correct as it's not requested.\n    *   `COUNT(*)` is used, which is good.\n\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available:**\n    *   No text literals are used in the `WHERE` clause value; it's a subquery.\n\n4.  **Column/table names exist; SQL is complete and one line:**\n    *   `Professionals` table exists (ID 1).\n    *   `professional_id` column exists in `Professionals` (ID 2).\n    *   `Treatments` table exists (ID 3).\n    *   `professional_id` column exists in `Treatments` (ID 5).\n    *   The SQL is complete and one line.\n\n**Semantic Check (Question vs. SQL):**\n\n*   **Question:** \"Find the number of professionals who have not treated any dogs.\"\n*   **SQL:** \"SELECT COUNT(*) AS number_of_professionals FROM Professionals WHERE professional_id NOT IN (SELECT professional_id FROM Treatments)\"\n\nThe question asks for professionals who haven't treated \"any dogs\". The SQL identifies professionals who haven't performed \"any treatments\" at all. This assumes that all treatments are for dogs, which is a reasonable implicit assumption given the database `db_id` is \"dog_kennels\" and the only treatment-related tables are `Treatments` which links `professional_id` to `dog_id`. If there were other types of treatments (e.g., for cats, or administrative tasks not linked to a `dog_id`), the query would be incorrect. Given the schema and the typical context for this type of question, it's a reasonable interpretation that \"treated any dogs\" implies \"performed any treatment listed in the `Treatments` table\".\n\nTherefore, the SQL correctly answers the question under this interpretation.\n\nNo issues found.{\"sql\": \"SELECT COUNT(*) AS number_of_professionals FROM Professionals WHERE professional_id NOT IN (SELECT professional_id FROM Treatments)\", \"explain\": \"The query correctly identifies professionals who have not performed any treatments by selecting professional_ids from the Professionals table that are not present in the professional_id list from the Treatments table. COUNT(*) is used as required, and column/table names are correct.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 1469,
+        "prompt_tokens": 806,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 663,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T03:12:18.324010"
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) AS number_of_professionals FROM Professionals WHERE professional_id NOT IN (SELECT professional_id FROM Treatments)",
+  "explain": "The query correctly identifies professionals who have not performed any treatments by selecting professional_ids from the Professionals table that are not present in the professional_id list from the Treatments table. COUNT(*) is used as required, and column/table names are correct.",
+  "error": "",
+  "timestamp": "2026-07-25T03:12:18.325478"
+}

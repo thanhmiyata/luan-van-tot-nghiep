@@ -1,0 +1,355 @@
+{
+  "question_index": 36,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "concert_singer",
+  "question": "What are the names of the singers and number of concerts for each person?",
+  "gold_query": "SELECT T2.name ,  count(*) FROM singer_in_concert AS T1 JOIN singer AS T2 ON T1.singer_id  =  T2.singer_id GROUP BY T2.singer_id",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT|LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\", \"number of concerts\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"singer\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"concert\", \"column\": \"concert_ID\", \"agg\": \"COUNT\", \"alias\": \"number of concerts\", \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"singer\", \"column\": \"Name\"}],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"singer\", \"to_table\": \"singer_in_concert\", \"reason\": \"Singer information needed with concert count\"},\n    {\"from_table\": \"singer_in_concert\", \"to_table\": \"concert\", \"reason\": \"Link concerts back to the singer\"}\n  ],\n  \"entities\": {\"tables\": [\"singer\", \"concert\", \"singer_in_concert\"], \"columns\": [\"Name\", \"concert_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:57:02.152560"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"concert_singer\",\n  \"table_names_original\": [\n    \"singer\",\n    \"concert\",\n    \"singer_in_concert\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Singer_ID\"],\n    [0, \"Name\"],\n    [1, \"concert_ID\"],\n    [2, \"concert_ID\"],\n    [2, \"Singer_ID\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [4, 1],\n    [3, 2]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    4\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\"Joe Sharp\", \"Timbaland\", \"Justin Brown\", \"Rose White\"],\n    [],\n    [],\n    [\"2\", \"3\", \"5\", \"6\"]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:57:02.155088"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:57:02.156782"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT s.Name, COUNT(c.concert_ID) AS \\\"number of concerts\\\" FROM singer s JOIN singer_in_concert sic ON s.Singer_ID = sic.Singer_ID JOIN concert c ON sic.concert_ID = c.concert_ID GROUP BY s.Name\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:57:02.157913",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s.name",
+                "count(c.concert_id) as \"number of concerts\""
+              ],
+              "tables": [
+                "concert",
+                "singer",
+                "singer_in_concert"
+              ],
+              "joins": [
+                "join concert as c on sic.concert_id = c.concert_id",
+                "join singer_in_concert as sic on s.singer_id = sic.singer_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s.name"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert, singer_in_concert",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s.name",
+                "count(c.concert_id) as \"number of concerts\""
+              ],
+              "tables": [
+                "concert",
+                "singer",
+                "singer_in_concert"
+              ],
+              "joins": [
+                "join concert as c on sic.concert_id = c.concert_id",
+                "join singer_in_concert as sic on s.singer_id = sic.singer_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s.name"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert, singer_in_concert",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:57:02.157924",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s.name",
+                "count(c.concert_id) as \"number of concerts\""
+              ],
+              "tables": [
+                "concert",
+                "singer",
+                "singer_in_concert"
+              ],
+              "joins": [
+                "join concert as c on sic.concert_id = c.concert_id",
+                "join singer_in_concert as sic on s.singer_id = sic.singer_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s.name"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert, singer_in_concert",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "s.name",
+                "count(c.concert_id) as \"number of concerts\""
+              ],
+              "tables": [
+                "concert",
+                "singer",
+                "singer_in_concert"
+              ],
+              "joins": [
+                "join concert as c on sic.concert_id = c.concert_id",
+                "join singer_in_concert as sic on s.singer_id = sic.singer_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by s.name"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert, singer_in_concert",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:57:02.166369"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 15.605,
+      "raw_response": "{\"sql\": \"SELECT s.Name, COUNT(*) FROM singer AS s JOIN singer_in_concert AS sic ON s.Singer_ID = sic.Singer_ID GROUP BY s.Singer_ID\", \"explain\": \"Removed unnecessary JOIN on the concert table and simplified COUNT(c.concert_ID) to",
+      "token_usage": {
+        "total_tokens": 4609,
+        "prompt_tokens": 2565,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:57:17.788284",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "s.name",
+            "count(c.concert_id) as \"number of concerts\""
+          ],
+          "tables": [
+            "concert",
+            "singer",
+            "singer_in_concert"
+          ],
+          "joins": [
+            "join concert as c on sic.concert_id = c.concert_id",
+            "join singer_in_concert as sic on s.singer_id = sic.singer_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by s.name"
+          ],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: concert, singer_in_concert",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "s.name",
+            "count(c.concert_id) as \"number of concerts\""
+          ],
+          "tables": [
+            "concert",
+            "singer",
+            "singer_in_concert"
+          ],
+          "joins": [
+            "join concert as c on sic.concert_id = c.concert_id",
+            "join singer_in_concert as sic on s.singer_id = sic.singer_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by s.name"
+          ],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: concert, singer_in_concert",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT s.Name, COUNT(c.concert_ID) AS \"number of concerts\" FROM singer AS s JOIN singer_in_concert AS sic ON s.Singer_ID = sic.Singer_ID JOIN concert AS c ON sic.concert_ID = c.concert_ID GROUP BY s.Name",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T02:57:17.804691"
+}

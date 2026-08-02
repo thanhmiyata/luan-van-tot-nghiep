@@ -1,0 +1,69 @@
+{
+  "question_index": 376,
+  "pipeline": "4step",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Return the id of the document with the fewest paragraphs.",
+  "gold_query": "SELECT document_id FROM Paragraphs GROUP BY document_id ORDER BY count(*) ASC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 1.976,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Document_ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Paragraphs\", \"column\": \"Document_ID\"}],\n  \"order_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\", \"direction\": \"ASC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"to count paragraphs per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1500,
+        "prompt_tokens": 1284,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 216,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:49:24.536638"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 34.453,
+      "raw_response": "```json\n{\n  \"db_id\": \"cre_Doc_Template_Mgt\",\n  \"table_names_original\": [\n    \"Documents\",\n    \"Paragraphs\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Document_ID\"],\n    [0, \"Template_ID\"],\n    [1, \"Document_ID\"],\n    [1, \"Paragraph_Text\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [4, 2]\n  ],\n  \"primary_keys\": [\n    2,\n    3\n  ],\n  \"column_sample_values\": []\n}\n```",
+      "token_usage": {
+        "total_tokens": 9230,
+        "prompt_tokens": 866,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 8364,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:49:58.991378"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.019,
+      "raw_response": "{\"sql\": \"SELECT d.Document_ID FROM Documents d JOIN Paragraphs p ON d.Document_ID = p.Document_ID GROUP BY d.Document_ID ORDER BY COUNT(*) ASC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1327,
+        "prompt_tokens": 1240,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 87,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:50:01.012166"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.528,
+      "raw_response": "The user wants me to act as a Final Validator. I need to go through the provided SQL, question, schema, and analysis, and apply the 4-step validation checklist.\n\n**Validation Steps:**\n\n1.  **SELECT matches `expected_output_fields` (content/order):**\n    *   `expected_output_fields`: `[\"Document_ID\"]`\n    *   `SELECT` clause: `d.Document_ID`\n    *   Match: Yes.\n\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   Joins: `Documents d JOIN Paragraphs p ON d.Document_ID = p.Document_ID`. This join is necessary to count paragraphs per document. The join condition `d.Document_ID = p.Document_ID` is correct (PK/FK: `Documents.Document_ID` is PK, `Paragraphs.Document_ID` is FK).\n    *   `GROUP BY`: `d.Document_ID`. Correct, as we are counting paragraphs *per document*.\n    *   `ORDER BY`: `ORDER BY COUNT(*) ASC LIMIT 1`. The question asks for \"fewest paragraphs,\" so ordering by `COUNT(*)` in ascending order and taking `LIMIT 1` is correct. `COUNT(*)` is preferred here. No issues with duplicate rows as `Paragraphs` are distinct rows for each document.\n\n3.  **Text literals match real values from `column_sample_values` (exact casing/spelling) when available; Column/table names exist; SQL is complete and one line.**\n    *   All column and table names (`Documents`, `Paragraphs`, `Document_ID`) exist in the schema.\n    *   No text literals are used in `WHERE` clauses, so no sample value checking needed.\n    *   SQL is complete and on one line.\n\n4.  **No unnecessary ORDER BY; Every name in ORDER BY is a real column or an alias defined in SELECT; ordering by count uses ORDER BY count(*) directly.**\n    *   `ORDER BY COUNT(*) ASC LIMIT 1` is necessary as per the question \"fewest paragraphs\".\n    *   `COUNT(*)` is an aggregate function and can be used directly in `ORDER BY`.\n\n**Conclusion:**\nThe provided SQL looks correct and adheres to all validation rules. No changes are needed.```json\n{\n \"sql\": \"SELECT d.Document_ID FROM Documents d JOIN Paragraphs p ON d.Document_ID = p.Document_ID GROUP BY d.Document_ID ORDER BY COUNT(*) ASC LIMIT 1\",\n \"explain\": \"The SQL correctly identifies the Document_ID by joining Documents and Paragraphs, groups by Document_ID, counts the paragraphs for each document, and orders them in ascending order to find the one with the fewest paragraphs, then limits to 1.\",\n \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 1467,
+        "prompt_tokens": 838,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 629,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-25T04:50:04.541393"
+    }
+  ],
+  "final_sql": "SELECT d.Document_ID FROM Documents d JOIN Paragraphs p ON d.Document_ID = p.Document_ID GROUP BY d.Document_ID ORDER BY COUNT(*) ASC LIMIT 1",
+  "explain": "The SQL correctly identifies the Document_ID by joining Documents and Paragraphs, groups by Document_ID, counts the paragraphs for each document, and orders them in ascending order to find the one with the fewest paragraphs, then limits to 1.",
+  "error": "",
+  "timestamp": "2026-07-25T04:50:04.543087"
+}

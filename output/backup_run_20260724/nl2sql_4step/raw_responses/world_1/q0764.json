@@ -1,0 +1,69 @@
+{
+  "question_index": 764,
+  "pipeline": "4step",
+  "db_id": "world_1",
+  "question": "What is average life expectancy in the countries where English is not the official language?",
+  "gold_query": "SELECT avg(LifeExpectancy) FROM country WHERE Name NOT IN (SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T2.Language  =  \"English\" AND T2.IsOfficial  =  \"T\")",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 3.407,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"LifeExpectancy\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"LifeExpectancy\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"<>\", \"value\": \"T\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"=\", \"value\": \"English\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"to filter countries by language\"},\n    {\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"to filter countries by whether English is an official language\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"LifeExpectancy\", \"IsOfficial\", \"Language\"], \"values\": [\"English\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1267,
+        "prompt_tokens": 969,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 298,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:40:29.278580"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 8.817,
+      "raw_response": "```\n{\n    \"db_id\": \"world_1\",\n    \"table_names_original\": [\n        \"country\",\n        \"countrylanguage\"\n    ],\n    \"column_names_original\": [\n        [0, \"Code\"],\n        [0, \"LifeExpectancy\"],\n        [1, \"CountryCode\"],\n        [1, \"Language\"],\n        [1, \"IsOfficial\"]\n    ],\n    \"column_types\": [\n        \"text\",\n        \"number\",\n        \"text\",\n        \"text\",\n        \"text\"\n    ],\n    \"foreign_keys\": [\n        [2, 0]\n    ],\n    \"primary_keys\": [\n        0,\n        2\n    ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 2702,
+        "prompt_tokens": 869,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1833,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:40:38.108567"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.5,
+      "raw_response": "{\"sql\": \"SELECT AVG(country.LifeExpectancy) FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language = 'English' AND countrylanguage.IsOfficial <> 'T'\"}",
+      "token_usage": {
+        "total_tokens": 1075,
+        "prompt_tokens": 965,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 110,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:40:39.621420"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.569,
+      "raw_response": "I will validate the provided SQL against the checklist.\n1. **SELECT matches expected_output_fields:** The `expected_output_fields` is `[\"LifeExpectancy\"]` with `AGG` as `AVG`. The SQL has `SELECT AVG(country.LifeExpectancy)`. This matches. `COUNT uses DISTINCT` is not applicable here as it's an `AVG` aggregate.\n2. **No needless ORDER BY; joins minimal and on correct PK/FK:**\n    *   **Joins:** `country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode` is necessary to link `country` (for `LifeExpectancy`) with `countrylanguage` (for `Language` and `IsOfficial` filters). The join condition `country.Code = countrylanguage.CountryCode` is correct based on the schema's foreign key `[[2,0]]` meaning `countrylanguage.CountryCode` references `country.Code`. The joins are minimal.\n    *   **ORDER BY:** There is no `ORDER BY` clause, and the `Analysis` confirms `order_by: []`, so this is correct.\n3. **Column/table names exist; SQL is complete and one line:**\n    *   **Names exist:**\n        *   `country`: table exists.\n        *   `countrylanguage`: table exists.\n        *   `country.LifeExpectancy`: column exists (`LifeExpectancy` for `country`).\n        *   `country.Code`: column exists (`Code` for `country`).\n        *   `countrylanguage.CountryCode`: column exists (`CountryCode` for `countrylanguage`).\n        *   `countrylanguage.Language`: column exists (`Language` for `countrylanguage`).\n        *   `countrylanguage.IsOfficial`: column exists (`IsOfficial` for `countrylanguage`).\n    *   **SQL complete and one line:** The SQL is complete and on one line.\n4. **Fix issues and return corrected SQL plus brief explain; surface error if unfixable:**\n    *   No issues found. The SQL looks correct and adheres to all validation rules.{\n \"sql\": \"SELECT AVG(T1.LifeExpectancy) FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code = T2.CountryCode WHERE T2.Language = 'English' AND T2.IsOfficial <> 'T'\",\n \"explain\": \"The original query was almost perfect. Added table aliases for brevity and clarity, which is a common practice and good style. The original logic for selecting the average life expectancy from countries where English is not an official language remains correct.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1347,
+        "prompt_tokens": 783,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 564,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-23T23:40:43.203096"
+    }
+  ],
+  "final_sql": "SELECT AVG(T1.LifeExpectancy) FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code = T2.CountryCode WHERE T2.Language = 'English' AND T2.IsOfficial <> 'T'",
+  "explain": "The original query was almost perfect. Added table aliases for brevity and clarity, which is a common practice and good style. The original logic for selecting the average life expectancy from countries where English is not an official language remains correct.",
+  "error": "",
+  "timestamp": "2026-07-23T23:40:43.204869"
+}

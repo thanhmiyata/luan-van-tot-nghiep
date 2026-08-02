@@ -1,0 +1,405 @@
+{
+  "question_index": 176,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "car_1",
+  "question": "What are the ids and makers of all car makers that produce at least 2 models and make more than 3 cars?",
+  "gold_query": "SELECT T1.Id ,  T1.Maker FROM CAR_MAKERS AS T1 JOIN MODEL_LIST AS T2 ON T1.Id  =  T2.Maker GROUP BY T1.Id HAVING count(*)  >=  2 INTERSECT SELECT T1.Id ,  T1.Maker FROM CAR_MAKERS AS T1 JOIN MODEL_LIST AS T2 ON T1.Id  =  T2.Maker JOIN CAR_NAMES AS T3 ON T2.model  =  T3.model GROUP BY T1.Id HAVING count(*)  >  3;",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Id\", \"Maker\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"car_makers\", \"model_list\", \"car_names\"],\n  \"required_columns\": [\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"car_makers\", \"column\": \"Maker\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"model_list\", \"column\": \"Maker\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_names\", \"column\": \"Make\", \"purpose\": \"JOIN\"},\n    {\"table\": \"model_list\", \"column\": \"ModelId\", \"purpose\": \"GROUP\"},\n    {\"table\": \"car_names\", \"column\": \"MakeId\", \"purpose\": \"GROUP\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"car_makers\", \"column\": \"Maker\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Car makers with at least 2 models and more than 3 cars.\"}\n  ],\n  \"group_by\": [\n    {\"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"Id\"},\n    {\"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"Maker\"}\n  ],\n  \"having\": [\n    {\"branch_id\": \"b1\", \"table\": \"model_list\", \"column\": \"ModelId\", \"agg\": \"COUNT\", \"operator\": \">=\", \"value\": 2},\n    {\"branch_id\": \"b1\", \"table\": \"car_names\", \"column\": \"MakeId\", \"agg\": \"COUNT\", \"operator\": \">\", \"value\": 3}\n  ],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"model_list\", \"to_table\": \"car_makers\", \"reason\": \"Model list links to car makers\"},\n    {\"from_table\": \"car_names\", \"to_table\": \"model_list\", \"reason\": \"Car names provides car counts\"}\n  ],\n  \"entities\": {\"tables\": [\"car_makers\", \"model_list\", \"car_names\"], \"columns\": [\"Id\", \"Maker\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:32:32.782706"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"car_makers\", \"model_list\", \"car_names\"], \"column_names_original\": [[\"car_makers\", \"Id\"], [\"car_makers\", \"Maker\"], [\"model_list\", \"ModelId\"], [\"model_list\", \"Maker\"], [\"model_list\", \"Model\"], [\"car_names\", \"MakeId\"], [\"car_names\", \"Model\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:32:32.786553"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:32:32.787948"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT car_makers.Id, car_makers.Maker FROM car_makers JOIN model_list ON model_list.Maker = car_makers.Id JOIN car_names ON car_names.Model = model_list.Model GROUP BY car_makers.Id, car_makers.Maker HAVING COUNT(DISTINCT model_list.ModelId) >= 2 AND COUNT(car_names.MakeId) > 3\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:32:32.788979",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.id",
+                "car_makers.maker"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "join car_names on car_names.model = model_list.model",
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by car_makers.id, car_makers.maker"
+              ],
+              "having": [
+                "having count(distinct model_list.modelid) >= 2 and count(car_names.makeid) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.id",
+                "car_makers.maker"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "join car_names on car_names.model = model_list.model",
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by car_makers.id, car_makers.maker"
+              ],
+              "having": [
+                "having count(distinct model_list.modelid) >= 2 and count(car_names.makeid) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:32:32.788988",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.id",
+                "car_makers.maker"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "join car_names on car_names.model = model_list.model",
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by car_makers.id, car_makers.maker"
+              ],
+              "having": [
+                "having count(distinct model_list.modelid) >= 2 and count(car_names.makeid) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "car_makers.id",
+                "car_makers.maker"
+              ],
+              "tables": [
+                "car_makers",
+                "car_names",
+                "model_list"
+              ],
+              "joins": [
+                "join car_names on car_names.model = model_list.model",
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by car_makers.id, car_makers.maker"
+              ],
+              "having": [
+                "having count(distinct model_list.modelid) >= 2 and count(car_names.makeid) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.659,
+      "raw_response": "{\"sql\": \"SELECT car_makers.Id, car_makers.Maker FROM car_makers JOIN model_list ON model_list.Maker = car_makers.Id JOIN car_names ON car_names.Model = model_list.Model GROUP BY car_makers.Id, car_makers.Maker HAVING COUNT(DISTINCT model_list.ModelId) >= 2 AND COUNT(car_names.MakeId) > 3\", \"selected_candidate\": \"direct\", \"notes\": \"Both Direct and Planned SQL have the same valid syntax and match the intended query using required joins and conditions. Both pass the deterministic checks and semantic reports with signatures that align, supporting the question evidence. No changes are needed.\", \"diagnostics\": []}",
+      "token_usage": {
+        "total_tokens": 3360,
+        "prompt_tokens": 3208,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 152,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:32:34.470449",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "car_makers.id",
+            "car_makers.maker"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "model_list"
+          ],
+          "joins": [
+            "join car_names on car_names.model = model_list.model",
+            "join model_list on model_list.maker = car_makers.id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by car_makers.id, car_makers.maker"
+          ],
+          "having": [
+            "having count(distinct model_list.modelid) >= 2 and count(car_names.makeid) > 3"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.735,
+      "raw_response": "{\n  \"sql\": \"SELECT car_makers.Id, car_makers.Maker FROM car_makers JOIN model_list ON model_list.Maker = car_makers.Id JOIN car_names ON car_names.Model = model_list.Model GROUP BY car_makers.Id, car_makers.Maker HAVING COUNT(DISTINCT model_list.ModelId) >= 2 AND COUNT(car_names.MakeId) > 3\",\n  \"explain\": \"The SQL is valid with correct join conditions, grouping, and having clauses. It was confirmed by both deterministic and semantic constraint reports without any violations.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3043,
+        "prompt_tokens": 2907,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 136,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:32:36.233441",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "car_makers.id",
+            "car_makers.maker"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "model_list"
+          ],
+          "joins": [
+            "join car_names on car_names.model = model_list.model",
+            "join model_list on model_list.maker = car_makers.id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by car_makers.id, car_makers.maker"
+          ],
+          "having": [
+            "having count(distinct model_list.modelid) >= 2 and count(car_names.makeid) > 3"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "car_makers.id",
+            "car_makers.maker"
+          ],
+          "tables": [
+            "car_makers",
+            "car_names",
+            "model_list"
+          ],
+          "joins": [
+            "join car_names on car_names.model = model_list.model",
+            "join model_list on model_list.maker = car_makers.id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by car_makers.id, car_makers.maker"
+          ],
+          "having": [
+            "having count(distinct model_list.modelid) >= 2 and count(car_names.makeid) > 3"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT car_makers.Id, car_makers.Maker FROM car_makers JOIN model_list ON model_list.Maker = car_makers.Id JOIN car_names ON car_names.Model = model_list.Model GROUP BY car_makers.Id, car_makers.Maker HAVING COUNT(DISTINCT model_list.ModelId) >= 2 AND COUNT(car_names.MakeId) > 3",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:32:36.249067"
+}

@@ -1,0 +1,258 @@
+{
+  "question_index": 598,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "tvshow",
+  "question": "How many different series and contents are listed in the TV Channel table?",
+  "gold_query": "SELECT count(DISTINCT series_name) ,  count(DISTINCT content) FROM TV_Channel;",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"COUNT(series_name)\", \"COUNT(Content)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"TV_Channel\", \"column\": \"series_name\", \"agg\": \"COUNT_DISTINCT\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"TV_Channel\", \"column\": \"Content\", \"agg\": \"COUNT_DISTINCT\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"TV_Channel\"], \"columns\": [\"series_name\", \"Content\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:16:26.337313"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: The user wants a filtered schema. I need to identify the tables and columns required by the question and the provided analysis.\n1.  **Identify required tables:** The `Analysis` section lists `TV_Channel` in `entities.tables` and all output columns (`series_name`, `Content`) are from `TV_Channel`. Therefore, only `TV_Channel` is needed.\n2.  **Identify required columns:**\n    *   `series_name` from `TV_Channel` (output field).\n    *   `Content` from `TV_Channel` (output field).\n    *   `id` from `TV_Channel` (primary key, essential for schema integrity, even if not directly used in the query's select clause).\n3.  **Map original column indices:**\n    *   `TV_Channel` (table index 0) has columns:\n        *   `id`: original global index 1\n        *   `series_name`: original global index 2\n        *   `Content`: original global index 5\n    *   The special `*` column has original global index -1 (or 0, depending on interpretation, but usually -1 is explicit for `*` and then 0 for the first actual column, but in this schema, it's 0 for `*` and 1 for `TV_Channel.id`). Let's follow the schema's `[-1,\"*\"]` pattern where `*` is at index 0 in the `column_names_original` array.\n4.  **Filter `table_names_original`:** Keep only `TV_Channel`.\n5.  **Filter `column_names_original`:** Keep `[-1,\"*\"]`, `[0,\"id\"]`, `[0,\"series_name\"]`, `[0,\"Content\"]`.\n6.  **Filter `column_types`:** Keep the types corresponding to the selected columns: `text` (for `*`), `text` (for `id`), `text` (for `series_name`), `text` (for `Content`).\n7.  **Filter `foreign_keys`:** The analysis shows `join_hints: []`, meaning no joins are needed. The original foreign keys connect `TV_series` and `Cartoon` to `TV_Channel`. Since `TV_series` and `Cartoon` are not needed, no foreign keys are relevant.\n8.  **Filter `primary_keys`:** Only `TV_Channel.id` (original global index 1) is a primary key for a kept table.\n9.  **Filter `column_sample_values`:** Extract the sample values corresponding to the kept columns in their new order.\n\nConstructing the final JSON based on these steps.```json\n{\"db_id\": \"tvshow\", \"table_names_original\": [\"TV_Channel\"], \"column_names_original\": [[\"-1\", \"*\"], [0, \"id\"], [0, \"series_name\"], [0, \"Content\"]], \"column_types\": [\"text\", \"text\", \"text\", \"text\"], \"foreign_keys\": [], \"primary_keys\": [1], \"column_sample_values\": [[], [\"700\", \"701\", \"703\", \"704\"], [\"Sky Radio\", \"Sky Music\", \"Music Box Italia\", \"MTV Hits\"], [\"music\"]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:16:26.338893"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:16:26.339779"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(DISTINCT series_name), COUNT(DISTINCT Content) FROM TV_Channel\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:16:26.340559",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/tvshow/tvshow.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct series_name)",
+                "count(distinct content)"
+              ],
+              "tables": [
+                "tv_channel"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/tvshow/tvshow.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct series_name)",
+                "count(distinct content)"
+              ],
+              "tables": [
+                "tv_channel"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:16:26.340565",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/tvshow/tvshow.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct series_name)",
+                "count(distinct content)"
+              ],
+              "tables": [
+                "tv_channel"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/tvshow/tvshow.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(distinct series_name)",
+                "count(distinct content)"
+              ],
+              "tables": [
+                "tv_channel"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Candidates are structurally equivalent and semantic audits pass; kept Direct.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:16:26.344093"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:16:26.345616",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/tvshow/tvshow.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(distinct series_name)",
+            "count(distinct content)"
+          ],
+          "tables": [
+            "tv_channel"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(DISTINCT series_name), COUNT(DISTINCT Content) FROM TV_Channel",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:16:26.347462"
+}

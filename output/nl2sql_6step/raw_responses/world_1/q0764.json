@@ -1,0 +1,379 @@
+{
+  "question_index": 764,
+  "pipeline": "6step",
+  "run_signature": "ac7fb161ec76b03cd381",
+  "db_id": "world_1",
+  "question": "What is average life expectancy in the countries where English is not the official language?",
+  "gold_query": "SELECT avg(LifeExpectancy) FROM country WHERE Name NOT IN (SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T2.Language  =  \"English\" AND T2.IsOfficial  =  \"T\")",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"LifeExpectancy\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"LifeExpectancy\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"FILTER\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"purpose\": \"FILTER\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"JOIN\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"LifeExpectancy\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"<>\", \"value\": \"English\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"English\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter for rows where English is not the official language\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"to filter countries based on language\"}\n  ],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"LifeExpectancy\", \"Language\"], \"values\": [\"English\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-27T01:09:46.160726"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have carefully reviewed the question, the original schema, and the analysis.\nThe goal is to filter the schema, preserving tables and columns necessary for the query, including PK/FK for joins.\n\n1.  **Identify required tables:** The `analysis.required_tables` clearly states `country` and `countrylanguage`.\n\n2.  **Identify required columns:**\n    *   **Output:** `country.LifeExpectancy` (from `analysis.expected_output_fields` and `analysis.output_fields_detailed`)\n    *   **Filters:** `countrylanguage.Language` (from `analysis.filters`) and `countrylanguage.IsOfficial` (from `analysis.required_columns` and my re-evaluation of the question \"where English is not the *official* language\").\n    *   **Join columns (PK/FK):**\n        *   `country.Code` (PK of `country`, referenced by `countrylanguage.CountryCode`, used in `analysis.required_columns`)\n        *   `countrylanguage.CountryCode` (FK to `country.Code`, used in `analysis.required_columns`)\n        *   `countrylanguage.Language` (part of composite PK for `countrylanguage` along with `CountryCode`, already listed as a filter)\n\n3.  **Construct the filtered schema:**\n    *   `table_names_original`: `country`, `countrylanguage`\n    *   `column_names_original`: Extract the original column entries `[table_id, column_name]` for the identified tables and columns.\n        *   `country` (index 2): `Code`, `LifeExpectancy`\n        *   `countrylanguage` (index 3): `CountryCode`, `Language`, `IsOfficial`\n\n    Mapping to `column_names_original` entries:\n    *   `[2,\"Code\"]`\n    *   `[2,\"LifeExpectancy\"]`\n    *   `[3,\"CountryCode\"]`\n    *   `[3,\"Language\"]`\n    *   `[3,\"IsOfficial\"]`\n\nThis set of tables and columns includes all necessary elements for the question's logic and the required joins.```json\n{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[2, \"Code\"], [2, \"LifeExpectancy\"], [3, \"CountryCode\"], [3, \"Language\"], [3, \"IsOfficial\"]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T01:09:46.164018"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 11.759,
+      "raw_response": "{\n  \"steps\": [\n    \"Join country table with countrylanguage table on countrylanguage.CountryCode = country.Code.\",\n    \"Filter for records where countrylanguage.Language = 'English' AND countrylanguage.IsOfficial = 'F'.\",\n    \"Calculate the average of country.LifeExpectancy.\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"country\",\n      \"column\": \"LifeExpectancy\",\n      \"agg\": \"AVG\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"country\",\n      \"to_table\": \"countrylanguage\",\n      \"condition\": \"countrylanguage.CountryCode = country.Code\"\n    }\n  ],\n  \"predicates\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"expression\": \"countrylanguage.Language = 'English' AND countrylanguage.IsOfficial = 'F'\"\n    }\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 5489,
+        "prompt_tokens": 2734,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2755,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T01:09:57.935641"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 1,
+      "elapsed_seconds": 1.341,
+      "raw_response": "{\n  \"direct_sql\": \"SELECT AVG(country.LifeExpectancy) FROM country WHERE country.Code NOT IN (SELECT countrylanguage.CountryCode FROM countrylanguage WHERE countrylanguage.Language = 'English' AND countrylanguage.IsOfficial = 'T')\",\n  \"planned_sql\": \"\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2315,
+        "prompt_tokens": 2240,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 75,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-27T01:09:59.295483",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(country.lifeexpectancy)"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where countrylanguage.language = 'english' and countrylanguage.isofficial = 't'",
+                "where not country.code in (select countrylanguage.countrycode from countrylanguage where countrylanguage.language = 'english' and countrylanguage.isofficial = 't')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(country.lifeexpectancy)"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where countrylanguage.language = 'english' and countrylanguage.isofficial = 't'",
+                "where not country.code in (select countrylanguage.countrycode from countrylanguage where countrylanguage.language = 'english' and countrylanguage.isofficial = 't')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 8.984,
+      "raw_response": "{\"direct_sql\": \"SELECT AVG(T1.LifeExpectancy) FROM country",
+      "token_usage": {
+        "total_tokens": 3672,
+        "prompt_tokens": 2908,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 764,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T01:10:08.300421",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(country.lifeexpectancy)"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where countrylanguage.language = 'english' and countrylanguage.isofficial = 't'",
+                "where not country.code in (select countrylanguage.countrycode from countrylanguage where countrylanguage.language = 'english' and countrylanguage.isofficial = 't')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(country.lifeexpectancy)"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where countrylanguage.language = 'english' and countrylanguage.isofficial = 't'",
+                "where not country.code in (select countrylanguage.countrycode from countrylanguage where countrylanguage.language = 'english' and countrylanguage.isofficial = 't')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.296,
+      "raw_response": "{\n  \"sql\": \"SELECT AVG(country.LifeExpectancy) FROM country WHERE NOT country.Code IN (SELECT countrylanguage.CountryCode FROM countrylanguage WHERE countrylanguage.Language = 'English' AND countrylanguage.IsOfficial = 'T')\",\n  \"selected_candidate\": \"direct\",\n  \"notes\": \"Preserved direct candidate as it correctly filters for countries where English is not an official language using a subquery and passes all checks.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 4793,
+        "prompt_tokens": 3341,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1452,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T01:10:15.626111",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(country.lifeexpectancy)"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [],
+          "where": [
+            "where countrylanguage.language = 'english' and countrylanguage.isofficial = 't'",
+            "where not country.code in (select countrylanguage.countrycode from countrylanguage where countrylanguage.language = 'english' and countrylanguage.isofficial = 't')"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.4,
+      "raw_response": "{\n  \"sql\": \"SELECT AVG(country.LifeExpectancy) FROM country WHERE NOT country.Code IN (SELECT countrylanguage.CountryCode FROM countrylanguage WHERE countrylanguage.Language = 'English' AND countrylanguage.IsOfficial = 'T')\",\n  \"explain\": \"Input SQL is valid and passes all deterministic and semantic checks.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3774,
+        "prompt_tokens": 2947,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 827,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-27T01:10:20.053306",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(country.lifeexpectancy)"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [],
+          "where": [
+            "where countrylanguage.language = 'english' and countrylanguage.isofficial = 't'",
+            "where not country.code in (select countrylanguage.countrycode from countrylanguage where countrylanguage.language = 'english' and countrylanguage.isofficial = 't')"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(country.lifeexpectancy)"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [],
+          "where": [
+            "where countrylanguage.language = 'english' and countrylanguage.isofficial = 't'",
+            "where not country.code in (select countrylanguage.countrycode from countrylanguage where countrylanguage.language = 'english' and countrylanguage.isofficial = 't')"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT AVG(country.LifeExpectancy) FROM country WHERE NOT country.Code IN (SELECT countrylanguage.CountryCode FROM countrylanguage WHERE countrylanguage.Language = 'English' AND countrylanguage.IsOfficial = 'T')",
+  "explain": "Input SQL is valid and passes all deterministic and semantic checks.",
+  "error": "",
+  "timestamp": "2026-07-27T01:10:20.067452",
+  "hybrid_seed_from_4step": {
+    "seed_root": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/output/nl2sql_4step",
+    "seeded_steps": [
+      "question_analysis",
+      "schema_selector"
+    ],
+    "source_question_index": 764,
+    "source_db_id": "world_1"
+  }
+}

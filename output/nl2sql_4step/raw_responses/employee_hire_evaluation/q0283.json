@@ -1,0 +1,69 @@
+{
+  "question_index": 283,
+  "pipeline": "4step",
+  "db_id": "employee_hire_evaluation",
+  "question": "What is the name of the shop that is hiring the largest number of employees?",
+  "gold_query": "SELECT t2.name FROM hiring AS t1 JOIN shop AS t2 ON t1.shop_id  =  t2.shop_id GROUP BY t1.shop_id ORDER BY count(*) DESC LIMIT 1",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 2.008,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"shop\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"shop\", \"column\": \"Shop_ID\"}],\n  \"order_by\": [{\"table\": \"shop\", \"column\": \"COUNT(Employee_ID)\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"hiring\", \"to_table\": \"shop\", \"reason\": \"Identify hiring per shop\"}],\n  \"entities\": {\"tables\": [\"hiring\", \"shop\"], \"columns\": [\"Shop_ID\", \"Name\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1377,
+        "prompt_tokens": 1161,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 216,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:38:38.696241"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 28.29,
+      "raw_response": "```json\n{\n  \"db_id\": \"employee_hire_evaluation\",\n  \"table_names_original\": [\n    null,\n    \"shop\",\n    \"hiring\",\n    null\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [1, \"Shop_ID\"],\n    [1, \"Name\"],\n    [2, \"Shop_ID\"],\n    [2, \"Employee_ID\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [11, 5]\n  ],\n  \"primary_keys\": [\n    5,\n    12\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\"FC Haka\", \"HJK\", \"FC Honka\", \"FC Inter\"],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 7660,
+        "prompt_tokens": 931,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 6729,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:39:06.987756"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 0.988,
+      "raw_response": "{\"sql\": \"SELECT shop.Name FROM shop JOIN hiring ON shop.Shop_ID = hiring.Shop_ID GROUP BY shop.Shop_ID ORDER BY COUNT(hiring.Employee_ID) DESC LIMIT 1\"}",
+      "token_usage": {
+        "total_tokens": 1135,
+        "prompt_tokens": 1087,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 48,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:39:07.977035"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.894,
+      "raw_response": "I need to act as a Final Validator and check the provided SQL against the given schema, question, and analysis.\nHere's the checklist:\n1.  **SELECT matches expected_output_fields (content/order):**\n    *   Expected: `[\"Name\"]`\n    *   SQL SELECT: `shop.Name`\n    *   Match: Yes.\n2.  **No needless ORDER BY; joins minimal and on correct PK/FK; COUNT(*) preferred unless joins duplicate rows:**\n    *   Joins: `JOIN hiring ON shop.Shop_ID = hiring.Shop_ID` - This is necessary to count employees per shop. `shop.Shop_ID` is PK, `hiring.Shop_ID` is FK. Correct.\n    *   ORDER BY: `ORDER BY COUNT(hiring.Employee_ID) DESC LIMIT 1` - This is necessary to find the shop with the *largest* number of employees. `COUNT(hiring.Employee_ID)` is fine, `COUNT(*)` would also work here since `Employee_ID` is a distinct identifier for each employee in the `hiring` table.\n    *   GROUP BY: `GROUP BY shop.Shop_ID` - Necessary to aggregate hiring counts per shop.\n    *   Minimal joins: Yes, only `hiring` is needed.\n3.  **Text literals match real values from column_sample_values (exact casing/spelling) when available:**\n    *   No text literals in the SQL.\n4.  **Column/table names exist; SQL is complete and one line.**\n    *   `shop`, `hiring`, `Shop_ID`, `Name`, `Employee_ID` all exist in the schema.\n    *   SQL is complete and one line.\n\nThe SQL looks correct and adheres to all validation rules.{\n \"sql\": \"SELECT T1.Name FROM shop AS T1 JOIN hiring AS T2 ON T1.Shop_ID = T2.Shop_ID GROUP BY T1.Shop_ID ORDER BY COUNT(T2.Employee_ID) DESC LIMIT 1\",\n \"explain\": \"The original SQL is correct and aligns with the expected output and analysis. Aliases were added for brevity and readability, which is a common practice.\",\n \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 1261,
+        "prompt_tokens": 766,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 495,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T13:39:10.872443"
+    }
+  ],
+  "final_sql": "SELECT T1.Name FROM shop AS T1 JOIN hiring AS T2 ON T1.Shop_ID = T2.Shop_ID GROUP BY T1.Shop_ID ORDER BY COUNT(T2.Employee_ID) DESC LIMIT 1",
+  "explain": "The original SQL is correct and aligns with the expected output and analysis. Aliases were added for brevity and readability, which is a common practice.",
+  "error": "",
+  "timestamp": "2026-07-24T13:39:10.873967"
+}

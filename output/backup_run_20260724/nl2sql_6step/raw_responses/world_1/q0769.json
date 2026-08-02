@@ -1,0 +1,97 @@
+{
+  "question_index": 769,
+  "pipeline": "6step",
+  "db_id": "world_1",
+  "question": "What is the official language used in the country the name of whose head of state is Beatrix.",
+  "gold_query": "SELECT T2.Language FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode WHERE T1.HeadOfState  =  \"Beatrix\" AND T2.IsOfficial  =  \"T\"",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 1,
+      "elapsed_seconds": 6.159,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Language\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"country\", \"column\": \"HeadOfState\", \"operator\": \"=\", \"value\": \"Beatrix\", \"value_type\": \"STRING\"},\n    {\"table\": \"countrylanguage\", \"column\": \"IsOfficial\", \"operator\": \"=\", \"value\": \"T\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"reason\": \"to match language with country's head of state\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"HeadOfState\", \"Language\", \"IsOfficial\"], \"values\": [\"Beatrix\"]},\n  \"self_join_hint\": false,\n  \"set_operation_type\": \"NONE\",\n  \"null_handling\": \"UNKNOWN\",\n  \"where_condition_type\": \"EQUALS\",\n  \"confidence\": 0.95\n}",
+      "token_usage": {
+        "total_tokens": 1930,
+        "prompt_tokens": 1424,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 506,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:00.817277"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 1,
+      "elapsed_seconds": 14.21,
+      "raw_response": "I need to filter the provided database schema based on the \"Analysis\" output.\nThe goal is to keep only the tables and columns strictly necessary to answer the question, while ensuring all Primary Key (PK) and Foreign Key (FK) relationships required for joins are preserved.\n\nHere's my thought process:\n\n1.  **Identify Required Tables:**\n    *   From `analysis.entities.tables`: `country`, `countrylanguage`.\n    *   From `analysis.output_fields_detailed`: `countrylanguage` (for `Language`).\n    *   From `analysis.filters`: `country` (for `HeadOfState`), `countrylanguage` (for `IsOfficial`).\n    *   All identified tables are: `country`, `countrylanguage`.\n\n2.  **Identify Required Columns:**\n    *   **`countrylanguage` table:**\n        *   `Language` (from `expected_output_fields`)\n        *   `IsOfficial` (from `filters`)\n        *   `CountryCode` (This is the FK to `country.Code` and is needed for the join. It's also the PK of `countrylanguage` along with `Language`, so it's `PK` `23` according to `primary_keys` array).\n    *   **`country` table:**\n        *   `HeadOfState` (from `filters`)\n        *   `Code` (This is the PK of `country` and is needed for the join. It's `PK` `8` according to `primary_keys` array).\n\n3.  **Identify PK/FK Relationships for Joins:**\n    *   The `join_hints` indicate a join between `country` and `countrylanguage`.\n    *   Looking at `foreign_keys`: `[[3,8],[23,8]]`\n        *   `[3,8]` means `column_names_original[3]` (`city.CountryCode`) references `column_names_original[8]` (`country.Code`). This isn't directly needed for *this* query, as `city` is not involved.\n        *   `[23,8]` means `column_names_original[23]` (`countrylanguage.CountryCode`) references `column_names_original[8]` (`country.Code`). This *is* needed.\n    *   So, `countrylanguage.CountryCode` (index 23) and `country.Code` (index 8) must be kept.\n\n4.  **Construct the Filtered Schema:**\n\n    *   **Tables:** `country`, `countrylanguage`\n    *   **Columns to keep (by original index):**\n        *   `countrylanguage`: `Language` (index 24), `IsOfficial` (index 25), `CountryCode` (index 23 - PK/FK)\n        *   `country`: `HeadOfState` (index 20), `Code` (index 8 - PK/FK)\n\n    *   Now, map these back to the `column_names_original` and `column_types` arrays.\n\n    *   **`column_names_original` and `column_types` for filtered schema:**\n        *   `country` (table index 2):\n            *   `Code` (index 8, type `text`) - PK, FK target\n            *   `HeadOfState` (index 20, type `text`) - filter\n        *   `countrylanguage` (table index 3):\n            *   `CountryCode` (index 23, type `text`) - PK, FK source\n            *   `Language` (index 24, type `text`) - output, PK\n            *   `IsOfficial` (index 25, type `text`) - filter\n\n    *   **`primary_keys`:**\n        *   `country.Code` (original index 8) is a PK.\n        *   `countrylanguage.CountryCode` (original index 23) is part of a composite PK (along with `Language`).\n        *   `countrylanguage.Language` (original index 24) is part of a composite PK.\n        *   Original `primary_keys`: `[1, 8, 23]`. The relevant ones are `8` and `23`. For composite PKs like `(CountryCode, Language)` in `countrylanguage`, both components should be listed if they are marked as PK. `24` (Language) is not explicitly listed in original `primary_keys` array, but `23` (CountryCode) is. Given `countrylanguage` typically has a composite PK of `(CountryCode, Language)`, I should ensure `Language` is also considered a PK component if `CountryCode` is. However, the `primary_keys` array only lists individual column indices. So I'll strictly follow the provided `primary_keys` array. `1` (city.ID) is not needed. So, `[8, 23]` would be the relevant PKs.\n\n    *   **`foreign_keys`:**\n        *   `[23, 8]` is the only relevant FK for this query.\n\n    *   **`table_names_original`:**\n        *   `country` (index 2)\n        *   `countrylanguage` (index 3)\n\n5.  **Assemble the final JSON:**\n\n    *   `db_id`: `world_1` (from original schema)\n    *   `table_names_original`: `[\"country\", \"countrylanguage\"]` (re-indexed based on filtered set, or keep original names if mapping by index)\n    *   `column_names_original`:\n        *   `country` (Table 0 in new schema, was Table 2): `Code`, `HeadOfState`\n        *   `countrylanguage` (Table 1 in new schema, was Table 3): `CountryCode`, `Language`, `IsOfficial`\n    *   `column_types`: Map types according to `column_names_original` order.\n    *   `foreign_keys`: Adjust indices based on new `column_names_original` and `table_names_original`.\n        *   Original: `[23, 8]` means `countrylanguage.CountryCode` references `country.Code`.\n        *   New mapping:\n            *   `country` is new table 0.\n            *   `countrylanguage` is new table 1.\n            *   `country.Code` is `[0, \"Code\"]` (new index 1).\n            *   `countrylanguage.CountryCode` is `[1, \"CountryCode\"]` (new index 3).\n            *   So, `[3, 1]`.\n    *   `primary_keys`: Adjust indices.\n        *   Original PKs `[1, 8, 23]`.\n        *   Relevant are `8` (`country.Code`) and `23` (`countrylanguage.CountryCode`).\n        *   New index for `country.Code` (was 8) is `1`.\n        *   New index for `countrylanguage.CountryCode` (was 23) is `3`.\n        *   So, `[1, 3]`.\n\nLet's refine the index mapping carefully for `column_names_original`, `column_types`, `foreign_keys`, and `primary_keys`.\n\n**Original Schema Breakdown:**\n`table_names_original`: `[\"city\", \"sqlite_sequence\", \"country\", \"countrylanguage\"]`\n`column_names_original`:\n`[[-1,\"*\"],`\n`[0,\"ID\"], [0,\"Name\"], [0,\"CountryCode\"], [0,\"District\"], [0,\"Population\"],` // city (idx 0)\n`[1,\"name\"], [1,\"seq\"],` // sqlite_sequence (idx 1)\n`[2,\"Code\"], [2,\"Name\"], [2,\"Continent\"], [2,\"Region\"], [2,\"SurfaceArea\"], [2,\"IndepYear\"], [2,\"Population\"], [2,\"LifeExpectancy\"], [2,\"GNP\"], [2,\"GNPOld\"], [2,\"LocalName\"], [2,\"GovernmentForm\"], [2,\"HeadOfState\"], [2,\"Capital\"], [2,\"Code2\"],` // country (idx 2)\n`[3,\"CountryCode\"], [3,\"Language\"], [3,\"IsOfficial\"], [3,\"Percentage\"]]` // countrylanguage (idx 3)\n\n`column_types`: `[\"text\",\"number\",\"text\",\"text\",\"text\",\"number\",\"text\",\"text\",\"text\",\"text\",\"text\",\"text\",\"number\",\"number\",\"number\",\"number\",\"number\",\"number\",\"text\",\"text\",\"text\",\"number\",\"text\",\"text\",\"text\",\"text\",\"number\"]`\n`foreign_keys`: `[[3,8],[23,8]]`\n`primary_keys`: `[1,8,23]`\n\n**Filtered Tables:**\n`country` (original table index 2)\n`countrylanguage` (original table index 3)\n\n**Filtered Columns and their original indices:**\n*   `country`:\n    *   `Code` (original index 8) - PK, FK target\n    *   `HeadOfState` (original index 20) - Filter\n*   `countrylanguage`:\n    *   `CountryCode` (original index 23) - PK, FK source\n    *   `Language` (original index 24) - Output\n    *   `IsOfficial` (original index 25) - Filter\n\n**Constructing the new schema:**\n\n1.  `db_id`: `world_1`\n\n2.  `table_names_original`:\n    `[\"country\", \"countrylanguage\"]`\n    (I'll keep the actual names as they are descriptive, and map the internal table IDs)\n    *   `country` will be new table ID `0`\n    *   `countrylanguage` will be new table ID `1`\n\n3.  `column_names_original` and `column_types`:\n    Create a new list of columns, maintaining the order of tables from `table_names_original` and then the order of columns within each table.\n    *   `[-1, \"*\"]` (Always included)\n    *   **For `country` (new table ID 0):**\n        *   `[0, \"Code\"]` (orig index 8) type `text`\n        *   `[0, \"HeadOfState\"]` (orig index 20) type `text`\n    *   **For `countrylanguage` (new table ID 1):**\n        *   `[1, \"CountryCode\"]` (orig index 23) type `text`\n        *   `[1, \"Language\"]` (orig index 24) type `text`\n        *   `[1, \"IsOfficial\"]` (orig index 25) type `text`\n\n    Let's map the new column indices:\n    *   `*`: new index 0\n    *   `country.Code`: new index 1 (orig index 8)\n    *   `country.HeadOfState`: new index 2 (orig index 20)\n    *   `countrylanguage.CountryCode`: new index 3 (orig index 23)\n    *   `countrylanguage.Language`: new index 4 (orig index 24)\n    *   `countrylanguage.IsOfficial`: new index 5 (orig index 25)\n\n    `column_names_original`: `[[-1, \"*\"], [0, \"Code\"], [0, \"HeadOfState\"], [1, \"CountryCode\"], [1, \"Language\"], [1, \"IsOfficial\"]]`\n    `column_types`: `[\"text\", \"text\", \"text\", \"text\", \"text\", \"text\"]` (extracted from original `column_types` using original indices: 8, 20, 23, 24, 25)\n\n4.  `primary_keys`:\n    Original PKs relevant: `8` (`country.Code`), `23` (`countrylanguage.CountryCode`).\n    Mapped to new indices: `1` (`country.Code`), `3` (`countrylanguage.CountryCode`).\n    `primary_keys`: `[1, 3]`\n\n5.  `foreign_keys`:\n    Original FK relevant: `[23, 8]` (`countrylanguage.CountryCode` references `country.Code`).\n    Mapped to new indices:\n    `23` (countrylanguage.CountryCode) -> new index `3`\n    `8` (country.Code) -> new index `1`\n    `foreign_keys`: `[[3, 1]]`\n\nThis seems correct and consistent.```json\n{\n  \"db_id\": \"world_1\",\n  \"table_names_original\": [\n    \"country\",\n    \"countrylanguage\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Code\"],\n    [0, \"HeadOfState\"],\n    [1, \"CountryCode\"],\n    [1, \"Language\"],\n    [1, \"IsOfficial\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [3, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ]\n}\n```",
+      "token_usage": {
+        "total_tokens": 3943,
+        "prompt_tokens": 919,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 3024,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:15.043999"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.421,
+      "raw_response": "{ \"steps\": [ \"1. Identify the minimal tables needed: - country - countrylanguage\", \"2. Determine the necessary join: - Join country with countrylanguage on country.Code = countrylanguage.CountryCode\", \"3. Apply the required filters: - Filter country.HeadOfState = 'Beatrix' - Filter countrylanguage.IsOfficial = 'T'\", \"4. Specify the SELECT clause based on expected output fields: - SELECT countrylanguage.Language\", \"5. GROUP BY and ORDER BY are not required as per the question and analysis.\", \"6. Set operations are not applicable as per the question and analysis.\" ] }",
+      "token_usage": {
+        "total_tokens": 1479,
+        "prompt_tokens": 1342,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 137,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:17.481652"
+    },
+    {
+      "step_name": "generate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.044,
+      "raw_response": "{\"sql\": \"SELECT countrylanguage.Language FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.HeadOfState = 'Beatrix' AND countrylanguage.IsOfficial = 'T'\"}",
+      "token_usage": {
+        "total_tokens": 1741,
+        "prompt_tokens": 1686,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 55,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:18.545608"
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.176,
+      "raw_response": "{\"sql\": \"SELECT countrylanguage.Language FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.HeadOfState = 'Beatrix' AND countrylanguage.IsOfficial = 'T'\", \"notes\": \"The initial SQL query already aligns perfectly with the expected output regarding selected fields and filters. No corrections were necessary as the SQL already selects the Language from the joined tables filtering for the HeadOfState 'Beatrix' and official languages, adhering to the plan.\", \"diagnostics\": [\"SQL fields match the expected output fields.\", \"The join between the necessary tables is correctly implemented.\", \"The required filters are applied without any unnecessary GROUP BY or ORDER BY clauses.\"]}",
+      "token_usage": {
+        "total_tokens": 1579,
+        "prompt_tokens": 1430,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 149,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:21.743731"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.814,
+      "raw_response": "{\"sql\": \"SELECT countrylanguage.Language FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.HeadOfState = 'Beatrix' AND countrylanguage.IsOfficial = 'T'\", \"explain\": \"The SQL query correctly selects the 'Language' from the 'countrylanguage' table. It uses an INNER JOIN with the 'country' table on the correct primary/foreign key relationship (country.Code = countrylanguage.CountryCode) to filter by 'HeadOfState' = 'Beatrix' and 'IsOfficial' = 'T', aligning perfectly with the expected output fields, filters, and join hints in the analysis. No modifications were needed.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2075,
+        "prompt_tokens": 1323,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 752,
+        "successful_requests": 1
+      },
+      "timestamp": "2026-07-24T00:37:26.578033"
+    }
+  ],
+  "final_sql": "SELECT countrylanguage.Language FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE country.HeadOfState = 'Beatrix' AND countrylanguage.IsOfficial = 'T'",
+  "explain": "The SQL query correctly selects the 'Language' from the 'countrylanguage' table. It uses an INNER JOIN with the 'country' table on the correct primary/foreign key relationship (country.Code = countrylanguage.CountryCode) to filter by 'HeadOfState' = 'Beatrix' and 'IsOfficial' = 'T', aligning perfectly with the expected output fields, filters, and join hints in the analysis. No modifications were needed.",
+  "error": "",
+  "timestamp": "2026-07-24T00:37:26.579530"
+}
