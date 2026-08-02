@@ -1,0 +1,405 @@
+{
+  "question_index": 575,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "student_transcripts_tracking",
+  "question": "Find the semester when both Master students and Bachelor students got enrolled in.",
+  "gold_query": "SELECT DISTINCT T2.semester_id FROM Degree_Programs AS T1 JOIN Student_Enrolment AS T2 ON T1.degree_program_id  =  T2.degree_program_id WHERE degree_summary_name  =  'Master' INTERSECT SELECT DISTINCT T2.semester_id FROM Degree_Programs AS T1 JOIN Student_Enrolment AS T2 ON T1.degree_program_id  =  T2.degree_program_id WHERE degree_summary_name  =  'Bachelor'",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"semester_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Semesters\", \"column\": \"semester_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Degree_Programs\", \"column\": \"degree_summary_name\", \"operator\": \"=\", \"value\": \"Master\", \"value_type\": \"STRING\"},\n    {\"table\": \"Degree_Programs\", \"column\": \"degree_summary_name\", \"operator\": \"=\", \"value\": \"Bachelor\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Students\", \"to_table\": \"Student_Enrolment\", \"reason\": \"link student enrolment\"},\n    {\"from_table\": \"Semesters\", \"to_table\": \"Student_Enrolment\", \"reason\": \"link enrolment to semesters\"},\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Degree_Programs\", \"reason\": \"link enrolment to degree programs\"}\n  ],\n  \"entities\": {\"tables\": [\"Semesters\", \"Degree_Programs\", \"Student_Enrolment\", \"Students\"], \"columns\": [\"semester_name\", \"degree_summary_name\"], \"values\": [\"Master\", \"Bachelor\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:10:22.097996"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"student_transcripts_tracking\",\n  \"table_names_original\": [\n    \"Degree_Programs\",\n    \"Semesters\",\n    \"Student_Enrolment\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"degree_program_id\"],\n    [0, \"degree_summary_name\"],\n    [1, \"semester_id\"],\n    [1, \"semester_name\"],\n    [2, \"student_enrolment_id\"],\n    [2, \"degree_program_id\"],\n    [2, \"semester_id\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [7, 3],\n    [6, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Master\",\n      \"Bachelor\",\n      \"PHD\"\n    ],\n    [],\n    [\n      \"spring 2010\",\n      \"summer 2010\",\n      \"fall 2010\",\n      \"winter 2010\"\n    ],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:10:22.101628"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:10:22.103337"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT semester_name FROM Semesters WHERE semester_id IN (SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Master') INTERSECT SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Bachelor'))\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:10:22.104643",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "semester_name"
+              ],
+              "tables": [
+                "degree_programs",
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [],
+              "where": [
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor')",
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master')",
+                "where degree_summary_name = 'bachelor'",
+                "where degree_summary_name = 'master'",
+                "where semester_id in (select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master') intersect select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "semester_name"
+              ],
+              "tables": [
+                "degree_programs",
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [],
+              "where": [
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor')",
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master')",
+                "where degree_summary_name = 'bachelor'",
+                "where degree_summary_name = 'master'",
+                "where semester_id in (select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master') intersect select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:10:22.104651",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "semester_name"
+              ],
+              "tables": [
+                "degree_programs",
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [],
+              "where": [
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor')",
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master')",
+                "where degree_summary_name = 'bachelor'",
+                "where degree_summary_name = 'master'",
+                "where semester_id in (select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master') intersect select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "semester_name"
+              ],
+              "tables": [
+                "degree_programs",
+                "semesters",
+                "student_enrolment"
+              ],
+              "joins": [],
+              "where": [
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor')",
+                "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master')",
+                "where degree_summary_name = 'bachelor'",
+                "where degree_summary_name = 'master'",
+                "where semester_id in (select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master') intersect select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "INTERSECT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 5.984,
+      "raw_response": "{\n  \"sql\": \"SELECT semester_name FROM Semesters WHERE semester_id IN (SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Master') INTERSECT SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Bachelor'))\",\n  \"selected_candidate\": \"direct\",\n  \"notes\": \"Selected direct because both Direct and Planned SQL are equivalent with regard to question interpretation and execution. No evidence in the task indicates a need to modify the query.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 4537,
+        "prompt_tokens": 4392,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 145,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:10:28.112180",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "semester_name"
+          ],
+          "tables": [
+            "degree_programs",
+            "semesters",
+            "student_enrolment"
+          ],
+          "joins": [],
+          "where": [
+            "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor')",
+            "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master')",
+            "where degree_summary_name = 'bachelor'",
+            "where degree_summary_name = 'master'",
+            "where semester_id in (select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master') intersect select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor'))"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.445,
+      "raw_response": "{\"sql\": \"SELECT semester_name FROM Semesters WHERE semester_id IN (SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Master') INTERSECT SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Bachelor'))\", \"explain\": \"The SQL query is preserved as both deterministic and semantic reports are valid with no violations. The query accurately retrieves the semester_name for semesters where there are enrollments for both Master and Bachelor degree programs.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 4162,
+        "prompt_tokens": 4021,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 141,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:10:30.586263",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "semester_name"
+          ],
+          "tables": [
+            "degree_programs",
+            "semesters",
+            "student_enrolment"
+          ],
+          "joins": [],
+          "where": [
+            "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor')",
+            "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master')",
+            "where degree_summary_name = 'bachelor'",
+            "where degree_summary_name = 'master'",
+            "where semester_id in (select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master') intersect select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor'))"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "semester_name"
+          ],
+          "tables": [
+            "degree_programs",
+            "semesters",
+            "student_enrolment"
+          ],
+          "joins": [],
+          "where": [
+            "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor')",
+            "where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master')",
+            "where degree_summary_name = 'bachelor'",
+            "where degree_summary_name = 'master'",
+            "where semester_id in (select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'master') intersect select semester_id from student_enrolment where degree_program_id in (select degree_program_id from degree_programs where degree_summary_name = 'bachelor'))"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "INTERSECT"
+          ]
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT semester_name FROM Semesters WHERE semester_id IN (SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Master') INTERSECT SELECT semester_id FROM Student_Enrolment WHERE degree_program_id IN (SELECT degree_program_id FROM Degree_Programs WHERE degree_summary_name = 'Bachelor'))",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:10:30.603422"
+}

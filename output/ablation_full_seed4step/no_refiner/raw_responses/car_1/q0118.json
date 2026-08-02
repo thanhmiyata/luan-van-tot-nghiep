@@ -1,0 +1,323 @@
+{
+  "question_index": 118,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "car_1",
+  "question": "What is the average miles per gallon of all the cards with 4 cylinders?",
+  "gold_query": "SELECT avg(mpg) FROM CARS_DATA WHERE Cylinders  =  4;",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"AVG(cars_data.MPG)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"required_tables\": [\"cars_data\"],\n  \"required_columns\": [\n    {\"table\": \"cars_data\", \"column\": \"MPG\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"cars_data\", \"column\": \"Cylinders\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"cars_data\", \"column\": \"MPG\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [{\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"cars_data\", \"column\": \"Cylinders\", \"operator\": \"=\", \"value\": \"4\", \"value_type\": \"NUMBER\"}],\n  \"literal_bindings\": [{\"literal\": \"4\", \"table\": \"cars_data\", \"column\": \"Cylinders\", \"evidence\": \"QUESTION\"}],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Cylinders condition applies per car\"}],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"cars_data\"], \"columns\": [\"MPG\", \"Cylinders\"], \"values\": [\"4\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:36:23.307618"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: The task is to filter the schema based on the given question and analysis.\n1.  **Identify initial required tables and columns:**\n    *   From `analysis.required_tables`: `cars_data`.\n    *   From `analysis.required_columns`: `cars_data.MPG` (output), `cars_data.Cylinders` (filter).\n2.  **Identify PK/FK for retained tables:**\n    *   For `cars_data`, the `analysis.single_table_ok` is `true`, meaning no joins are strictly necessary for the query.\n    *   However, it's good practice to retain the primary key of any retained table.\n    *   Looking at `original_schema.primary_keys`, the column `16` (which is `cars_data.Id`) is a PK.\n    *   `cars_data.Id` is also a foreign key to `car_names.MakeId` according to `named_foreign_keys`.\n    *   So, `cars_data.Id` should be included.\n3.  **Check for bridge tables/columns:**\n    *   Since `single_table_ok` is true and all required columns are in `cars_data`, no bridge tables or additional FKs are needed for the query's logic.\n4.  **Final list of tables and columns:**\n    *   Table: `cars_data`\n    *   Columns: `Id` (PK/FK), `MPG` (output), `Cylinders` (filter).\n5.  **Format the output:** Create the JSON structure with `table_names_original` and `column_names_original` using the identified names and their original indices.{\"table_names_original\": [\"cars_data\"], \"column_names_original\": [[-1, \"*\"], [5, \"Id\"], [5, \"MPG\"], [5, \"Cylinders\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:36:23.309684"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.335,
+      "raw_response": "{\n  \"steps\": [\"Filter cars_data table for rows where Cylinders equals 4\", \"Compute the average MPG for these filtered rows\"],\n  \"select\": [{\"table\": \"cars_data\", \"column\": \"MPG\", \"agg\": \"AVG\", \"order_index\": 0}],\n  \"joins\": [],\n  \"predicates\": [{\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"cars_data.Cylinders = 4\"}],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2120,
+        "prompt_tokens": 1958,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 162,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:36:25.656665"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT AVG(cars_data.MPG) FROM cars_data WHERE cars_data.Cylinders = 4\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:36:25.660085",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(cars_data.mpg)"
+              ],
+              "tables": [
+                "cars_data"
+              ],
+              "joins": [],
+              "where": [
+                "where cars_data.cylinders = 4"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(cars_data.mpg)"
+              ],
+              "tables": [
+                "cars_data"
+              ],
+              "joins": [],
+              "where": [
+                "where cars_data.cylinders = 4"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.254,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT AVG(cars_data.MPG) FROM cars_data WHERE cars_data.Cylinders = 4\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2227,
+        "prompt_tokens": 2168,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 59,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:36:26.941770",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(cars_data.mpg)"
+              ],
+              "tables": [
+                "cars_data"
+              ],
+              "joins": [],
+              "where": [
+                "where cars_data.cylinders = 4"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(cars_data.mpg)"
+              ],
+              "tables": [
+                "cars_data"
+              ],
+              "joins": [],
+              "where": [
+                "where cars_data.cylinders = 4"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:36:26.952778"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.408,
+      "raw_response": "{\n  \"sql\": \"SELECT AVG(cars_data.MPG) FROM cars_data WHERE cars_data.Cylinders = 4\",\n  \"explain\": \"The query correctly computes the average miles per gallon (MPG) for cars with 4 cylinders from the 'cars_data' table. It matches the expected output fields exactly.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2487,
+        "prompt_tokens": 2401,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 86,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:36:28.386161",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(cars_data.mpg)"
+          ],
+          "tables": [
+            "cars_data"
+          ],
+          "joins": [],
+          "where": [
+            "where cars_data.cylinders = 4"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(cars_data.mpg)"
+          ],
+          "tables": [
+            "cars_data"
+          ],
+          "joins": [],
+          "where": [
+            "where cars_data.cylinders = 4"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT AVG(cars_data.MPG) FROM cars_data WHERE cars_data.Cylinders = 4",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:36:28.399636"
+}

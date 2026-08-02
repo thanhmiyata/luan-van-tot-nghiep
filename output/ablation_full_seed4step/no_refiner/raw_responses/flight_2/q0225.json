@@ -1,0 +1,383 @@
+{
+  "question_index": 225,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "flight_2",
+  "question": "What is the code of airport that has the highest number of flights?",
+  "gold_query": "SELECT T1.AirportCode FROM AIRPORTS AS T1 JOIN FLIGHTS AS T2 ON T1.AirportCode  =  T2.DestAirport OR T1.AirportCode  =  T2.SourceAirport GROUP BY T1.AirportCode ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"AirportCode\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"airports\", \"column\": \"AirportCode\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"flights\", \"column\": \"SourceAirport\"}],\n  \"order_by\": [{\"table\": \"COUNT(flights)\", \"column\": \"SourceAirport\", \"direction\": \"DESC\"}],\n  \"join_hints\": [{\"from_table\": \"flights\", \"to_table\": \"airports\", \"reason\": \"Connecting flights with their source airports to aggregate flights per airport\"}],\n  \"entities\": {\"tables\": [\"airports\", \"flights\"], \"columns\": [\"AirportCode\", \"SourceAirport\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:33.862769"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have carefully reviewed the analysis and identified the necessary tables and columns.\n1.  **Tables**: `airports` and `flights` are required based on `entities.tables` and `output_fields_detailed`/`group_by`.\n2.  **Columns**:\n    *   `airports.AirportCode` (output column, PK for `airports`, FK target)\n    *   `flights.SourceAirport` (group by column, FK source)\n    *   `flights.Airline` (listed as PK for `flights` in the original schema, so kept as per the rule \"Keep PK/FK of kept tables\").\n3.  **PK/FK preservation**:\n    *   `airports.AirportCode` (original index 6) is a PK.\n    *   `flights.Airline` (original index 10) is a PK for the `flights` table.\n    *   The FK `flights.SourceAirport` (original index 12) references `airports.AirportCode` (original index 6). This join is critical and needs both columns.\n4.  **Re-indexing**: I will create a new set of `table_names_original`, `column_names_original`, `column_types`, `foreign_keys`, `primary_keys`, and `column_sample_values` that only include the necessary elements, ensuring that the indices within the filtered schema correctly reflect the relationships.\n\n**Detailed mapping:**\n\n*   **Original tables:**\n    *   `airlines` (0)\n    *   `airports` (1) - KEPT\n    *   `flights` (2) - KEPT\n\n*   **Filtered `table_names_original`**: `[\"airports\", \"flights\"]` (original indices 1, 2)\n\n*   **Original columns and their indices**:\n    *   `[-1, \"*\"]` (0) - KEPT\n    *   `[0, \"uid\"]` (1)\n    *   `[0, \"Airline\"]` (2)\n    *   `[0, \"Abbreviation\"]` (3)\n    *   `[0, \"Country\"]` (4)\n    *   `[1, \"City\"]` (5)\n    *   `[1, \"AirportCode\"]` (6) - KEPT (Output, PK, FK target)\n    *   `[1, \"AirportName\"]` (7)\n    *   `[1, \"Country\"]` (8)\n    *   `[1, \"CountryAbbrev\"]` (9)\n    *   `[2, \"Airline\"]` (10) - KEPT (PK for `flights`)\n    *   `[2, \"FlightNo\"]` (11)\n    *   `[2, \"SourceAirport\"]` (12) - KEPT (Group By, FK source)\n    *   `[2, \"DestAirport\"]` (13)\n\n*   **Filtered `column_names_original`**:\n    *   `[-1, \"*\"]` (new index 0)\n    *   `[1, \"AirportCode\"]` (new index 1, original column index 6)\n    *   `[2, \"Airline\"]` (new index 2, original column index 10)\n    *   `[2, \"SourceAirport\"]` (new index 3, original column index 12)\n\n*   **Original `column_types` (aligned with original column indices)**:\n    *   `0: \"text\"` (`*`)\n    *   `1: \"number\"` (`uid`)\n    *   ...\n    *   `6: \"text\"` (`AirportCode`)\n    *   ...\n    *   `10: \"number\"` (`flights.Airline`)\n    *   `11: \"number\"` (`FlightNo`)\n    *   `12: \"text\"` (`SourceAirport`)\n    *   `13: \"text\"` (`DestAirport`)\n\n*   **Filtered `column_types` (aligned with new column indices)**:\n    *   `0: \"text\"` (for `*`)\n    *   `1: \"text\"` (for `AirportCode`, original index 6)\n    *   `2: \"number\"` (for `flights.Airline`, original index 10)\n    *   `3: \"text\"` (for `SourceAirport`, original index 12)\n\n*   **Original `foreign_keys`**: `[[13,6], [12,6]]`\n    *   Keep `[12,6]` (flights.SourceAirport -> airports.AirportCode)\n*   **Filtered `foreign_keys` (using new column indices)**:\n    *   Original 12 (`SourceAirport`) becomes new 3.\n    *   Original 6 (`AirportCode`) becomes new 1.\n    *   Result: `[[3,1]]`\n\n*   **Original `primary_keys`**: `[1,6,10]`\n    *   Keep `6` (airports.AirportCode) and `10` (flights.Airline)\n*   **Filtered `primary_keys` (using new column indices)**:\n    *   Original 6 (`AirportCode`) becomes new 1.\n    *   Original 10 (`flights.Airline`) becomes new 2.\n    *   Result: `[1,2]`\n\n*   **Original `column_sample_values` (aligned with original column indices)**:\n    *   `0: []` (`*`)\n    *   `...`\n    *   `6: [\"AAF\",\"ABI\",\"ABL\",\"ABQ\"]` (`AirportCode`)\n    *   `...`\n    *   `10: []` (`flights.Airline`)\n    *   `...`\n    *   `12: [\" APG\",\" ASY\",\" CVO\",\" ACV\"]` (`SourceAirport`)\n\n*   **Filtered `column_sample_values` (aligned with new column indices)**:\n    *   `0: []` (for `*`)\n    *   `1: [\"AAF\",\"ABI\",\"ABL\",\"ABQ\"]` (for `AirportCode`)\n    *   `2: []` (for `flights.Airline`)\n    *   `3: [\" APG\",\" ASY\",\" CVO\",\" ACV\"]` (for `SourceAirport`)\n\nThis filtered schema includes all necessary tables and columns, preserves PK/FK relationships, and avoids unnecessary data.```json\n{\"db_id\": \"flight_2\", \"table_names_original\": [\"airports\", \"flights\"], \"column_names_original\": [[-1, \"*\"], [1, \"AirportCode\"], [2, \"Airline\"], [2, \"SourceAirport\"]], \"column_types\": [\"text\", \"text\", \"number\", \"text\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [\"AAF\", \"ABI\", \"ABL\", \"ABQ\"], [], [\" APG\", \" ASY\", \" CVO\", \" ACV\"]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:04:33.865064"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.318,
+      "raw_response": "{\n  \"steps\": [\"Join flights with airports on SourceAirport = AirportCode\", \"Count the number of flights grouped by AirportCode\", \"Order by the count of flights in descending order\", \"Select the top AirportCode\"],\n  \"select\": [{\"table\": \"airports\", \"column\": \"AirportCode\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"flights\", \"to_table\": \"airports\", \"condition\": \"flights.SourceAirport = airports.AirportCode\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"flights\", \"column\": \"SourceAirport\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"COUNT(flights)\", \"column\": \"SourceAirport\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2414,
+        "prompt_tokens": 2197,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 217,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:37.195883"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT a.AirportCode FROM airports a JOIN flights f ON a.AirportCode = f.SourceAirport GROUP BY a.AirportCode ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:37.198041",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "a.airportcode"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "join flights as f on a.airportcode = f.sourceairport"
+              ],
+              "where": [],
+              "group_by": [
+                "group by a.airportcode"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(flights) is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "airports.airportcode"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "inner join flights on flights.sourceairport = airports.airportcode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by airports.airportcode"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(flights) is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.406,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT airports.AirportCode FROM airports INNER JOIN flights ON flights.SourceAirport = airports.AirportCode GROUP BY airports.AirportCode ORDER BY COUNT(*) DESC LIMIT 1\", \"disagreement_reason\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2527,
+        "prompt_tokens": 2462,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 65,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:38.623343",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "a.airportcode"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "join flights as f on a.airportcode = f.sourceairport"
+              ],
+              "where": [],
+              "group_by": [
+                "group by a.airportcode"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(flights) is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "airports.airportcode"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "inner join flights on flights.sourceairport = airports.airportcode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by airports.airportcode"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table count(flights) is absent."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:04:38.633010"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.15,
+      "raw_response": "The semantic constraint report indicates a violation due to a missing required table, which implies that the semantic check is not fully passed. The main issue seems to be the semantic expectation of counting a specific relation in the \"flights\" table, possibly needing explicit mention.\n\nLet's ensure the SQL is semantically correct by using `COUNT(*)` explicitly capturing our intent clearly and verifying the grouping column aligns with expected joins:\n\nCurrently, the error suggests we're missing a detailed count view; however, the deterministic and intended logic matches quite well as-is for a maximum per airport, using \"flights\" and \"airports\".\n\nThus, we keep the necessary and validated structure:\n\n```json\n{\n  \"sql\": \"SELECT airports.AirportCode FROM airports INNER JOIN flights ON airports.AirportCode = flights.SourceAirport GROUP BY airports.AirportCode ORDER BY COUNT(*) DESC LIMIT 1\",\n  \"explain\": \"Retrieves the airport code with the highest number of flights originating from it.\",\n  \"error\": \"\"\n}\n```",
+      "token_usage": {
+        "total_tokens": 2424,
+        "prompt_tokens": 2219,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 205,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:41.803076",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "airports.airportcode"
+          ],
+          "tables": [
+            "airports",
+            "flights"
+          ],
+          "joins": [
+            "inner join flights on airports.airportcode = flights.sourceairport"
+          ],
+          "where": [],
+          "group_by": [
+            "group by airports.airportcode"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count(flights) is absent."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "airports.airportcode"
+          ],
+          "tables": [
+            "airports",
+            "flights"
+          ],
+          "joins": [
+            "inner join flights on airports.airportcode = flights.sourceairport"
+          ],
+          "where": [],
+          "group_by": [
+            "group by airports.airportcode"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table count(flights) is absent."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT airports.AirportCode FROM airports INNER JOIN flights ON airports.AirportCode = flights.SourceAirport GROUP BY airports.AirportCode ORDER BY COUNT(*) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:04:41.813779"
+}

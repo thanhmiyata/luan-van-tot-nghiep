@@ -1,0 +1,375 @@
+{
+  "question_index": 741,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "world_1",
+  "question": "Give the name of the nation that uses the greatest amount of languages.",
+  "gold_query": "SELECT T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode GROUP BY T1.Name ORDER BY COUNT(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"GROUP\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Need to determine the nation with the highest count of languages\"}\n  ],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"CountryCode\"}],\n  \"having\": [{\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT\", \"operator\": \"=\", \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"MAX\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"value_type\": \"SUBQUERY\"}}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": {\"table\": \"country\", \"column\": \"Name\", \"limit\": 1, \"direction\": \"DESC\", \"use_as\": \"RESULT_ROW\"},\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"Join to find languages related to their respective countries\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Name\", \"CountryCode\", \"Language\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:14:23.899688"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[\"country\", \"Name\"], [\"country\", \"Code\"], [\"countrylanguage\", \"CountryCode\"], [\"countrylanguage\", \"Language\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:14:23.903089"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 5.456,
+      "raw_response": "{\n  \"steps\": [\n    \"Join countrylanguage and country based on CountryCode\",\n    \"Group by CountryCode and count distinct languages\",\n    \"Select the name of the country that has the maximum language count\"\n  ],\n  \"select\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"order_index\": 0}\n  ],\n  \"joins\": [\n    {\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"condition\": \"countrylanguage.CountryCode = country.Code\"}\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\"}\n  ],\n  \"having\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"expression\": \"COUNT(DISTINCT countrylanguage.Language) = (SELECT MAX(language_count) FROM (SELECT COUNT(DISTINCT Language) as language_count FROM countrylanguage GROUP BY CountryCode) as LanguageCounts)\"\n    }\n  ],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2900,
+        "prompt_tokens": 2501,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 399,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:14:29.374742"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT country.Name FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Code, country.Name ORDER BY COUNT(countrylanguage.Language) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:14:29.377100",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by country.code, country.name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(countrylanguage.language) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "inner join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countrycode",
+                "group by countrylanguage.countrycode"
+              ],
+              "having": [
+                "having count(distinct countrylanguage.language) = (select max(language_count) from (select count(distinct language) as language_count from countrylanguage group by countrycode) as languagecounts)"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 2.069,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT country.Name FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY countrylanguage.CountryCode HAVING COUNT(DISTINCT countrylanguage.Language) = (SELECT MAX(language_count) FROM (SELECT COUNT(DISTINCT Language) as language_count FROM countrylanguage GROUP BY CountryCode) as LanguageCounts)\", \"disagreement_reason\": \"empty if structurally equivalent\"}",
+      "token_usage": {
+        "total_tokens": 2890,
+        "prompt_tokens": 2793,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 97,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:14:31.464661",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by country.code, country.name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(countrylanguage.language) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "inner join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countrycode",
+                "group by countrylanguage.countrycode"
+              ],
+              "having": [
+                "having count(distinct countrylanguage.language) = (select max(language_count) from (select count(distinct language) as language_count from countrylanguage group by countrycode) as languagecounts)"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:14:31.481121"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.809,
+      "raw_response": "{\n  \"sql\": \"SELECT country.Name FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Code, country.Name HAVING COUNT(DISTINCT countrylanguage.Language) = (SELECT MAX(language_count) FROM (SELECT COUNT(DISTINCT Language) AS language_count FROM countrylanguage GROUP BY CountryCode) AS LanguageCounts)\",\n  \"explain\": \"Includes a HAVING clause to ensure the selection is made for the country with the maximum number of distinct languages.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2913,
+        "prompt_tokens": 2700,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 213,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:14:34.311152",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country.name"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "inner join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [],
+          "group_by": [
+            "group by country.code, country.name",
+            "group by countrycode"
+          ],
+          "having": [
+            "having count(distinct countrylanguage.language) = (select max(language_count) from (select count(distinct language) as language_count from countrylanguage group by countrycode) as languagecounts)"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "EXTREME_LIMIT_MISSING",
+            "message": "Extreme-row contract requires LIMIT."
+          }
+        ],
+        "risk_reasons": []
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country.name"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "inner join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [],
+          "group_by": [
+            "group by country.code, country.name",
+            "group by countrycode"
+          ],
+          "having": [
+            "having count(distinct countrylanguage.language) = (select max(language_count) from (select count(distinct language) as language_count from countrylanguage group by countrycode) as languagecounts)"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "EXTREME_LIMIT_MISSING",
+            "message": "Extreme-row contract requires LIMIT."
+          }
+        ],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT country.Name FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Code, country.Name HAVING COUNT(DISTINCT countrylanguage.Language) = (SELECT MAX(language_count) FROM (SELECT COUNT(DISTINCT Language) AS language_count FROM countrylanguage GROUP BY CountryCode) AS LanguageCounts)",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:14:34.330043"
+}

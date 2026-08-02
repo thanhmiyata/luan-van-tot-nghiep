@@ -1,0 +1,290 @@
+{
+  "question_index": 774,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "world_1",
+  "question": "What are the African countries that have a  population less than any country in Asia?",
+  "gold_query": "SELECT Name FROM country WHERE Continent  =  \"Africa\"  AND population  <  (SELECT max(population) FROM country WHERE Continent  =  \"Asia\")",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"Name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"FILTER\"},\n    {\"table\": \"country\", \"column\": \"Name\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"country\", \"column\": \"Continent\", \"purpose\": \"FILTER\"},\n    {\"table\": \"country\", \"column\": \"Population\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Africa\", \"value_type\": \"STRING\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"table\": \"country\", \"column\": \"Continent\", \"operator\": \"=\", \"value\": \"Asia\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"Africa\", \"table\": \"country\", \"column\": \"Continent\", \"evidence\": \"QUESTION\"},\n    {\"literal\": \"Asia\", \"table\": \"country\", \"column\": \"Continent\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter African countries\"},\n    {\"scope_id\": \"s2\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b2\"], \"reason\": \"Find minimum population among Asian countries\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": [],\n    \"reason\": \"\"\n  },\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [\n    {\n      \"table\": \"country\",\n      \"column\": \"Population\",\n      \"operator\": \"<\",\n      \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"MIN\", \"table\": \"country\", \"column\": \"Population\", \"value_type\": \"SUBQUERY\"}\n    }\n  ],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"country\"], \"columns\": [\"Name\"], \"values\": [\"Africa\", \"Asia\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:00.005663"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"country\"], \"column_names_original\": [\"Code\", \"Name\", \"Continent\", \"Population\"]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:18:00.009139"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.254,
+      "raw_response": "{\n  \"steps\": [\n    \"Filter countries on continent 'Africa' and retain their 'Name' and 'Population'.\",\n    \"Execute subquery to find the minimum population of countries on continent 'Asia'.\",\n    \"Compare African country populations with the subquery result and filter those that have populations less than the minimum found.\"\n  ],\n  \"select\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"order_index\": 0}\n  ],\n  \"joins\": [],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"country.Continent = 'Africa'\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"expression\": \"country.Continent = 'Asia'\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3439,
+        "prompt_tokens": 2924,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 515,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:06.274939"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Name FROM country WHERE Continent = 'Africa' AND Population < (SELECT MIN(Population) FROM country WHERE Continent = 'Asia')\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:06.277535",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where continent = 'africa' and population < (select min(population) from country where continent = 'asia')",
+                "where continent = 'asia'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where country.continent = 'africa' and country.population < (select min(country.population) from country where country.continent = 'asia')",
+                "where country.continent = 'asia'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.347,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT country.Name FROM country WHERE country.Continent = 'Africa' AND country.Population < (SELECT MIN(country.Population) FROM country WHERE country.Continent = 'Asia')\", \"disagreement_reason\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3262,
+        "prompt_tokens": 3196,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 66,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:18:07.650162",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where continent = 'africa' and population < (select min(population) from country where continent = 'asia')",
+                "where continent = 'asia'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name"
+              ],
+              "tables": [
+                "country"
+              ],
+              "joins": [],
+              "where": [
+                "where country.continent = 'africa' and country.population < (select min(country.population) from country where country.continent = 'asia')",
+                "where country.continent = 'asia'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "complexity=HARD"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:18:07.659869"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:18:07.663629",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "name"
+          ],
+          "tables": [
+            "country"
+          ],
+          "joins": [],
+          "where": [
+            "where continent = 'africa' and population < (select min(population) from country where continent = 'asia')",
+            "where continent = 'asia'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "complexity=HARD"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Name FROM country WHERE Continent = 'Africa' AND Population < (SELECT MIN(Population) FROM country WHERE Continent = 'Asia')",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:18:07.667290"
+}

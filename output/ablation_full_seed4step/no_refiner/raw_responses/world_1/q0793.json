@@ -1,0 +1,359 @@
+{
+  "question_index": 793,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "world_1",
+  "question": "What are the names of countries that speak more than 2 languages, as well as how many languages they speak?",
+  "gold_query": "SELECT COUNT(T2.Language) ,  T1.Name FROM country AS T1 JOIN countrylanguage AS T2 ON T1.Code  =  T2.CountryCode GROUP BY T1.Name HAVING COUNT(*)  >  2",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"country.Name\", \"language_count\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"GROUP\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"HAVING\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"countrylanguage\", \"column\": null, \"agg\": \"COUNT\", \"alias\": \"language_count\", \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Check countries with more than 2 languages\"}],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"CountryCode\"}],\n  \"having\": [{\"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"agg\": \"COUNT\", \"operator\": \">\", \"value\": 2}],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"To get country names for their codes\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Name\", \"Language\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:19:57.975610"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[\"country\", \"Code\"], [\"country\", \"Name\"], [\"countrylanguage\", \"CountryCode\"], [\"countrylanguage\", \"Language\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:19:57.980490"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.712,
+      "raw_response": "{\n  \"steps\": [\n    \"Join 'country' and 'countrylanguage' using 'country.Code' = 'countrylanguage.CountryCode'\",\n    \"Group by 'countrylanguage.CountryCode' to count languages per country\",\n    \"Filter countries with COUNT(*) > 2 languages\"\n  ],\n  \"select\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"countrylanguage\", \"column\": \"*\", \"agg\": \"COUNT\", \"alias\": \"language_count\", \"order_index\": 1}\n  ],\n  \"joins\": [\n    {\"from_table\": \"country\", \"to_table\": \"countrylanguage\", \"condition\": \"countrylanguage.CountryCode = country.Code\"}\n  ],\n  \"predicates\": [],\n  \"group_by\": [\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\"}\n  ],\n  \"having\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"COUNT(*) > 2\"}\n  ],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2845,
+        "prompt_tokens": 2571,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 274,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:20:01.708065"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT country.Name, COUNT(*) AS language_count FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Name HAVING COUNT(*) > 2\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:20:01.712890",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name",
+                "count(*) as language_count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by country.name"
+              ],
+              "having": [
+                "having count(*) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name",
+                "count(*) as language_count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countrylanguage.countrycode"
+              ],
+              "having": [
+                "having count(*) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.156,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT country.Name, COUNT(*) AS language_count FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY countrylanguage.CountryCode HAVING COUNT(*) > 2\", \"disagreement_reason\": \"empty if structurally equivalent\"}",
+      "token_usage": {
+        "total_tokens": 2942,
+        "prompt_tokens": 2873,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 69,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:20:02.894495",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name",
+                "count(*) as language_count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by country.name"
+              ],
+              "having": [
+                "having count(*) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "country.name",
+                "count(*) as language_count"
+              ],
+              "tables": [
+                "country",
+                "countrylanguage"
+              ],
+              "joins": [
+                "join countrylanguage on country.code = countrylanguage.countrycode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countrylanguage.countrycode"
+              ],
+              "having": [
+                "having count(*) > 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:20:02.910178"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.521,
+      "raw_response": "{\n  \"sql\": \"SELECT country.Name, COUNT(*) AS language_count FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Name HAVING COUNT(*) > 2\",\n  \"explain\": \"SQL is correct and passes both deterministic and semantic constraints. It properly joins 'country' with 'countrylanguage', groups by 'country.Name', and filters for countries with more than 2 languages. The final output matches the expected fields and order.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2876,
+        "prompt_tokens": 2764,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 112,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:20:04.455216",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country.name",
+            "count(*) as language_count"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [],
+          "group_by": [
+            "group by country.name"
+          ],
+          "having": [
+            "having count(*) > 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "country.name",
+            "count(*) as language_count"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [],
+          "group_by": [
+            "group by country.name"
+          ],
+          "having": [
+            "having count(*) > 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT country.Name, COUNT(*) AS language_count FROM country JOIN countrylanguage ON country.Code = countrylanguage.CountryCode GROUP BY country.Name HAVING COUNT(*) > 2",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:20:04.470027"
+}

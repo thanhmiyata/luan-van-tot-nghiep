@@ -1,0 +1,263 @@
+{
+  "question_index": 250,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "flight_2",
+  "question": "Give the flight numbers of flights landing at APG.",
+  "gold_query": "SELECT FlightNo FROM FLIGHTS WHERE DestAirport  =  \"APG\"",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"FlightNo\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"flights\", \"column\": \"FlightNo\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"flights\", \"column\": \"DestAirport\", \"operator\": \"=\", \"value\": \"APG\", \"value_type\": \"STRING\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"flights\", \"to_table\": \"airports\", \"reason\": \"to map DestAirport code APG\"}],\n  \"entities\": {\"tables\": [\"flights\"], \"columns\": [\"FlightNo\", \"DestAirport\"], \"values\": [\"APG\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:02:48.705697"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\n1.  **Identify core tables and columns:**\n    *   The question asks for `FlightNo` from `flights`.\n    *   The filter is on `DestAirport` in `flights` (where `DestAirport` = 'APG').\n    *   So, `flights` table is essential.\n    *   `flights.FlightNo` (output) and `flights.DestAirport` (filter) are essential columns.\n\n2.  **Preserve PK/FK for essential tables/columns:**\n    *   `flights.DestAirport` (original index 13) is a Foreign Key to `airports.AirportCode` (original index 6) as per `foreign_keys: [[13,6]]`.\n    *   Therefore, `airports` table needs to be kept, specifically `airports.AirportCode` (original index 6) as it's the target of the FK and a Primary Key for `airports`.\n    *   The `flights` table has `flights.Airline` (original index 10) listed as a Primary Key (`primary_keys: [...,10]`). This column must be kept.\n    *   `flights.Airline` (original index 10, type `number`) likely refers to `airlines.uid` (original index 1, type `number`), which is the Primary Key for the `airlines` table. While not explicitly listed in `foreign_keys`, the naming convention and types strongly suggest an implicit FK. To maintain a safe superset and preserve potential connectivity, `airlines.uid` (original index 1) will be kept, thus including the `airlines` table.\n    *   `flights.SourceAirport` (original index 12) is also a Foreign Key to `airports.AirportCode` (original index 6) as per `foreign_keys: [[12,6]]`. Since `airports.AirportCode` is kept, `flights.SourceAirport` should also be kept to preserve this FK relationship from `flights`.\n\n3.  **Construct the filtered schema:**\n    *   **Tables:** `airlines`, `airports`, `flights`. (Original indices 0, 1, 2 respectively).\n    *   **Columns to keep (with original index):**\n        *   `airlines.uid` (1)\n        *   `airports.AirportCode` (6)\n        *   `flights.Airline` (10)\n        *   `flights.FlightNo` (11)\n        *   `flights.SourceAirport` (12)\n        *   `flights.DestAirport` (13)\n    *   **Map original indices to new sequential indices for the filtered columns.** The `[-1,\"*\"]` column is always at index 0.\n\n    **Mapping:**\n    *   `[-1,\"*\"]` (original -1) -> New index 0\n    *   `[0,\"uid\"]` (original 1) -> New index 1 (table `airlines`)\n    *   `[1,\"AirportCode\"]` (original 6) -> New index 2 (table `airports`)\n    *   `[2,\"Airline\"]` (original 10) -> New index 3 (table `flights`)\n    *   `[2,\"FlightNo\"]` (original 11) -> New index 4 (table `flights`)\n    *   `[2,\"SourceAirport\"]` (original 12) -> New index 5 (table `flights`)\n    *   `[2,\"DestAirport\"]` (original 13) -> New index 6 (table `flights`)\n\n    **Update `primary_keys`, `foreign_keys`, `column_types`, and `column_sample_values` accordingly using the new indices.**\n\n    *   **`primary_keys`:**\n        *   Original `[1, 6, 10]`\n        *   New `[1, 2, 3]`\n\n    *   **`foreign_keys`:**\n        *   Original `[[13,6],[12,6]]`\n        *   New `[[6,2],[5,2]]`\n\n    *   **`column_types`:**\n        *   `\"text\"` (for `*`)\n        *   `\"number\"` (for `uid`)\n        *   `\"text\"` (for `AirportCode`)\n        *   `\"number\"` (for `flights.Airline`)\n        *   `\"number\"` (for `FlightNo`)\n        *   `\"text\"` (for `SourceAirport`)\n        *   `\"text\"` (for `DestAirport`)\n\n    *   **`column_sample_values`:** Extract samples corresponding to the kept columns.{\"db_id\": \"flight_2\", \"table_names_original\": [\"airlines\", \"airports\", \"flights\"], \"column_names_original\": [[-1, \"*\"], [0, \"uid\"], [1, \"AirportCode\"], [2, \"Airline\"], [2, \"FlightNo\"], [2, \"SourceAirport\"], [2, \"DestAirport\"]], \"column_types\": [\"text\", \"number\", \"text\", \"number\", \"number\", \"text\", \"text\"], \"foreign_keys\": [[6, 2], [5, 2]], \"primary_keys\": [1, 2, 3], \"column_sample_values\": [[], [], [\"AAF\", \"ABI\", \"ABL\", \"ABQ\"], [], [], [\" APG\", \" ASY\", \" CVO\", \" ACV\"], [\" ASY\", \" APG\", \" ACV\", \" CVO\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:02:48.707133"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:48.708104"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT FlightNo FROM flights WHERE DestAirport = 'APG'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:02:48.708761",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "flightno"
+              ],
+              "tables": [
+                "flights"
+              ],
+              "joins": [],
+              "where": [
+                "where destairport = 'apg'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "flightno"
+              ],
+              "tables": [
+                "flights"
+              ],
+              "joins": [],
+              "where": [
+                "where destairport = 'apg'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:48.708766",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "flightno"
+              ],
+              "tables": [
+                "flights"
+              ],
+              "joins": [],
+              "where": [
+                "where destairport = 'apg'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "flightno"
+              ],
+              "tables": [
+                "flights"
+              ],
+              "joins": [],
+              "where": [
+                "where destairport = 'apg'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Candidates are structurally equivalent and semantic audits pass; kept Direct.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:48.712460"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:02:48.713686",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "flightno"
+          ],
+          "tables": [
+            "flights"
+          ],
+          "joins": [],
+          "where": [
+            "where destairport = 'apg'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT FlightNo FROM flights WHERE DestAirport = 'APG'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:02:48.715243"
+}

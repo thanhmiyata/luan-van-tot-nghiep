@@ -1,0 +1,451 @@
+{
+  "question_index": 936,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "dog_kennels",
+  "question": "Which owner has paid for the most treatments on his or her dogs? List the owner id and last name.",
+  "gold_query": "SELECT T1.owner_id ,  T1.last_name FROM Owners AS T1 JOIN Dogs AS T2 ON T1.owner_id  =  T2.owner_id JOIN Treatments AS T3 ON T2.dog_id  =  T3.dog_id GROUP BY T1.owner_id ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"owner_id\", \"last_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Owners\", \"column\": \"owner_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Owners\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Owners\", \"column\": \"owner_id\"}],\n  \"order_by\": [{\"table\": \"Treatment_Charges\", \"column\": \"SUM(charge_amount)\", \"direction\": \"DESC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"Owners\", \"to_table\": \"Dogs\", \"reason\": \"to find dogs related to owners\"},\n    {\"from_table\": \"Dogs\", \"to_table\": \"Treatments\", \"reason\": \"to find treatments related to dogs\"}, \n    {\"from_table\": \"Treatments\", \"to_table\": \"Charges\", \"reason\": \"to find charges related to treatments\"}\n  ],\n  \"entities\": {\"tables\": [\"Owners\", \"Dogs\", \"Treatments\", \"Charges\"], \"columns\": [\"owner_id\", \"last_name\", \"charge_amount\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:11.450007"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Owners\",\n    \"Dogs\",\n    \"Treatments\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"owner_id\"],\n    [0, \"last_name\"],\n    [1, \"dog_id\"],\n    [1, \"owner_id\"],\n    [2, \"treatment_id\"],\n    [2, \"dog_id\"],\n    [2, \"cost_of_treatment\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [4, 1],\n    [6, 3]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": []\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:54:11.452716"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:54:11.454295"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT o.owner_id, o.last_name FROM Owners o JOIN Dogs d ON o.owner_id = d.owner_id JOIN Treatments t ON d.dog_id = t.dog_id GROUP BY o.owner_id, o.last_name ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:11.455642",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "o.owner_id",
+                "o.last_name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "treatments"
+              ],
+              "joins": [
+                "join dogs as d on o.owner_id = d.owner_id",
+                "join treatments as t on d.dog_id = t.dog_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by o.owner_id, o.last_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table treatment_charges is absent."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs, treatments",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "o.owner_id",
+                "o.last_name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "treatments"
+              ],
+              "joins": [
+                "join dogs as d on o.owner_id = d.owner_id",
+                "join treatments as t on d.dog_id = t.dog_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by o.owner_id, o.last_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table treatment_charges is absent."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs, treatments",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:54:11.455649",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "o.owner_id",
+                "o.last_name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "treatments"
+              ],
+              "joins": [
+                "join dogs as d on o.owner_id = d.owner_id",
+                "join treatments as t on d.dog_id = t.dog_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by o.owner_id, o.last_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table treatment_charges is absent."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs, treatments",
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "o.owner_id",
+                "o.last_name"
+              ],
+              "tables": [
+                "dogs",
+                "owners",
+                "treatments"
+              ],
+              "joins": [
+                "join dogs as d on o.owner_id = d.owner_id",
+                "join treatments as t on d.dog_id = t.dog_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by o.owner_id, o.last_name"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table treatment_charges is absent."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: dogs, treatments",
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.249,
+      "raw_response": "{\n  \"sql\": \"SELECT o.owner_id, o.last_name FROM Owners AS o JOIN Dogs AS d ON o.owner_id = d.owner_id JOIN Treatments AS t ON d.dog_id = t.dog_id JOIN Charges AS c ON t.treatment_id = c.charge_id GROUP BY o.owner_id, o.last_name ORDER BY SUM(c.charge_amount) DESC LIMIT 1\",\n  \"selected_candidate\": \"repaired\",\n  \"notes\": \"Added a JOIN with Charges table and adjusted ORDER BY to SUM of charge_amount to match question's intent.\",\n  \"diagnostics\": [\"Required table treatment_charges was missing in the original queries.\"]\n}",
+      "token_usage": {
+        "total_tokens": 3887,
+        "prompt_tokens": 3740,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 147,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:13.727521",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "o.owner_id",
+            "o.last_name"
+          ],
+          "tables": [
+            "charges",
+            "dogs",
+            "owners",
+            "treatments"
+          ],
+          "joins": [
+            "join charges as c on t.treatment_id = c.charge_id",
+            "join dogs as d on o.owner_id = d.owner_id",
+            "join treatments as t on d.dog_id = t.dog_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by o.owner_id, o.last_name"
+          ],
+          "having": [],
+          "order_by": [
+            "order by sum(c.charge_amount) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table treatment_charges is absent."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: charges, dogs, treatments",
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.778,
+      "raw_response": "{\"sql\": \"SELECT o.owner_id, o.last_name FROM Owners AS o JOIN Dogs AS d ON o.owner_id = d.owner_id JOIN Treatments AS t ON d.dog_id = t.dog_id JOIN Treatment_Charges AS tc ON t.treatment_id = tc.treatment_id GROUP BY o.owner_id, o.last_name ORDER BY SUM(tc.charge_amount) DESC LIMIT 1\", \"explain\": \"Added the missing Treatment_Charges table to properly calculate the sum of treatment charges per owner, as required by the question.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3496,
+        "prompt_tokens": 3371,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 125,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:15.534211",
+      "deterministic_audit": {
+        "valid": false,
+        "sqlite_explain_ok": false,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [
+          {
+            "code": "SQLITE_EXPLAIN_ERROR",
+            "message": "no such table: Treatment_Charges"
+          }
+        ],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "o.owner_id",
+            "o.last_name"
+          ],
+          "tables": [
+            "dogs",
+            "owners",
+            "treatment_charges",
+            "treatments"
+          ],
+          "joins": [
+            "join dogs as d on o.owner_id = d.owner_id",
+            "join treatment_charges as tc on t.treatment_id = tc.treatment_id",
+            "join treatments as t on d.dog_id = t.dog_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by o.owner_id, o.last_name"
+          ],
+          "having": [],
+          "order_by": [
+            "order by sum(tc.charge_amount) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: dogs, treatments",
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "o.owner_id",
+            "o.last_name"
+          ],
+          "tables": [
+            "dogs",
+            "owners",
+            "treatments"
+          ],
+          "joins": [
+            "join dogs as d on o.owner_id = d.owner_id",
+            "join treatments as t on d.dog_id = t.dog_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by o.owner_id, o.last_name"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table treatment_charges is absent."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: dogs, treatments",
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT o.owner_id, o.last_name FROM Owners AS o JOIN Dogs AS d ON o.owner_id = d.owner_id JOIN Treatments AS t ON d.dog_id = t.dog_id GROUP BY o.owner_id, o.last_name ORDER BY COUNT(*) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:54:15.549032"
+}

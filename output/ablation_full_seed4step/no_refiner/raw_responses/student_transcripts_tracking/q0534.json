@@ -1,0 +1,381 @@
+{
+  "question_index": 534,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "student_transcripts_tracking",
+  "question": "What are the first, middle, and last names, along with the ids, of all students who enrolled in 2 degree programs in one semester?",
+  "gold_query": "SELECT T1.first_name ,  T1.middle_name ,  T1.last_name ,  T1.student_id FROM Students AS T1 JOIN Student_Enrolment AS T2 ON T1.student_id  =  T2.student_id GROUP BY T1.student_id HAVING count(*)  =  2",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"HARD\",\n  \"expected_output_fields\": [\"first_name\", \"middle_name\", \"last_name\", \"student_id\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Students\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Students\", \"column\": \"middle_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 2},\n    {\"table\": \"Students\", \"column\": \"student_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 3}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Students\", \"reason\": \"to get student names from their IDs\"},\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Degree_Programs\", \"reason\": \"to count number of programs a student enrolled in a semester\"},\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Semesters\", \"reason\": \"to ensure the counting is within the same semester\"}\n  ],\n  \"entities\": {\"tables\": [\"Students\", \"Student_Enrolment\", \"Degree_Programs\", \"Semesters\"], \"columns\": [\"student_id\", \"first_name\", \"middle_name\", \"last_name\", \"semester_id\", \"degree_program_id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:11:57.582535"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\"db_id\": \"student_transcripts_tracking\", \"table_names_original\": [\"Degree_Programs\", \"Semesters\", \"Students\", \"Student_Enrolment\"], \"column_names_original\": [[-1, \"*\"], [3, \"degree_program_id\"], [5, \"semester_id\"], [6, \"student_id\"], [6, \"first_name\"], [6, \"middle_name\"], [6, \"last_name\"], [7, \"student_enrolment_id\"], [7, \"degree_program_id\"], [7, \"semester_id\"], [7, \"student_id\"]], \"column_types\": [\"text\", \"number\", \"number\", \"number\", \"text\", \"text\", \"text\", \"number\", \"number\", \"number\", \"number\"], \"foreign_keys\": [[47, 32], [46, 28], [45, 18]], \"primary_keys\": [18, 28, 32, 44], \"column_sample_values\": []}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:11:57.711458"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 10.313,
+      "raw_response": "{\n  \"steps\": [\n    \"Join the Student_Enrolment table with Students to obtain student names.\",\n    \"Group by student_id and semester_id to count the number of enrollments.\",\n    \"Filter groups having exactly 2 enrollments.\"\n  ],\n  \"select\": [\n    {\"table\": \"Students\", \"column\": \"first_name\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"Students\", \"column\": \"middle_name\", \"agg\": \"NONE\", \"order_index\": 1},\n    {\"table\": \"Students\", \"column\": \"last_name\", \"agg\": \"NONE\", \"order_index\": 2},\n    {\"table\": \"Students\", \"column\": \"student_id\", \"agg\": \"NONE\", \"order_index\": 3}\n  ],\n  \"joins\": [\n    {\"from_table\": \"Student_Enrolment\", \"to_table\": \"Students\", \"condition\": \"Student_Enrolment.student_id = Students.student_id\"}\n  ],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"COUNT(Student_Enrolment.degree_program_id) = 2\"}\n  ],\n  \"group_by\": [\n    {\"table\": \"Student_Enrolment\", \"column\": \"student_id\"},\n    {\"table\": \"Student_Enrolment\", \"column\": \"semester_id\"}\n  ],\n  \"having\": [\n    {\"scope_id\": \"s1\", \"expression\": \"COUNT(Student_Enrolment.degree_program_id) = 2\"}\n  ],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 4620,
+        "prompt_tokens": 4178,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 442,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:12:08.036220"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Students.first_name, Students.middle_name, Students.last_name, Students.student_id FROM Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id JOIN (SELECT student_id, semester_id FROM Student_Enrolment GROUP BY student_id, semester_id HAVING COUNT(DISTINCT degree_program_id) = 2) AS EnrolledTwice ON Students.student_id = EnrolledTwice.student_id AND Student_Enrolment.semester_id = EnrolledTwice.semester_id\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:12:08.039852",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.first_name",
+                "students.middle_name",
+                "students.last_name",
+                "students.student_id"
+              ],
+              "tables": [
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [
+                "join (select student_id, semester_id from student_enrolment group by student_id, semester_id having count(distinct degree_program_id) = 2) as enrolledtwice on students.student_id = enrolledtwice.student_id and student_enrolment.semester_id = enrolledtwice.semester_id",
+                "join student_enrolment on students.student_id = student_enrolment.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by student_id, semester_id"
+              ],
+              "having": [
+                "having count(distinct degree_program_id) = 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment",
+              "complexity=HARD"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.first_name",
+                "students.middle_name",
+                "students.last_name",
+                "students.student_id"
+              ],
+              "tables": [
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [
+                "inner join students on student_enrolment.student_id = students.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by student_enrolment.student_id, student_enrolment.semester_id"
+              ],
+              "having": [
+                "having count(student_enrolment.degree_program_id) = 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment",
+              "complexity=HARD"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 2.192,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT Students.first_name, Students.middle_name, Students.last_name, Students.student_id FROM Student_Enrolment INNER JOIN Students ON Student_Enrolment.student_id = Students.student_id GROUP BY Student_Enrolment.student_id, Student_Enrolment.semester_id HAVING COUNT(Student_Enrolment.degree_program_id) = 2\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 4698,
+        "prompt_tokens": 4583,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 115,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:12:10.250841",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.first_name",
+                "students.middle_name",
+                "students.last_name",
+                "students.student_id"
+              ],
+              "tables": [
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [
+                "join (select student_id, semester_id from student_enrolment group by student_id, semester_id having count(distinct degree_program_id) = 2) as enrolledtwice on students.student_id = enrolledtwice.student_id and student_enrolment.semester_id = enrolledtwice.semester_id",
+                "join student_enrolment on students.student_id = student_enrolment.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by student_id, semester_id"
+              ],
+              "having": [
+                "having count(distinct degree_program_id) = 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment",
+              "complexity=HARD"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "students.first_name",
+                "students.middle_name",
+                "students.last_name",
+                "students.student_id"
+              ],
+              "tables": [
+                "student_enrolment",
+                "students"
+              ],
+              "joins": [
+                "inner join students on student_enrolment.student_id = students.student_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by student_enrolment.student_id, student_enrolment.semester_id"
+              ],
+              "having": [
+                "having count(student_enrolment.degree_program_id) = 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: student_enrolment",
+              "complexity=HARD"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:12:10.266196"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.972,
+      "raw_response": "{\"sql\": \"SELECT Students.first_name, Students.middle_name, Students.last_name, Students.student_id FROM Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id JOIN (SELECT student_id, semester_id FROM Student_Enrolment GROUP BY student_id, semester_id HAVING COUNT(DISTINCT degree_program_id) = 2) AS EnrolledTwice ON Students.student_id = EnrolledTwice.student_id AND Student_Enrolment.semester_id = EnrolledTwice.semester_id\", \"explain\": \"The SQL is preserved as both deterministic and semantic checks passed without any violations. The query correctly returns the first, middle, and last names along with the IDs of students enrolled in exactly 2 degree programs in one semester.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 4542,
+        "prompt_tokens": 4368,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 174,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:12:12.260743",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "students.first_name",
+            "students.middle_name",
+            "students.last_name",
+            "students.student_id"
+          ],
+          "tables": [
+            "student_enrolment",
+            "students"
+          ],
+          "joins": [
+            "join (select student_id, semester_id from student_enrolment group by student_id, semester_id having count(distinct degree_program_id) = 2) as enrolledtwice on students.student_id = enrolledtwice.student_id and student_enrolment.semester_id = enrolledtwice.semester_id",
+            "join student_enrolment on students.student_id = student_enrolment.student_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by student_id, semester_id"
+          ],
+          "having": [
+            "having count(distinct degree_program_id) = 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: student_enrolment",
+          "complexity=HARD"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "students.first_name",
+            "students.middle_name",
+            "students.last_name",
+            "students.student_id"
+          ],
+          "tables": [
+            "student_enrolment",
+            "students"
+          ],
+          "joins": [
+            "join (select student_id, semester_id from student_enrolment group by student_id, semester_id having count(distinct degree_program_id) = 2) as enrolledtwice on students.student_id = enrolledtwice.student_id and student_enrolment.semester_id = enrolledtwice.semester_id",
+            "join student_enrolment on students.student_id = student_enrolment.student_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by student_id, semester_id"
+          ],
+          "having": [
+            "having count(distinct degree_program_id) = 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: student_enrolment",
+          "complexity=HARD"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Students.first_name, Students.middle_name, Students.last_name, Students.student_id FROM Students JOIN Student_Enrolment ON Students.student_id = Student_Enrolment.student_id JOIN (SELECT student_id, semester_id FROM Student_Enrolment GROUP BY student_id, semester_id HAVING COUNT(DISTINCT degree_program_id) = 2) AS EnrolledTwice ON Students.student_id = EnrolledTwice.student_id AND Student_Enrolment.semester_id = EnrolledTwice.semester_id",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:12:12.279546"
+}

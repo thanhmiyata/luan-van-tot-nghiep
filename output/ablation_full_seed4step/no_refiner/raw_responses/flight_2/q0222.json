@@ -1,0 +1,353 @@
+{
+  "question_index": 222,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "flight_2",
+  "question": "Which city has the most frequent destination airport?",
+  "gold_query": "SELECT T1.City FROM AIRPORTS AS T1 JOIN FLIGHTS AS T2 ON T1.AirportCode  =  T2.DestAirport GROUP BY T1.City ORDER BY count(*) DESC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"City\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"airports\", \"column\": \"City\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"airports\", \"column\": \"City\"}],\n  \"order_by\": [{\"table\": \"flights\", \"column\": \"DestAirport\", \"direction\": \"DESC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"flights\", \"to_table\": \"airports\", \"reason\": \"link destination airport codes to cities\"}\n  ],\n  \"entities\": {\"tables\": [\"airports\", \"flights\"], \"columns\": [\"City\", \"DestAirport\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:10.139360"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"db_id\": \"flight_2\", \"table_names_original\": [\"airports\", \"flights\"], \"column_names_original\": [[0, \"City\"], [0, \"AirportCode\"], [1, \"DestAirport\"]], \"column_types\": [\"text\", \"text\", \"text\"], \"foreign_keys\": [[2, 1]], \"primary_keys\": [1], \"column_sample_values\": [[\"Aberdeen \", \"Abilene \", \"Abingdon \", \"Ada \"], [\"AAF\", \"ABI\", \"ABL\", \"ABQ\"], [\" ASY\", \" APG\", \" ACV\", \" CVO\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:04:10.141529"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.638,
+      "raw_response": "{\n  \"steps\": [\"Join airports and flights on the destination airport code\", \"Count number of flights for each city\", \"Select the city with the maximum count\"],\n  \"select\": [{\"table\": \"airports\", \"column\": \"City\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"airports\", \"to_table\": \"flights\", \"condition\": \"flights.DestAirport = airports.AirportCode\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"airports\", \"column\": \"City\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"flights\", \"column\": \"COUNT(*)\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2389,
+        "prompt_tokens": 2184,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 205,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:12.796203"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT a.City FROM flights f JOIN airports a ON f.DestAirport = a.AirportCode GROUP BY a.City ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:12.798175",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "a.city"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "join airports as a on f.destairport = a.airportcode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by a.city"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "airports.city"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "join flights on flights.destairport = airports.airportcode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by airports.city"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.463,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT airports.City FROM airports JOIN flights ON flights.DestAirport = airports.AirportCode GROUP BY airports.City ORDER BY COUNT(*) DESC LIMIT 1;\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2504,
+        "prompt_tokens": 2435,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 69,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:14.280895",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "a.city"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "join airports as a on f.destairport = a.airportcode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by a.city"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "airports.city"
+              ],
+              "tables": [
+                "airports",
+                "flights"
+              ],
+              "joins": [
+                "join flights on flights.destairport = airports.airportcode"
+              ],
+              "where": [],
+              "group_by": [
+                "group by airports.city"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:04:14.290935"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.993,
+      "raw_response": "{\"sql\": \"SELECT a.City FROM flights AS f JOIN airports AS a ON f.DestAirport = a.AirportCode GROUP BY a.City ORDER BY COUNT(*) DESC LIMIT 1\", \"explain\": \"The query correctly finds the city with the most frequent destination airport by joining flights and airports, grouping by City, and ordering by the count of flights in descending order.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2244,
+        "prompt_tokens": 2151,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 93,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:04:16.305329",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "a.city"
+          ],
+          "tables": [
+            "airports",
+            "flights"
+          ],
+          "joins": [
+            "join airports as a on f.destairport = a.airportcode"
+          ],
+          "where": [],
+          "group_by": [
+            "group by a.city"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "a.city"
+          ],
+          "tables": [
+            "airports",
+            "flights"
+          ],
+          "joins": [
+            "join airports as a on f.destairport = a.airportcode"
+          ],
+          "where": [],
+          "group_by": [
+            "group by a.city"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT a.City FROM flights AS f JOIN airports AS a ON f.DestAirport = a.AirportCode GROUP BY a.City ORDER BY COUNT(*) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:04:16.318339"
+}

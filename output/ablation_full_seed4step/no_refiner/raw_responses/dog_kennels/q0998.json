@@ -1,0 +1,335 @@
+{
+  "question_index": 998,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "dog_kennels",
+  "question": "List the first name of all the professionals along with the description of the treatment they have done.",
+  "gold_query": "SELECT DISTINCT T1.first_name ,  T3.treatment_type_description FROM professionals AS T1 JOIN Treatments AS T2 ON T1.professional_id  =  T2.professional_id JOIN Treatment_types AS T3 ON T2.treatment_type_code  =  T3.treatment_type_code",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"first_name\", \"treatment_type_description\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Professionals\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Treatment_Types\", \"column\": \"treatment_type_description\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Treatments\", \"to_table\": \"Professionals\", \"reason\": \"link treatments to professionals\"},\n    {\"from_table\": \"Treatments\", \"to_table\": \"Treatment_Types\", \"reason\": \"get treatment description\"}\n  ],\n  \"entities\": {\"tables\": [\"Professionals\", \"Treatment_Types\", \"Treatments\"], \"columns\": [\"first_name\", \"treatment_type_description\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:01:00.289847"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: The user wants to filter the schema to include only the necessary tables and columns to answer the question: \"List the first name of all the professionals along with the description of the treatment they have done.\"\n\nBased on the analysis:\n1.  **Output Columns**:\n    *   `Professionals.first_name`\n    *   `Treatment_Types.treatment_type_description`\n2.  **Required Tables**:\n    *   `Professionals` (to get `first_name`)\n    *   `Treatment_Types` (to get `treatment_type_description`)\n    *   `Treatments` (as an intermediary table to link `Professionals` and `Treatment_Types`)\n3.  **Joins and PK/FKs**:\n    *   To link `Professionals` and `Treatments`: `Professionals.professional_id` (PK) and `Treatments.professional_id` (FK).\n    *   To link `Treatments` and `Treatment_Types`: `Treatments.treatment_type_code` (FK) and `Treatment_Types.treatment_type_code` (PK).\n4.  **Primary Keys of involved tables**:\n    *   `Professionals.professional_id`\n    *   `Treatments.treatment_id` (PK of the `Treatments` table itself, often good practice to keep)\n    *   `Treatment_Types.treatment_type_code`\n\nLet's list the original indices of the tables and columns to keep:\n\n**Original Table Indices to Keep:**\n*   `Treatment_Types` (original index 3)\n*   `Professionals` (original index 6)\n*   `Treatments` (original index 7)\n\n**Original Column Indices to Keep:**\n*   `-1` (for `*` - global column, always kept)\n*   `8` (`Treatment_Types.treatment_type_code` - PK, FK source)\n*   `9` (`Treatment_Types.treatment_type_description` - output)\n*   `33` (`Professionals.professional_id` - PK, FK target)\n*   `35` (`Professionals.first_name` - output)\n*   `44` (`Treatments.treatment_id` - PK)\n*   `46` (`Treatments.professional_id` - FK to Professionals)\n*   `47` (`Treatments.treatment_type_code` - FK to Treatment_Types)\n\nNow, I will construct the filtered schema by iterating through the original schema elements and keeping only those that correspond to the identified indices. I will also re-index the column-related lists (`column_types`, `foreign_keys`, `primary_keys`, `column_sample_values`) to reflect the new contiguous indexing of the filtered columns.\n\n**1. Filter `table_names_original`**:\nKeep tables with original indices `3, 6, 7`.\n`[\"Treatment_Types\", \"Professionals\", \"Treatments\"]`\n\n**2. Filter `column_names_original`, `column_types`, `column_sample_values` and create a mapping for new column indices**:\n\n| Original Col Index | Original `column_names_original` Entry | Original `column_types` Entry | Original `column_sample_values` Entry | New Col Index |\n| :----------------- | :------------------------------------- | :---------------------------- | :------------------------------------ | :------------ |\n| -1                 | `[-1, \"*\"]`                            | `text`                        | `[]`                                  | 0             |\n| 8                  | `[3, \"treatment_type_code\"]`          | `text`                        | `[\"EXAM\",\"VAC\",\"WALK\"]`               | 1             |\n| 9                  | `[3, \"treatment_type_description\"]`   | `text`                        | `[\"Physical examination\",\"Vaccination\",\"Take for a Walk\"]` | 2             |\n| 33                 | `[6, \"professional_id\"]`             | `number`                      | `[]`                                  | 3             |\n| 35                 | `[6, \"first_name\"]`                    | `text`                        | `[\"Taryn\",\"Jayson\",\"Olaf\",\"Vernice\"]` | 4             |\n| 44                 | `[7, \"treatment_id\"]`                  | `number`                      | `[]`                                  | 5             |\n| 46                 | `[7, \"professional_id\"]`             | `number`                      | `[]`                                  | 6             |\n| 47                 | `[7, \"treatment_type_code\"]`          | `text`                        | `[\"WALK\",\"VAC\",\"EXAM\"]`               | 7             |\n\n**Filtered `column_names_original`**:\n`[[-1, \"*\"], [3, \"treatment_type_code\"], [3, \"treatment_type_description\"], [6, \"professional_id\"], [6, \"first_name\"], [7, \"treatment_id\"], [7, \"professional_id\"], [7, \"treatment_type_code\"]]`\n\n**Filtered `column_types`**:\n`[\"text\", \"text\", \"text\", \"number\", \"text\", \"number\", \"number\", \"text\"]`\n\n**Filtered `column_sample_values`**:\n`[[], [\"EXAM\",\"VAC\",\"WALK\"], [\"Physical examination\",\"Vaccination\",\"Take for a Walk\"], [], [\"Taryn\",\"Jayson\",\"Olaf\",\"Vernice\"], [], [], [\"WALK\",\"VAC\",\"EXAM\"]]`\n\n**3. Filter and Re-index `foreign_keys`**:\nOriginal FKs involving kept columns: `[[46, 33], [47, 8]]`\nUsing the new column index mapping:\n*   `[46, 33]` -> `[6, 3]`\n*   `[47, 8]`  -> `[7, 1]`\n**Filtered `foreign_keys`**: `[[6, 3], [7, 1]]`\n\n**4. Filter and Re-index `primary_keys`**:\nOriginal PKs involving kept columns: `[8, 33, 44]`\nUsing the new column index mapping:\n*   `8`  -> `1`\n*   `33` -> `3`\n*   `44` -> `5`\n**Filtered `primary_keys`**: `[1, 3, 5]`\n\n```json\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Treatment_Types\",\n    \"Professionals\",\n    \"Treatments\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [3, \"treatment_type_code\"],\n    [3, \"treatment_type_description\"],\n    [6, \"professional_id\"],\n    [6, \"first_name\"],\n    [7, \"treatment_id\"],\n    [7, \"professional_id\"],\n    [7, \"treatment_type_code\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"text\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [6, 3],\n    [7, 1]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": [\n    [],\n    [\"EXAM\", \"VAC\", \"WALK\"],\n    [\"Physical examination\", \"Vaccination\", \"Take for a Walk\"],\n    [],\n    [\"Taryn\", \"Jayson\", \"Olaf\", \"Vernice\"],\n    [],\n    [],\n    [\"WALK\", \"VAC\", \"EXAM\"]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:01:00.293660"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:01:00.295481"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Professionals.first_name, Treatment_Types.treatment_type_description FROM Treatments JOIN Professionals ON Treatments.professional_id = Professionals.professional_id JOIN Treatment_Types ON Treatments.treatment_type_code = Treatment_Types.treatment_type_code\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:01:00.296775",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "treatment_types.treatment_type_description"
+              ],
+              "tables": [
+                "professionals",
+                "treatment_types",
+                "treatments"
+              ],
+              "joins": [
+                "join professionals on treatments.professional_id = professionals.professional_id",
+                "join treatment_types on treatments.treatment_type_code = treatment_types.treatment_type_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "treatment_types.treatment_type_description"
+              ],
+              "tables": [
+                "professionals",
+                "treatment_types",
+                "treatments"
+              ],
+              "joins": [
+                "join professionals on treatments.professional_id = professionals.professional_id",
+                "join treatment_types on treatments.treatment_type_code = treatment_types.treatment_type_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:01:00.296784",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "treatment_types.treatment_type_description"
+              ],
+              "tables": [
+                "professionals",
+                "treatment_types",
+                "treatments"
+              ],
+              "joins": [
+                "join professionals on treatments.professional_id = professionals.professional_id",
+                "join treatment_types on treatments.treatment_type_code = treatment_types.treatment_type_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "treatment_types.treatment_type_description"
+              ],
+              "tables": [
+                "professionals",
+                "treatment_types",
+                "treatments"
+              ],
+              "joins": [
+                "join professionals on treatments.professional_id = professionals.professional_id",
+                "join treatment_types on treatments.treatment_type_code = treatment_types.treatment_type_code"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: treatments"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:01:00.303334"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.016,
+      "raw_response": "{\"sql\": \"SELECT Professionals.first_name, Treatment_Types.treatment_type_description FROM Treatments JOIN Professionals ON Treatments.professional_id = Professionals.professional_id JOIN Treatment_Types ON Treatments.treatment_type_code = Treatment_Types.treatment_type_code\", \"explain\": \"The SQL query is valid according to both deterministic and semantic checks. It correctly joins the Treatments table with Professionals and Treatment_Types to retrieve the first name of professionals and the description of treatments they performed, which matches the question's requirement.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3502,
+        "prompt_tokens": 3385,
+        "cached_prompt_tokens": 1920,
+        "completion_tokens": 117,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:01:02.336497",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "professionals.first_name",
+            "treatment_types.treatment_type_description"
+          ],
+          "tables": [
+            "professionals",
+            "treatment_types",
+            "treatments"
+          ],
+          "joins": [
+            "join professionals on treatments.professional_id = professionals.professional_id",
+            "join treatment_types on treatments.treatment_type_code = treatment_types.treatment_type_code"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: treatments"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "professionals.first_name",
+            "treatment_types.treatment_type_description"
+          ],
+          "tables": [
+            "professionals",
+            "treatment_types",
+            "treatments"
+          ],
+          "joins": [
+            "join professionals on treatments.professional_id = professionals.professional_id",
+            "join treatment_types on treatments.treatment_type_code = treatment_types.treatment_type_code"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: treatments"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Professionals.first_name, Treatment_Types.treatment_type_description FROM Treatments JOIN Professionals ON Treatments.professional_id = Professionals.professional_id JOIN Treatment_Types ON Treatments.treatment_type_code = Treatment_Types.treatment_type_code",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:01:02.347635"
+}

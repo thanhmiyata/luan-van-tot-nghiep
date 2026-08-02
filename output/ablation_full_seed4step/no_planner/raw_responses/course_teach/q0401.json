@@ -1,0 +1,393 @@
+{
+  "question_index": 401,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "course_teach",
+  "question": "Show names of teachers and the courses they are arranged to teach in ascending alphabetical order of the teacher's name.",
+  "gold_query": "SELECT T3.Name ,  T2.Course FROM course_arrange AS T1 JOIN course AS T2 ON T1.Course_ID  =  T2.Course_ID JOIN teacher AS T3 ON T1.Teacher_ID  =  T3.Teacher_ID ORDER BY T3.Name",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Name\", \"Course\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"teacher\", \"column\": \"Name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"course\", \"column\": \"Course\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"teacher\", \"column\": \"Name\", \"direction\": \"ASC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"course_arrange\", \"to_table\": \"teacher\", \"reason\": \"teacher assignment\"},\n    {\"from_table\": \"course_arrange\", \"to_table\": \"course\", \"reason\": \"course assignment\"}\n  ],\n  \"entities\": {\"tables\": [\"teacher\", \"course\", \"course_arrange\"], \"columns\": [\"Name\", \"Course\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:31:16.669726"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"course_teach\",\n  \"table_names_original\": [\n    \"course\",\n    \"teacher\",\n    \"course_arrange\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Course_ID\"\n    ],\n    [\n      0,\n      \"Course\"\n    ],\n    [\n      1,\n      \"Teacher_ID\"\n    ],\n    [\n      1,\n      \"Name\"\n    ],\n    [\n      2,\n      \"Course_ID\"\n    ],\n    [\n      2,\n      \"Teacher_ID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [\n      6,\n      3\n    ],\n    [\n      5,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3,\n    5\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Language Arts\",\n      \"Math\",\n      \"Science\",\n      \"History\"\n    ],\n    [],\n    [\n      \"Joseph Huts\",\n      \"Gustaaf Deloor\",\n      \"Vicente Carretero\",\n      \"John Deloor\"\n    ],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:31:16.672206"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:31:16.673429"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT t.Name, c.Course FROM teacher t JOIN course_arrange ca ON t.Teacher_ID = ca.Teacher_ID JOIN course c ON ca.Course_ID = c.Course_ID ORDER BY t.Name ASC\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:31:16.674396",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/course_teach/course_teach.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "t.name",
+                "c.course"
+              ],
+              "tables": [
+                "course",
+                "course_arrange",
+                "teacher"
+              ],
+              "joins": [
+                "join course as c on ca.course_id = c.course_id",
+                "join course_arrange as ca on t.teacher_id = ca.teacher_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by t.name asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: course_arrange"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/course_teach/course_teach.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "t.name",
+                "c.course"
+              ],
+              "tables": [
+                "course",
+                "course_arrange",
+                "teacher"
+              ],
+              "joins": [
+                "join course as c on ca.course_id = c.course_id",
+                "join course_arrange as ca on t.teacher_id = ca.teacher_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by t.name asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: course_arrange"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:31:16.674404",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/course_teach/course_teach.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "t.name",
+                "c.course"
+              ],
+              "tables": [
+                "course",
+                "course_arrange",
+                "teacher"
+              ],
+              "joins": [
+                "join course as c on ca.course_id = c.course_id",
+                "join course_arrange as ca on t.teacher_id = ca.teacher_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by t.name asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: course_arrange"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/course_teach/course_teach.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "t.name",
+                "c.course"
+              ],
+              "tables": [
+                "course",
+                "course_arrange",
+                "teacher"
+              ],
+              "joins": [
+                "join course as c on ca.course_id = c.course_id",
+                "join course_arrange as ca on t.teacher_id = ca.teacher_id"
+              ],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by t.name asc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: course_arrange"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.85,
+      "raw_response": "{\n  \"sql\": \"SELECT t.Name, c.Course FROM teacher AS t JOIN course_arrange AS ca ON t.Teacher_ID = ca.Teacher_ID JOIN course AS c ON ca.Course_ID = c.Course_ID ORDER BY t.Name ASC\",\n  \"selected_candidate\": \"direct\",\n  \"notes\": \"Candidate query is correct and fully satisfies the question requirement.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 3275,
+        "prompt_tokens": 2590,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 685,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:31:20.546564",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/course_teach/course_teach.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "t.name",
+            "c.course"
+          ],
+          "tables": [
+            "course",
+            "course_arrange",
+            "teacher"
+          ],
+          "joins": [
+            "join course as c on ca.course_id = c.course_id",
+            "join course_arrange as ca on t.teacher_id = ca.teacher_id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by t.name asc"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: course_arrange"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.549,
+      "raw_response": "{\n  \"sql\": \"SELECT t.Name, c.Course FROM teacher AS t JOIN course_arrange AS ca ON t.Teacher_ID = ca.Teacher_ID JOIN course AS c ON ca.Course_ID = c.Course_ID ORDER BY t.Name ASC\",\n  \"explain\": \"The query is valid and correctly joins the teacher, course_arrange, and course tables to select teacher names and course titles ordered alphabetically by teacher name.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2788,
+        "prompt_tokens": 2203,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 585,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:31:24.126826",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/course_teach/course_teach.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "t.name",
+            "c.course"
+          ],
+          "tables": [
+            "course",
+            "course_arrange",
+            "teacher"
+          ],
+          "joins": [
+            "join course as c on ca.course_id = c.course_id",
+            "join course_arrange as ca on t.teacher_id = ca.teacher_id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by t.name asc"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: course_arrange"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/course_teach/course_teach.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "t.name",
+            "c.course"
+          ],
+          "tables": [
+            "course",
+            "course_arrange",
+            "teacher"
+          ],
+          "joins": [
+            "join course as c on ca.course_id = c.course_id",
+            "join course_arrange as ca on t.teacher_id = ca.teacher_id"
+          ],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by t.name asc"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: course_arrange"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT t.Name, c.Course FROM teacher AS t JOIN course_arrange AS ca ON t.Teacher_ID = ca.Teacher_ID JOIN course AS c ON ca.Course_ID = c.Course_ID ORDER BY t.Name ASC",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:31:24.141556"
+}

@@ -1,0 +1,383 @@
+{
+  "question_index": 108,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "car_1",
+  "question": "What is the name of the country with the most car makers?",
+  "gold_query": "SELECT T2.CountryName FROM CAR_MAKERS AS T1 JOIN COUNTRIES AS T2 ON T1.Country  =  T2.CountryId GROUP BY T1.Country ORDER BY Count(*) DESC LIMIT 1;",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"CountryName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"countries\", \"car_makers\"],\n  \"required_columns\": [\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"car_makers\", \"column\": \"Country\", \"purpose\": \"GROUP\"},\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"purpose\": \"COUNT\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Count car makers by country\"}\n  ],\n  \"group_by\": [\n    {\"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"Country\"}\n  ],\n  \"having\": [\n    {\"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"Id\", \"agg\": \"COUNT\", \"operator\": \"=\", \"value\": null}\n  ],\n  \"order_by\": [{\"table\": \"car_makers\", \"column\": \"Id\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"car_makers\", \"to_table\": \"countries\", \"reason\": \"to map the car maker's country\"}],\n  \"entities\": {\"tables\": [\"countries\", \"car_makers\"], \"columns\": [\"CountryName\", \"Country\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:35:18.602832"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"countries\", \"car_makers\"], \"column_names_original\": [[\"-1\", \"*\"], [\"1\", \"CountryId\"], [\"1\", \"CountryName\"], [\"2\", \"Id\"], [\"2\", \"Country\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:35:18.606190"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 3.669,
+      "raw_response": "{\n  \"steps\": [\"Identify the country with the most car makers by counting car makers per country.\", \"Join countries with car_makers to access country names.\", \"Select the country name with the maximum count of car makers.\", \"Order by car maker count descending and limit to one to find the singular most.\"],\n  \"select\": [{\"table\": \"countries\", \"column\": \"CountryName\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"countries\", \"to_table\": \"car_makers\", \"condition\": \"car_makers.Country = countries.CountryId\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"car_makers\", \"column\": \"Country\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"car_makers\", \"column\": \"COUNT(Id)\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2421,
+        "prompt_tokens": 2189,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 232,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:35:22.291367"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT CountryName FROM countries JOIN car_makers ON countries.CountryId = car_makers.Country GROUP BY CountryName ORDER BY COUNT(*) DESC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:35:22.295285",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on countries.countryid = car_makers.country"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countryname"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countries.countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "inner join car_makers on car_makers.country = countries.countryid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by car_makers.country"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(car_makers.id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.325,
+      "raw_response": "{\"direct_sql\": \"\",\"planned_sql\": \"SELECT countries.CountryName FROM countries INNER JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY car_makers.Country ORDER BY COUNT(car_makers.Id) DESC LIMIT 1\",\"disagreement_reason\": \"empty if structurally equivalent\"}",
+      "token_usage": {
+        "total_tokens": 2540,
+        "prompt_tokens": 2469,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 71,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:35:23.643054",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on countries.countryid = car_makers.country"
+              ],
+              "where": [],
+              "group_by": [
+                "group by countryname"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countries.countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries"
+              ],
+              "joins": [
+                "inner join car_makers on car_makers.country = countries.countryid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by car_makers.country"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(car_makers.id) desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "HAVING_MISSING",
+                "message": "Contract requires HAVING."
+              }
+            ],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:35:23.654214"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.741,
+      "raw_response": "{\"sql\": \"SELECT countries.CountryName FROM countries JOIN car_makers ON countries.CountryId = car_makers.Country GROUP BY countries.CountryName ORDER BY COUNT(car_makers.Id) DESC LIMIT 1\", \"explain\": \"Added COUNT(car_makers.Id) in ORDER BY to ensure the column is specifically counted. This resolves the semantic violation HAVING_MISSING by focusing on correcting the column used in the COUNT function for order arrangement, matching the requirement to get the country with the highest number of car makers.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2768,
+        "prompt_tokens": 2649,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 119,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:35:25.416708",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "countries.countryname"
+          ],
+          "tables": [
+            "car_makers",
+            "countries"
+          ],
+          "joins": [
+            "join car_makers on countries.countryid = car_makers.country"
+          ],
+          "where": [],
+          "group_by": [
+            "group by countries.countryname"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(car_makers.id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "HAVING_MISSING",
+            "message": "Contract requires HAVING."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "countries.countryname"
+          ],
+          "tables": [
+            "car_makers",
+            "countries"
+          ],
+          "joins": [
+            "join car_makers on countries.countryid = car_makers.country"
+          ],
+          "where": [],
+          "group_by": [
+            "group by countries.countryname"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(car_makers.id) desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "HAVING_MISSING",
+            "message": "Contract requires HAVING."
+          }
+        ],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT countries.CountryName FROM countries JOIN car_makers ON countries.CountryId = car_makers.Country GROUP BY countries.CountryName ORDER BY COUNT(car_makers.Id) DESC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:35:25.430475"
+}

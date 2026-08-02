@@ -1,0 +1,308 @@
+{
+  "question_index": 239,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "flight_2",
+  "question": "Find all airlines that have flights from airport 'CVO' but not from 'APG'.",
+  "gold_query": "SELECT T1.Airline FROM AIRLINES AS T1 JOIN FLIGHTS AS T2 ON T1.uid  =  T2.Airline WHERE T2.SourceAirport  =  \"CVO\" EXCEPT SELECT T1.Airline FROM AIRLINES AS T1 JOIN FLIGHTS AS T2 ON T1.uid  =  T2.Airline WHERE T2.SourceAirport  =  \"APG\"",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Airline\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"airlines\", \"column\": \"Airline\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"flights\", \"column\": \"SourceAirport\", \"operator\": \"=\", \"value\": \"CVO\", \"value_type\": \"STRING\"},\n    {\"table\": \"flights\", \"column\": \"SourceAirport\", \"operator\": \"<>\", \"value\": \"APG\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"flights\", \"to_table\": \"airlines\", \"reason\": \"to get airline details for flights\"}],\n  \"entities\": {\"tables\": [\"airlines\", \"flights\"], \"columns\": [\"Airline\", \"SourceAirport\"], \"values\": [\"CVO\", \"APG\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:06:39.456170"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"flight_2\",\n  \"table_names_original\": [\n    \"airlines\",\n    \"flights\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"uid\"\n    ],\n    [\n      0,\n      \"Airline\"\n    ],\n    [\n      1,\n      \"Airline\"\n    ],\n    [\n      1,\n      \"SourceAirport\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      3,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"United Airlines\",\n      \"US Airways\",\n      \"Delta Airlines\",\n      \"Southwest Airlines\"\n    ],\n    [],\n    [\n      \" APG\",\n      \" ASY\",\n      \" CVO\",\n      \" ACV\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:06:39.458255"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.674,
+      "raw_response": "{\n  \"steps\": [\"Filter airlines with flights from CVO\", \"Exclude those with flights from APG\"],\n  \"select\": [{\"table\": \"airlines\", \"column\": \"Airline\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"flights\", \"to_table\": \"airlines\", \"condition\": \"flights.Airline = airlines.Airline\"}],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"flights.SourceAirport = 'CVO'\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"expression\": \"flights.SourceAirport = 'APG'\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"EXCEPT\",\n    \"branches\": [\n      {\"scope_id\": \"s1\", \"branch_id\": \"b1\"},\n      {\"scope_id\": \"s2\", \"branch_id\": \"b2\"}\n    ]\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2364,
+        "prompt_tokens": 1997,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 367,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:06:44.147113"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT f1.Airline FROM flights f1 WHERE f1.SourceAirport = 'CVO' AND f1.Airline NOT IN (SELECT f2.Airline FROM flights f2 WHERE f2.SourceAirport = 'APG')\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:06:44.149244",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "f1.airline"
+              ],
+              "tables": [
+                "flights"
+              ],
+              "joins": [],
+              "where": [
+                "where f1.sourceairport = 'cvo' and not f1.airline in (select f2.airline from flights as f2 where f2.sourceairport = 'apg')",
+                "where f2.sourceairport = 'apg'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table airlines is absent."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "airlines.airline"
+              ],
+              "tables": [
+                "airlines",
+                "flights"
+              ],
+              "joins": [
+                "inner join airlines on flights.airline = airlines.airline",
+                "inner join airlines on flights.airline = airlines.airline"
+              ],
+              "where": [
+                "where flights.sourceairport = 'apg'",
+                "where flights.sourceairport = 'cvo'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "EXCEPT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.47,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT DISTINCT airlines.Airline FROM flights INNER JOIN airlines ON flights.Airline = airlines.Airline WHERE flights.SourceAirport = 'CVO' EXCEPT SELECT DISTINCT airlines.Airline FROM flights INNER JOIN airlines ON flights.Airline = airlines.Airline WHERE flights.SourceAirport = 'APG'\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2395,
+        "prompt_tokens": 2295,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 100,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:06:45.638204",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "f1.airline"
+              ],
+              "tables": [
+                "flights"
+              ],
+              "joins": [],
+              "where": [
+                "where f1.sourceairport = 'cvo' and not f1.airline in (select f2.airline from flights as f2 where f2.sourceairport = 'apg')",
+                "where f2.sourceairport = 'apg'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table airlines is absent."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "airlines.airline"
+              ],
+              "tables": [
+                "airlines",
+                "flights"
+              ],
+              "joins": [
+                "inner join airlines on flights.airline = airlines.airline",
+                "inner join airlines on flights.airline = airlines.airline"
+              ],
+              "where": [
+                "where flights.sourceairport = 'apg'",
+                "where flights.sourceairport = 'cvo'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "EXCEPT"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:06:45.649317"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:06:45.652979",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/flight_2/flight_2.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "airlines.airline"
+          ],
+          "tables": [
+            "airlines",
+            "flights"
+          ],
+          "joins": [
+            "inner join airlines on flights.airline = airlines.airline",
+            "inner join airlines on flights.airline = airlines.airline"
+          ],
+          "where": [
+            "where flights.sourceairport = 'apg'",
+            "where flights.sourceairport = 'cvo'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": [
+            "EXCEPT"
+          ]
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT DISTINCT airlines.Airline FROM flights INNER JOIN airlines ON flights.Airline = airlines.Airline WHERE flights.SourceAirport = 'CVO' EXCEPT SELECT DISTINCT airlines.Airline FROM flights INNER JOIN airlines ON flights.Airline = airlines.Airline WHERE flights.SourceAirport = 'APG'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:06:45.658698"
+}

@@ -1,0 +1,288 @@
+{
+  "question_index": 333,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Show all template type codes with less than three templates.",
+  "gold_query": "SELECT template_type_code FROM Templates GROUP BY template_type_code HAVING count(*)  <  3",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Template_Type_Code\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Ref_Template_Types\", \"column\": \"Template_Type_Code\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [\n    {\"table\": \"Templates\", \"column\": \"Template_Type_Code\"}\n  ],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Ref_Template_Types\", \"to_table\": \"Templates\", \"reason\": \"filter template type codes with less than three templates\"}\n  ],\n  \"entities\": {\"tables\": [\"Ref_Template_Types\", \"Templates\"], \"columns\": [\"Template_Type_Code\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:47:39.398521"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the original schema to include only the tables and columns required by the question \"Show all template type codes with less than three templates.\" and the provided analysis.\n\n1.  **Identify relevant tables:** From `analysis.entities.tables`, `Ref_Template_Types` and `Templates` are needed. The join hint also confirms these two tables.\n2.  **Identify required columns for `Ref_Template_Types`:**\n    *   `Template_Type_Code`: This is the output field (`output_fields_detailed`) and also involved in the join with `Templates`. It's also a PK. (Original index 1)\n3.  **Identify required columns for `Templates`:**\n    *   `Template_ID`: Needed for counting templates (`COUNT(Template_ID)` for the 'less than three templates' condition). It's also a PK. (Original index 3)\n    *   `Template_Type_Code`: Needed for the `GROUP BY` clause and the join condition with `Ref_Template_Types`. (Original index 5)\n4.  **Preserve PK/FK relationships:**\n    *   The join is between `Ref_Template_Types.Template_Type_Code` (original PK index 1) and `Templates.Template_Type_Code` (original FK index 5). This FK relationship `[[5,1]]` must be preserved.\n    *   PKs to preserve: `Ref_Template_Types.Template_Type_Code` (original 1), `Templates.Template_ID` (original 3).\n\n**Schema Reconstruction:**\n\n*   **`db_id`**: `cre_Doc_Template_Mgt` remains the same.\n*   **`table_names_original`**: `[\"Ref_Template_Types\", \"Templates\"]`.\n*   **`column_names_original`**: I will list the `[-1, \"*\"]` entry first, then the selected columns for `Ref_Template_Types` (table 0), followed by `Templates` (table 1).\n    *   `[-1, \"*\"]` (always present, new index 0)\n    *   `[0, \"Template_Type_Code\"]` (from `Ref_Template_Types`, original index 1, new index 1)\n    *   `[1, \"Template_ID\"]` (from `Templates`, original index 3, new index 2)\n    *   `[1, \"Template_Type_Code\"]` (from `Templates`, original index 5, new index 3)\n*   **`column_types`**: Based on the selected columns' original types.\n    *   `text` (for `Ref_Template_Types.Template_Type_Code`)\n    *   `number` (for `Templates.Template_ID`)\n    *   `text` (for `Templates.Template_Type_Code`)\n*   **`primary_keys`**: Map original PK indices to new indices.\n    *   Original PK `1` (`Ref_Template_Types.Template_Type_Code`) becomes new index `1`.\n    *   Original PK `3` (`Templates.Template_ID`) becomes new index `2`.\n    *   So, `[1, 2]`.\n*   **`foreign_keys`**: Map original FK indices to new indices.\n    *   Original FK `[[5, 1]]` (Templates.Template_Type_Code referencing Ref_Template_Types.Template_Type_Code)\n    *   `5` (Templates.Template_Type_Code) becomes new index `3`.\n    *   `1` (Ref_Template_Types.Template_Type_Code) becomes new index `1`.\n    *   So, `[[3, 1]]`.\n*   **`column_sample_values`**: Extract sample values for the selected columns in their new order.\n    *   `[]` (for `*`)\n    *   `[\"AD\", \"BK\", \"CV\", \"PP\"]` (for `Ref_Template_Types.Template_Type_Code`)\n    *   `[]` (for `Templates.Template_ID`)\n    *   `[\"PP\", \"BK\", \"PPT\", \"AD\"]` (for `Templates.Template_Type_Code`){\"db_id\": \"cre_Doc_Template_Mgt\", \"table_names_original\": [\"Ref_Template_Types\", \"Templates\"], \"column_names_original\": [[-1, \"*\"], [0, \"Template_Type_Code\"], [1, \"Template_ID\"], [1, \"Template_Type_Code\"]], \"column_types\": [\"text\", \"number\", \"text\"], \"foreign_keys\": [[3, 1]], \"primary_keys\": [1, 2], \"column_sample_values\": [[], [\"AD\", \"BK\", \"CV\", \"PP\"], [], [\"PP\", \"BK\", \"PPT\", \"AD\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:47:39.400567"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:47:39.401874"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Ref_Template_Types.Template_Type_Code FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code GROUP BY Ref_Template_Types.Template_Type_Code HAVING COUNT(*) < 3\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:47:39.402801",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "ref_template_types.template_type_code"
+              ],
+              "tables": [
+                "ref_template_types",
+                "templates"
+              ],
+              "joins": [
+                "join templates on ref_template_types.template_type_code = templates.template_type_code"
+              ],
+              "where": [],
+              "group_by": [
+                "group by ref_template_types.template_type_code"
+              ],
+              "having": [
+                "having count(*) < 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "ref_template_types.template_type_code"
+              ],
+              "tables": [
+                "ref_template_types",
+                "templates"
+              ],
+              "joins": [
+                "join templates on ref_template_types.template_type_code = templates.template_type_code"
+              ],
+              "where": [],
+              "group_by": [
+                "group by ref_template_types.template_type_code"
+              ],
+              "having": [
+                "having count(*) < 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:47:39.402809",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "ref_template_types.template_type_code"
+              ],
+              "tables": [
+                "ref_template_types",
+                "templates"
+              ],
+              "joins": [
+                "join templates on ref_template_types.template_type_code = templates.template_type_code"
+              ],
+              "where": [],
+              "group_by": [
+                "group by ref_template_types.template_type_code"
+              ],
+              "having": [
+                "having count(*) < 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "ref_template_types.template_type_code"
+              ],
+              "tables": [
+                "ref_template_types",
+                "templates"
+              ],
+              "joins": [
+                "join templates on ref_template_types.template_type_code = templates.template_type_code"
+              ],
+              "where": [],
+              "group_by": [
+                "group by ref_template_types.template_type_code"
+              ],
+              "having": [
+                "having count(*) < 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Candidates are structurally equivalent and semantic audits pass; kept Direct.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:47:39.409054"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:47:39.412136",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "ref_template_types.template_type_code"
+          ],
+          "tables": [
+            "ref_template_types",
+            "templates"
+          ],
+          "joins": [
+            "join templates on ref_template_types.template_type_code = templates.template_type_code"
+          ],
+          "where": [],
+          "group_by": [
+            "group by ref_template_types.template_type_code"
+          ],
+          "having": [
+            "having count(*) < 3"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT Ref_Template_Types.Template_Type_Code FROM Ref_Template_Types JOIN Templates ON Ref_Template_Types.Template_Type_Code = Templates.Template_Type_Code GROUP BY Ref_Template_Types.Template_Type_Code HAVING COUNT(*) < 3",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:47:39.415025"
+}

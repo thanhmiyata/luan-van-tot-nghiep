@@ -1,0 +1,391 @@
+{
+  "question_index": 942,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "dog_kennels",
+  "question": "Which professionals have done at least two types of treatments? List the professional id and cell phone.",
+  "gold_query": "SELECT T1.professional_id ,  T1.cell_number FROM Professionals AS T1 JOIN Treatments AS T2 ON T1.professional_id  =  T2.professional_id GROUP BY T1.professional_id HAVING count(*)  >=  2",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"professional_id\", \"cell_number\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Professionals\", \"column\": \"professional_id\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Professionals\", \"column\": \"cell_number\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Treatments\", \"column\": \"professional_id\"}],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Treatments\", \"to_table\": \"Professionals\", \"reason\": \"to get professional details\"}],\n  \"entities\": {\"tables\": [\"Professionals\", \"Treatments\"], \"columns\": [\"professional_id\", \"treatment_type_code\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:41.453230"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have carefully reviewed the question and the provided analysis to identify all necessary tables and columns.\n1.  **Identify output columns**: `professional_id` and `cell_number` from the `Professionals` table.\n2.  **Identify columns for conditions/grouping**: The question requires counting \"at least two types of treatments\" per professional. This means we need `Treatments.professional_id` to group by and `Treatments.treatment_type_code` to count distinct types.\n3.  **Identify necessary joins**: To link `Professionals` and `Treatments`, we need the `professional_id` which acts as a foreign key in `Treatments` referencing the primary key in `Professionals`.\n4.  **Preserve PK/FKs**:\n    *   `Professionals.professional_id` (PK)\n    *   `Treatments.treatment_id` (PK, for table integrity)\n    *   `Treatments.professional_id` (FK) joining to `Professionals.professional_id`.\n\nBased on this, the required tables are `Professionals` and `Treatments`.\n\n**Selected Tables and their Original Indices:**\n*   `Professionals` (original index 6)\n*   `Treatments` (original index 7)\n\n**Selected Columns and their Original Indices:**\n*   `Professionals.professional_id` (original index 33) - PK, output, join target\n*   `Professionals.cell_number` (original index 42) - output\n*   `Treatments.treatment_id` (original index 44) - PK\n*   `Treatments.professional_id` (original index 46) - FK, group by\n*   `Treatments.treatment_type_code` (original index 47) - for distinct count\n\nNow I will construct the filtered schema by mapping these original indices to new sequential indices and updating all relevant lists (`column_names_original`, `column_types`, `column_sample_values`, `primary_keys`, `foreign_keys`).\n\n**Step-by-step construction:**\n1.  Initialize `filtered_schema` with `db_id`.\n2.  Set `table_names_original` to `[\"Professionals\", \"Treatments\"]`.\n3.  Map original table indices to new table indices: `Professionals` (6 -> 0), `Treatments` (7 -> 1).\n4.  Iterate through the selected columns, creating `new_column_names_original`, `new_column_types`, `new_column_sample_values`, and an `original_to_new_col_idx` mapping. Remember to include `[-1, \"*\"]` as the first column.\n    *   `[-1, \"*\"]` -> new index 0\n    *   `Professionals.professional_id` (original 33, table 6) -> `[0, \"professional_id\"]`, new index 1\n    *   `Professionals.cell_number` (original 42, table 6) -> `[0, \"cell_number\"]`, new index 2\n    *   `Treatments.treatment_id` (original 44, table 7) -> `[1, \"treatment_id\"]`, new index 3\n    *   `Treatments.professional_id` (original 46, table 7) -> `[1, \"professional_id\"]`, new index 4\n    *   `Treatments.treatment_type_code` (original 47, table 7) -> `[1, \"treatment_type_code\"]`, new index 5\n5.  Update `primary_keys` using `original_to_new_col_idx`: `[33, 44]` -> `[1, 3]`.\n6.  Update `foreign_keys` using `original_to_new_col_idx`: `[[46, 33]]` -> `[[4, 1]]`.```json\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Professionals\",\n    \"Treatments\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"professional_id\"\n    ],\n    [\n      0,\n      \"cell_number\"\n    ],\n    [\n      1,\n      \"treatment_id\"\n    ],\n    [\n      1,\n      \"professional_id\"\n    ],\n    [\n      1,\n      \"treatment_type_code\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"(275)939-2435x80863\",\n      \"889-940-2676\",\n      \"(369)908-7311x065\",\n      \"00230569697\"\n    ],\n    [],\n    [],\n    [\n      \"WALK\",\n      \"VAC\",\n      \"EXAM\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:54:41.455962"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:54:41.457491"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Professionals.professional_id, Professionals.cell_number FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id, Professionals.cell_number HAVING COUNT(DISTINCT Treatments.treatment_type_code) >= 2\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:41.458714",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.professional_id",
+                "professionals.cell_number"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on professionals.professional_id = treatments.professional_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by professionals.professional_id, professionals.cell_number"
+              ],
+              "having": [
+                "having count(distinct treatments.treatment_type_code) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.professional_id",
+                "professionals.cell_number"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on professionals.professional_id = treatments.professional_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by professionals.professional_id, professionals.cell_number"
+              ],
+              "having": [
+                "having count(distinct treatments.treatment_type_code) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:54:41.458722",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.professional_id",
+                "professionals.cell_number"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on professionals.professional_id = treatments.professional_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by professionals.professional_id, professionals.cell_number"
+              ],
+              "having": [
+                "having count(distinct treatments.treatment_type_code) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.professional_id",
+                "professionals.cell_number"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on professionals.professional_id = treatments.professional_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by professionals.professional_id, professionals.cell_number"
+              ],
+              "having": [
+                "having count(distinct treatments.treatment_type_code) >= 2"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.594,
+      "raw_response": "{\"sql\": \"SELECT Professionals.professional_id, Professionals.cell_number FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id, Professionals.cell_number HAVING COUNT(DISTINCT Treatments.treatment_type_code) >= 2\", \"selected_candidate\": \"direct\", \"notes\": \"Both Direct and Planned SQL are valid and equivalent. The Direct SQL was selected as it matched the expected output and complied with all deterministic checks.\", \"diagnostics\": []}",
+      "token_usage": {
+        "total_tokens": 3724,
+        "prompt_tokens": 3613,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 111,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:43.073593",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "professionals.professional_id",
+            "professionals.cell_number"
+          ],
+          "tables": [
+            "professionals",
+            "treatments"
+          ],
+          "joins": [
+            "join treatments on professionals.professional_id = treatments.professional_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by professionals.professional_id, professionals.cell_number"
+          ],
+          "having": [
+            "having count(distinct treatments.treatment_type_code) >= 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.503,
+      "raw_response": "{\"sql\": \"SELECT Professionals.professional_id, Professionals.cell_number FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id, Professionals.cell_number HAVING COUNT(DISTINCT Treatments.treatment_type_code) >= 2\", \"explain\": \"The original SQL is correct as it properly answers the question by listing professionals who have performed at least two types of treatments, without any violations or errors according to both deterministic and semantic analyses.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3419,
+        "prompt_tokens": 3308,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 111,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:54:44.603610",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "professionals.professional_id",
+            "professionals.cell_number"
+          ],
+          "tables": [
+            "professionals",
+            "treatments"
+          ],
+          "joins": [
+            "join treatments on professionals.professional_id = treatments.professional_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by professionals.professional_id, professionals.cell_number"
+          ],
+          "having": [
+            "having count(distinct treatments.treatment_type_code) >= 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "professionals.professional_id",
+            "professionals.cell_number"
+          ],
+          "tables": [
+            "professionals",
+            "treatments"
+          ],
+          "joins": [
+            "join treatments on professionals.professional_id = treatments.professional_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by professionals.professional_id, professionals.cell_number"
+          ],
+          "having": [
+            "having count(distinct treatments.treatment_type_code) >= 2"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Professionals.professional_id, Professionals.cell_number FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id GROUP BY Professionals.professional_id, Professionals.cell_number HAVING COUNT(DISTINCT Treatments.treatment_type_code) >= 2",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:54:44.613392"
+}

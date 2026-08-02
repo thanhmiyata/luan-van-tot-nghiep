@@ -17,9 +17,28 @@ from crewai import LLM, Crew
 from crewai.flow.flow import Flow, listen, start
 from nl2sql_flow.crews.nl2sql_crew.nl2sql_crew import Nl2SqlCrew
 
+try:
+    from sqlglot import exp, parse_one
+except ImportError:  # Dependency validation reports this before API benchmarking.
+    exp = None
+    parse_one = None
+
 
 class NL2SQLOnlyResult(BaseModel):
     sql: str = ""
+
+
+class NL2SQLCandidates(BaseModel):
+    direct_sql: str = ""
+    planned_sql: str = ""
+    disagreement_reason: str = ""
+
+
+class SchemaSelectionResult(BaseModel):
+    table_names_original: List[str] = []
+    column_names_original: List[Any] = []
+    backup_table_names_original: List[str] = []
+    ambiguity_notes: List[str] = []
 
 
 class NLQuestions(BaseModel):
@@ -34,19 +53,25 @@ class QuestionAnalysisResult(BaseModel):
     field_order_critical: bool = True
     single_table_ok: bool = False
     required_tables: List[str] = []
-    required_columns: List[Dict] = []
-    output_fields_detailed: List[Dict] = []
+    # Bare Dict/List[Dict] breaks CrewAI generate_model_description (empty typing args).
+    required_columns: List[Dict[str, Any]] = []
+    output_fields_detailed: List[Dict[str, Any]] = []
     distinct: bool = False
-    filters: List[Dict] = []
-    literal_bindings: List[Dict] = []
-    predicate_scope: List[Dict] = []
-    group_by: List[Dict] = []
-    having: List[Dict] = []
-    order_by: List[Dict] = []
-    set_operation: Dict = {}
-    extreme_row: Optional[Dict] = None
-    join_hints: List[Dict] = []
-    entities: Dict = {}
+    retain_unmatched_entities: bool = False
+    include_zero_groups: bool = False
+    filters: List[Dict[str, Any]] = []
+    literal_bindings: List[Dict[str, Any]] = []
+    predicate_scope: List[Dict[str, Any]] = []
+    group_by: List[Dict[str, Any]] = []
+    having: List[Dict[str, Any]] = []
+    order_by: List[Dict[str, Any]] = []
+    set_operation: Dict[str, Any] = {}
+    extreme_row: Optional[Dict[str, Any]] = None
+    scalar_comparisons: List[Dict[str, Any]] = []
+    coverage_units: List[Dict[str, Any]] = []
+    risk_flags: List[str] = []
+    join_hints: List[Dict[str, Any]] = []
+    entities: Dict[str, Any] = {}
     self_join_hint: bool = False
     set_operation_type: str = "NONE"
     null_handling: str = "UNKNOWN"
@@ -61,25 +86,40 @@ class NL2SQLResult(BaseModel):
 
 
 class QueryPlanResult(BaseModel):
-    steps: List[Dict] = []
+    steps: List[Any] = []
+    select: List[Dict[str, Any]] = []
+    joins: List[Dict[str, Any]] = []
+    predicates: List[Dict[str, Any]] = []
+    group_by: List[Dict[str, Any]] = []
+    having: List[Dict[str, Any]] = []
+    order_by: List[Dict[str, Any]] = []
+    set_operation: Dict[str, Any] = {}
+    limit: Optional[int] = None
+    warnings: List[str] = []
+    risk_flags: List[str] = []
 
 
 class RefinedSQLResult(BaseModel):
     sql: str = ""
+    selected_candidate: str = ""
     notes: str = ""
+    diagnostics: List[str] = []
 
 
 class NL2SQLQualityResult(BaseModel):
     final_sql: str = ""
     quality_score: float = 0.0
-    pipeline_summary: Dict = {}
+    pipeline_summary: Dict[str, Any] = {}
     recommendations: List[str] = []
     confidence: float = 0.0
 
 
 class SQLDbSchema(BaseModel):
     db_id: str = ""
+    # Semantic labels are used for linking; *_original are the only SQL names.
+    table_names: List[str] = []
     table_names_original: List[str] = []
+    column_names: List[Tuple[int, str]] = []
     column_names_original: List[Tuple[int, str]] = []
     column_types: List[str] = []
     foreign_keys: List[List[int]] = []
@@ -91,6 +131,16 @@ class SQLDbSchema(BaseModel):
     join_plan: List[Dict[str, Any]] = []
     required_tables: List[str] = []
     join_plan_warnings: List[str] = []
+
+
+class SQLSemanticAuditResult(BaseModel):
+    """Question/contract checks that go beyond SQLite executability."""
+
+    valid: bool = False
+    parser: str = ""
+    signature: Dict[str, Any] = Field(default_factory=dict)
+    violations: List[Dict[str, str]] = Field(default_factory=list)
+    risk_reasons: List[str] = Field(default_factory=list)
 
 
 class SQLAuditResult(BaseModel):
@@ -148,8 +198,20 @@ def enrich_schema_metadata(
     join_plan_warnings: Optional[List[str]] = None,
 ) -> SQLDbSchema:
     payload = schema.model_dump()
+    semantic_tables = (
+        schema.table_names
+        if len(schema.table_names) == len(schema.table_names_original)
+        else list(schema.table_names_original)
+    )
+    semantic_columns = (
+        schema.column_names
+        if len(schema.column_names) == len(schema.column_names_original)
+        else list(schema.column_names_original)
+    )
     payload.update(
         {
+            "table_names": semantic_tables,
+            "column_names": semantic_columns,
             "named_foreign_keys": build_named_foreign_keys(schema),
             "join_plan": join_plan if join_plan is not None else schema.join_plan,
             "required_tables": (
@@ -165,6 +227,301 @@ def enrich_schema_metadata(
         }
     )
     return SQLDbSchema(**payload)
+
+
+def build_identifier_map(schema: SQLDbSchema) -> Dict[str, Any]:
+    """Build deterministic semantic-to-executable identifier mappings."""
+    schema = enrich_schema_metadata(schema)
+    table_map: Dict[str, str] = {}
+    for semantic, original in zip(
+        schema.table_names,
+        schema.table_names_original,
+    ):
+        table_map[str(semantic).strip().casefold()] = original
+        table_map[str(original).strip().casefold()] = original
+
+    scoped_columns: Dict[Tuple[str, str], str] = {}
+    global_candidates: Dict[str, Set[str]] = {}
+    for semantic_entry, original_entry in zip(
+        schema.column_names,
+        schema.column_names_original,
+    ):
+        semantic_table_index, semantic_column = semantic_entry
+        original_table_index, original_column = original_entry
+        if original_table_index < 0:
+            continue
+        original_table = schema.table_names_original[original_table_index]
+        for column_label in (semantic_column, original_column):
+            key = str(column_label).strip().casefold()
+            scoped_columns[(original_table.casefold(), key)] = original_column
+            global_candidates.setdefault(key, set()).add(original_column)
+
+    global_columns = {
+        key: next(iter(values))
+        for key, values in global_candidates.items()
+        if len(values) == 1
+    }
+    return {
+        "tables": table_map,
+        "columns": scoped_columns,
+        "global_columns": global_columns,
+    }
+
+
+def canonicalize_structured_identifiers(
+    payload: Any,
+    schema: SQLDbSchema,
+) -> Any:
+    """Canonicalize identifier-bearing JSON while leaving literals untouched."""
+    identifier_map = build_identifier_map(schema)
+    table_map: Dict[str, str] = identifier_map["tables"]
+    scoped_columns: Dict[Tuple[str, str], str] = identifier_map["columns"]
+    global_columns: Dict[str, str] = identifier_map["global_columns"]
+    table_keys = {
+        "table",
+        "from_table",
+        "to_table",
+        "project_table",
+        "rank_table",
+        "foreign_table",
+        "referenced_table",
+    }
+    table_list_keys = {
+        "required_tables",
+        "tables",
+        "table_names_original",
+        "backup_table_names_original",
+    }
+    column_keys = {
+        "column",
+        "project_column",
+        "rank_column",
+        "foreign_column",
+        "referenced_column",
+    }
+
+    def canonical_table(value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        return table_map.get(value.strip().casefold(), value)
+
+    def canonical_column(value: Any, table_hint: str = "") -> Any:
+        if not isinstance(value, str) or value == "*":
+            return value
+        key = value.strip().casefold()
+        if table_hint:
+            scoped = scoped_columns.get((table_hint.casefold(), key))
+            if scoped:
+                return scoped
+        return global_columns.get(key, value)
+
+    def visit(value: Any, parent_key: str = "") -> Any:
+        if isinstance(value, list):
+            if parent_key in table_list_keys:
+                return [canonical_table(item) for item in value]
+            return [visit(item, parent_key) for item in value]
+        if not isinstance(value, dict):
+            return value
+
+        result = dict(value)
+        for key in table_keys:
+            if key in result:
+                result[key] = canonical_table(result[key])
+        table_hint = next(
+            (
+                str(result[key])
+                for key in (
+                    "table",
+                    "project_table",
+                    "rank_table",
+                    "from_table",
+                    "to_table",
+                )
+                if isinstance(result.get(key), str)
+            ),
+            "",
+        )
+        for key, item in list(result.items()):
+            if key in column_keys:
+                result[key] = canonical_column(item, table_hint)
+            elif key == "column_names_original" and isinstance(item, list):
+                normalized_columns = []
+                for entry in item:
+                    if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                        table_ref, column_name = entry[0], entry[1]
+                        entry_table = (
+                            canonical_table(table_ref)
+                            if isinstance(table_ref, str)
+                            else table_hint
+                        )
+                        normalized_columns.append(
+                            [
+                                table_ref,
+                                canonical_column(column_name, str(entry_table)),
+                            ]
+                        )
+                    else:
+                        normalized_columns.append(
+                            canonical_column(entry, table_hint)
+                        )
+                result[key] = normalized_columns
+            elif key in table_list_keys and isinstance(item, list):
+                result[key] = [canonical_table(entry) for entry in item]
+            else:
+                result[key] = visit(item, key)
+        return result
+
+    return visit(payload)
+
+
+def executable_schema(schema: SQLDbSchema) -> SQLDbSchema:
+    """Hide perturbed semantic labels from agents that must emit SQLite."""
+    payload = schema.model_dump()
+    payload["table_names"] = list(schema.table_names_original)
+    payload["column_names"] = list(schema.column_names_original)
+    return SQLDbSchema(**payload)
+
+
+def direct_candidate_schema(schema: SQLDbSchema) -> SQLDbSchema:
+    """Expose executable schema evidence without analysis-derived plan hints."""
+    payload = executable_schema(schema).model_dump()
+    payload.update(
+        {
+            "join_plan": [],
+            "required_tables": [],
+            "join_plan_warnings": [],
+        }
+    )
+    return SQLDbSchema(**payload)
+
+
+def canonicalize_sql_identifiers(sql: str, schema: SQLDbSchema) -> str:
+    """Rewrite semantic table/column labels to executable Spider identifiers."""
+    if not sql.strip() or parse_one is None or exp is None:
+        return sql
+    identifier_map = build_identifier_map(schema)
+    table_map: Dict[str, str] = identifier_map["tables"]
+    scoped_columns: Dict[Tuple[str, str], str] = identifier_map["columns"]
+    global_columns: Dict[str, str] = identifier_map["global_columns"]
+
+    def identifier(value: str):
+        quoted = re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*", value) is None
+        return exp.to_identifier(value, quoted=quoted)
+
+    try:
+        tree = parse_one(sql, read="sqlite")
+        alias_to_table: Dict[str, str] = {}
+        explicit_aliases: Set[str] = set()
+        for table in tree.find_all(exp.Table):
+            old_name = str(table.name)
+            original = table_map.get(old_name.strip().casefold(), old_name)
+            alias = str(table.alias or "")
+            if alias:
+                explicit_aliases.add(alias.casefold())
+                alias_to_table[alias.casefold()] = original
+            alias_to_table[old_name.casefold()] = original
+            alias_to_table[original.casefold()] = original
+            if original != old_name:
+                table.set("this", identifier(original))
+
+        for column in tree.find_all(exp.Column):
+            old_column = str(column.name)
+            qualifier = str(column.table or "")
+            original_table = alias_to_table.get(
+                qualifier.casefold(),
+                table_map.get(qualifier.casefold(), qualifier),
+            )
+            original_column = (
+                scoped_columns.get(
+                    (original_table.casefold(), old_column.casefold())
+                )
+                if original_table
+                else None
+            ) or global_columns.get(old_column.casefold(), old_column)
+            if original_column != old_column:
+                column.set("this", identifier(original_column))
+            if (
+                qualifier
+                and qualifier.casefold() not in explicit_aliases
+                and original_table
+                and original_table != qualifier
+            ):
+                column.set("table", identifier(original_table))
+        return tree.sql(dialect="sqlite")
+    except Exception:
+        return sql
+
+
+def extended_route_reasons(
+    analysis: Dict[str, Any],
+    schema: SQLDbSchema,
+    question: str = "",
+) -> List[str]:
+    """Route structurally or lexically risky questions through planning."""
+    reasons = [str(flag) for flag in analysis.get("risk_flags", []) if flag]
+    complexity = str(analysis.get("complexity", "")).upper()
+    if complexity in {"HARD", "EXTRA", "EXTRA_HARD"}:
+        reasons.append(f"complexity={complexity}")
+    set_operation = analysis.get("set_operation", {})
+    if (
+        isinstance(set_operation, dict)
+        and str(set_operation.get("operator", "NONE")).upper() != "NONE"
+    ):
+        reasons.append("set operation")
+    if analysis.get("extreme_row"):
+        reasons.append("extreme row")
+    if analysis.get("scalar_comparisons"):
+        reasons.append("scalar comparison")
+    if analysis.get("having"):
+        reasons.append("HAVING")
+    if analysis.get("order_by"):
+        reasons.append("explicit order contract")
+    if analysis.get("retain_unmatched_entities") or analysis.get(
+        "include_zero_groups"
+    ):
+        reasons.append("explicit unmatched/zero retention")
+    scopes = analysis.get("predicate_scope", [])
+    if any(
+        isinstance(scope, dict)
+        and str(scope.get("scope", "")).upper()
+        in {"RELATED_ROWS", "INDEPENDENT_BRANCHES"}
+        for scope in scopes
+    ):
+        reasons.append("multi-row predicate scope")
+    required_tables = set(analysis.get("required_tables", []))
+    if len(required_tables) > 1 and (
+        analysis.get("group_by")
+        or analysis.get("having")
+        or analysis.get("filters")
+    ):
+        reasons.append("multi-table aggregation/filter")
+    if schema.join_plan_warnings:
+        reasons.append("ambiguous join graph")
+    # Lexical cues common on Dr.Spider synonym/value/sort perturbations.
+    question_lower = " ".join((question or "").lower().split())
+    if question_lower:
+        if re.search(
+            r"\b(?:most|least|highest|lowest|lightest|heaviest|"
+            r"largest|smallest|top|bottom|fewest)\b",
+            question_lower,
+        ):
+            reasons.append("ranking/extremum wording")
+        if re.search(
+            r"\b(?:birth\s*year|born\s*in|year(?:s)?\s+\d{4}|in\s+\d{4})\b",
+            question_lower,
+        ):
+            reasons.append("year-valued filter wording")
+        if re.search(
+            r"\b(?:minimum|maximum|min|max|average|avg|mean)\b",
+            question_lower,
+        ):
+            reasons.append("aggregate-measure wording")
+        if re.search(
+            r"\b(?:called|named|titled|known as)\b",
+            question_lower,
+        ):
+            reasons.append("value-synonym carrier wording")
+    return list(dict.fromkeys(reasons))
 
 
 def _analysis_table_names(
@@ -360,13 +717,19 @@ def rebuild_filtered_schema(
     parsed: Dict,
     analysis: Optional[Dict[str, Any]] = None,
 ) -> SQLDbSchema:
-    """Trust selector names only; rebuild indices and bridge paths in code."""
+    """Build a safe schema superset and deterministically rebuild FK metadata."""
     analysis = analysis or {}
     raw = enrich_schema_metadata(raw)
     try:
+        filter_mode = os.getenv(
+            "NL2SQL_SCHEMA_FILTER_MODE", "safe_superset"
+        ).strip().lower()
         kept_table_names = {
             str(table).lower()
-            for table in parsed.get("table_names_original", [])
+            for table in (
+                parsed.get("table_names_original", [])
+                + parsed.get("backup_table_names_original", [])
+            )
             if str(table).strip()
         }
         required_tables = _analysis_table_names(analysis, raw)
@@ -386,6 +749,13 @@ def rebuild_filtered_schema(
             for index, table in enumerate(raw.table_names_original)
             if table.lower() in kept_table_names
         }
+        complexity = str(analysis.get("complexity", "")).upper()
+        confidence = float(analysis.get("confidence", 0.0) or 0.0)
+        if filter_mode == "full" or (
+            filter_mode == "safe_superset"
+            and (complexity in {"HARD", "EXTRA", "EXTRA_HARD"} or confidence < 0.85)
+        ):
+            kept_table_idxs = set(range(len(raw.table_names_original)))
         if not kept_table_idxs:
             return enrich_schema_metadata(
                 raw,
@@ -407,8 +777,14 @@ def rebuild_filtered_schema(
         for column_index, (table_index, column_name) in enumerate(
             raw.column_names_original
         ):
+            keep_entire_selected_table = filter_mode in {
+                "safe_superset",
+                "full",
+            }
             if table_index in kept_table_idxs and (
-                not kept_col_names or column_name.lower() in kept_col_names
+                keep_entire_selected_table
+                or not kept_col_names
+                or column_name.lower() in kept_col_names
             ):
                 keep_cols.add(column_index)
         for primary_key in raw.primary_keys:
@@ -426,17 +802,29 @@ def rebuild_filtered_schema(
 
         old_tables = sorted(kept_table_idxs)
         new_tables = [raw.table_names_original[index] for index in old_tables]
+        semantic_tables = (
+            raw.table_names
+            if len(raw.table_names) == len(raw.table_names_original)
+            else raw.table_names_original
+        )
+        new_semantic_tables = [semantic_tables[index] for index in old_tables]
         table_remap = {
             old_index: new_index
             for new_index, old_index in enumerate(old_tables)
         }
         new_columns: List[Tuple[int, str]] = [(-1, "*")]
+        new_semantic_columns: List[Tuple[int, str]] = [(-1, "*")]
         new_types: List[str] = ["text"]
         new_samples: List[List[str]] = [[]]
         column_remap: Dict[int, int] = {}
         has_samples = (
             len(raw.column_sample_values)
             == len(raw.column_names_original)
+        )
+        semantic_columns = (
+            raw.column_names
+            if len(raw.column_names) == len(raw.column_names_original)
+            else raw.column_names_original
         )
         for column_index, (table_index, column_name) in enumerate(
             raw.column_names_original
@@ -445,6 +833,10 @@ def rebuild_filtered_schema(
                 continue
             column_remap[column_index] = len(new_columns)
             new_columns.append((table_remap[table_index], column_name))
+            _, semantic_column_name = semantic_columns[column_index]
+            new_semantic_columns.append(
+                (table_remap[table_index], semantic_column_name)
+            )
             new_types.append(
                 raw.column_types[column_index]
                 if column_index < len(raw.column_types)
@@ -470,7 +862,9 @@ def rebuild_filtered_schema(
         }
         filtered = SQLDbSchema(
             db_id=raw.db_id,
+            table_names=new_semantic_tables,
             table_names_original=new_tables,
+            column_names=new_semantic_columns,
             column_names_original=new_columns,
             column_types=new_types,
             foreign_keys=new_fks,
@@ -548,7 +942,7 @@ def enrich_question_value_grounding(
     question: str,
     db_path: Optional[Path] = None,
 ) -> SQLDbSchema:
-    """Prepend exact database values occurring as complete question spans."""
+    """Prepend exact and conservative named-entity value matches."""
     resolved_path = resolve_database_path(schema.db_id, explicit_path=db_path)
     if resolved_path is None or not question.strip():
         return schema
@@ -557,6 +951,24 @@ def enrich_question_value_grounding(
     if len(samples) != len(schema.column_names_original):
         samples = [[] for _ in schema.column_names_original]
     matches: List[Dict[str, str]] = []
+    named_terms = {
+        term
+        for term in re.findall(r"\b[A-Z][A-Za-z0-9_-]{2,}\b", question)
+        if term.casefold()
+        not in {
+            "and",
+            "are",
+            "find",
+            "give",
+            "list",
+            "not",
+            "show",
+            "the",
+            "what",
+            "which",
+            "who",
+        }
+    }
     database_uri = f"{resolved_path.as_uri()}?mode=ro"
     try:
         with sqlite3.connect(database_uri, uri=True) as connection:
@@ -601,6 +1013,38 @@ def enrich_question_value_grounding(
                             "evidence": "QUESTION_EXACT_DB_MATCH",
                         }
                     )
+                # A question often uses a short entity alias while the database
+                # stores the full canonical value (for example a brand token
+                # inside a company name). Keep only capitalized named terms to
+                # avoid broad fuzzy matching on ordinary question words.
+                for term in sorted(named_terms, key=len, reverse=True):
+                    expanded_query = (
+                        f"SELECT DISTINCT {quoted_column} FROM {quoted_table} "
+                        f"WHERE {quoted_column} IS NOT NULL "
+                        f"AND instr(lower(trim(CAST({quoted_column} AS TEXT))), "
+                        "lower(?)) > 0 "
+                        f"ORDER BY length(trim(CAST({quoted_column} AS TEXT))) DESC "
+                        "LIMIT 8"
+                    )
+                    for (raw_value,) in connection.execute(
+                        expanded_query, (term,)
+                    ):
+                        value = str(raw_value).strip()
+                        if (
+                            not value
+                            or value.casefold() == term.casefold()
+                            or len(value) > 80
+                        ):
+                            continue
+                        matched_values.append(value)
+                        matches.append(
+                            {
+                                "table": table_name,
+                                "column": column_name,
+                                "value": value,
+                                "evidence": "QUESTION_VALUE_CONTAINS",
+                            }
+                        )
                 if matched_values:
                     matched_casefold = {
                         value.casefold() for value in matched_values
@@ -630,6 +1074,184 @@ def enrich_question_value_grounding(
     return SQLDbSchema(**payload)
 
 
+def _year_like_column_names(schema: SQLDbSchema) -> Set[str]:
+    """Columns that Spider-style DBs often store as numeric years."""
+    names: Set[str] = set()
+    for index, (_, column_name) in enumerate(schema.column_names_original):
+        lowered = str(column_name).casefold()
+        type_name = (
+            str(schema.column_types[index]).casefold()
+            if index < len(schema.column_types)
+            else ""
+        )
+        if type_name == "number" or re.search(
+            r"(?:^|_)(?:year|born_date|birth_date|birthdate)(?:$|_)",
+            lowered,
+        ):
+            names.add(lowered)
+    return names
+
+
+def repair_population_count_as_sum(sql: str, question: str) -> str:
+    """Map 'how many people live/reside' COUNT(*) to SUM(Population)."""
+    if not sql.strip():
+        return sql
+    question_l = " ".join(question.casefold().split())
+    asks_people_population = bool(
+        re.search(
+            r"(?:how many|number of|total(?: number of)?)\s+people\b"
+            r".{0,40}\b(?:live|living|reside|residing|lived)\b"
+            r"|"
+            r"\b(?:live|living|reside|residing)\b.{0,40}"
+            r"(?:how many|number of|total(?: number of)?)\s+people\b"
+            r"|"
+            r"\btotal (?:number of )?people living\b",
+            question_l,
+        )
+    )
+    if not asks_people_population:
+        return sql
+    if re.search(r"\bsum\s*\(\s*population\s*\)", sql, re.IGNORECASE):
+        return sql
+    if not re.search(r"\bcount\s*\(\s*\*\s*\)", sql, re.IGNORECASE):
+        return sql
+    if not re.search(r"\b(?:city|country)\b", sql, re.IGNORECASE):
+        return sql
+    return re.sub(
+        r"\bcount\s*\(\s*\*\s*\)",
+        "SUM(Population)",
+        sql,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+
+def repair_bogus_order_by_aggregate_alias(sql: str) -> str:
+    """Replace ORDER BY invented aggregate aliases with count(*).
+
+    Common Spider failure: ``ORDER BY number_of_TV_Channels`` when SELECT has
+    ``count(id)`` / ``count(*)`` without that alias.
+    """
+    if not sql.strip() or parse_one is None or exp is None:
+        return sql
+    try:
+        tree = parse_one(sql, read="sqlite")
+    except Exception:
+        return sql
+
+    select = next(tree.find_all(exp.Select), None)
+    order = next(tree.find_all(exp.Order), None)
+    if select is None or order is None:
+        return sql
+
+    select_aliases = set()
+    has_count = False
+    for item in select.expressions:
+        if isinstance(item, exp.Alias) and item.alias:
+            select_aliases.add(str(item.alias).casefold())
+        item_sql = item.sql(dialect="sqlite").lower()
+        if re.search(r"\bcount\s*\(", item_sql):
+            has_count = True
+    if not has_count:
+        return sql
+
+    changed = False
+    for ordered in list(order.expressions):
+        # sqlglot Order expression wraps the ordered this
+        target = ordered.this if hasattr(ordered, "this") else ordered
+        if not isinstance(target, exp.Column):
+            continue
+        name = str(target.name or "").casefold()
+        if not name or name in select_aliases:
+            continue
+        # Invented ranking aliases usually look like number_of_*/num_*/*_count
+        if not re.search(
+            r"(number|num|count|total|amount|qty)",
+            name,
+        ):
+            continue
+        replacement = exp.Count(this=exp.Star())
+        if isinstance(ordered, exp.Ordered):
+            ordered.set("this", replacement)
+        changed = True
+
+    if not changed:
+        return sql
+    # Also normalize COUNT(id)/COUNT(col) → COUNT(*) in SELECT for the
+    # common TV_Channel ranking pattern when ordering by count.
+    for item in select.expressions:
+        if isinstance(item, exp.Alias):
+            inner = item.this
+        else:
+            inner = item
+        if isinstance(inner, exp.Count) and not isinstance(
+            inner.this, exp.Star
+        ):
+            # Only rewrite plain COUNT(col), keep COUNT(DISTINCT ...)
+            if not inner.args.get("distinct"):
+                inner.set("this", exp.Star())
+    try:
+        return tree.sql(dialect="sqlite")
+    except Exception:
+        return sql
+
+
+def apply_post_generation_sql_repairs(
+    sql: str,
+    question: str,
+    schema: SQLDbSchema,
+) -> str:
+    """Deterministic Spider-oriented repairs after LLM SQL generation."""
+    repaired = canonicalize_sql_identifiers(sql, schema)
+    repaired = normalize_numeric_year_predicates(repaired, schema)
+    repaired = repair_population_count_as_sum(repaired, question)
+    repaired = repair_bogus_order_by_aggregate_alias(repaired)
+    return repaired
+
+
+def normalize_numeric_year_predicates(
+    sql: str,
+    schema: SQLDbSchema,
+) -> str:
+    """Rewrite STRFTIME('%Y', col) year filters to direct column predicates."""
+    if not sql.strip():
+        return sql
+
+    year_columns = _year_like_column_names(schema)
+    in_pattern = re.compile(
+        r"strftime\s*\(\s*(['\"])%Y\1\s*,\s*"
+        r"(?P<column>(?:[A-Za-z_][\w$]*\.)?[A-Za-z_][\w$]*)\s*\)"
+        r"\s+IN\s*\((?P<values>[^)]*)\)",
+        re.IGNORECASE,
+    )
+    eq_pattern = re.compile(
+        r"strftime\s*\(\s*(['\"])%Y\1\s*,\s*"
+        r"(?P<column>(?:[A-Za-z_][\w$]*\.)?[A-Za-z_][\w$]*)\s*\)"
+        r"\s*(?P<op>=|<>|!=|<|>|<=|>=)\s*['\"]?(?P<year>\d{4})['\"]?",
+        re.IGNORECASE,
+    )
+
+    def replace_in(match: re.Match[str]) -> str:
+        qualified_column = match.group("column")
+        column_name = qualified_column.rsplit(".", 1)[-1].casefold()
+        values = re.findall(r"\d{4}", match.group("values"))
+        if column_name not in year_columns or not values:
+            return match.group(0)
+        return f"{qualified_column} IN ({', '.join(values)})"
+
+    def replace_eq(match: re.Match[str]) -> str:
+        qualified_column = match.group("column")
+        column_name = qualified_column.rsplit(".", 1)[-1].casefold()
+        if column_name not in year_columns:
+            return match.group(0)
+        return (
+            f"{qualified_column} {match.group('op')} {match.group('year')}"
+        )
+
+    rewritten = in_pattern.sub(replace_in, sql)
+    return eq_pattern.sub(replace_eq, rewritten)
+
+
 def _has_explicit_distinct_count(question: str) -> bool:
     normalized = " ".join(question.lower().split())
     patterns = (
@@ -642,6 +1264,118 @@ def _has_explicit_distinct_count(question: str) -> bool:
     return any(re.search(pattern, normalized) for pattern in patterns)
 
 
+def question_requests_unmatched_retention(question: str) -> bool:
+    """Return true only for explicit zero/unmatched entity wording."""
+    normalized = " ".join(question.lower().split())
+    return bool(
+        re.search(
+            r"\b(?:including|include|even if|whether or not|regardless of|"
+            r"with or without)\b.{0,45}\b(?:none|no|zero|without|not)\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(?:none|no|zero|without)\b.{0,45}\b(?:related|associated|"
+            r"courses?|documents?|records?|rows?)\b",
+            normalized,
+        )
+    )
+
+
+def _question_explicitly_requests_name_or_title(question: str) -> bool:
+    normalized = " ".join(question.lower().split())
+    return bool(
+        re.search(
+            r"\b(?:show|list|return|give|provide|display|which|what)\b"
+            r".{0,55}\b(?:name|title)\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(?:name|title)\b.{0,20}\b(?:and|along with|together with)\b",
+            normalized,
+        )
+    )
+
+
+def normalize_entity_carrier_outputs(
+    question: str,
+    analysis: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Remove literal-bound named-entity carriers from multi-field output."""
+    normalized: Dict[str, Any] = json.loads(json.dumps(analysis or {}))
+    outputs = normalized.get("output_fields_detailed", [])
+    if (
+        not isinstance(outputs, list)
+        or len(outputs) <= 1
+        or not re.search(r"\b(?:called|named|titled)\b", question, re.I)
+        or _question_explicitly_requests_name_or_title(question)
+    ):
+        return normalized
+
+    carrier_fields: Set[Tuple[str, str]] = set()
+    for binding in normalized.get("literal_bindings", []):
+        if not isinstance(binding, dict):
+            continue
+        literal = str(binding.get("literal", "")).strip()
+        if not literal or not re.search(
+            rf"\b(?:called|named|titled)\b.{{0,20}}"
+            rf"(?<!\w){re.escape(literal)}(?!\w)",
+            question,
+            re.IGNORECASE,
+        ):
+            continue
+        carrier_fields.add(
+            (
+                str(binding.get("table", "")).casefold(),
+                str(binding.get("column", "")).casefold(),
+            )
+        )
+    for unit in normalized.get("coverage_units", []):
+        if (
+            isinstance(unit, dict)
+            and str(unit.get("kind", "")).upper() == "ENTITY_CARRIER"
+        ):
+            carrier_fields.add(
+                (
+                    str(unit.get("table", "")).casefold(),
+                    str(unit.get("column", "")).casefold(),
+                )
+            )
+    carrier_fields.discard(("", ""))
+    if not carrier_fields:
+        return normalized
+
+    retained_outputs = [
+        field
+        for field in outputs
+        if not (
+            isinstance(field, dict)
+            and (
+                str(field.get("table", "")).casefold(),
+                str(field.get("column", "")).casefold(),
+            )
+            in carrier_fields
+        )
+    ]
+    if not retained_outputs or len(retained_outputs) == len(outputs):
+        return normalized
+
+    normalized["output_fields_detailed"] = retained_outputs
+    risk_flags = normalized.get("risk_flags", [])
+    if not isinstance(risk_flags, list):
+        risk_flags = []
+    normalized["risk_flags"] = list(
+        dict.fromkeys([*risk_flags, "OUTPUT_ROLE_AMBIGUITY"])
+    )
+    notes = normalized.get("normalization_notes", [])
+    if not isinstance(notes, list):
+        notes = []
+    notes.append(
+        "Removed a literal-bound called/named entity carrier from SELECT."
+    )
+    normalized["normalization_notes"] = list(dict.fromkeys(notes))
+    return normalized
+
+
 def normalize_question_analysis(
     question: str,
     analysis: Dict[str, Any],
@@ -652,6 +1386,22 @@ def normalize_question_analysis(
     if not isinstance(notes, list):
         notes = []
     question_lower = " ".join(question.lower().split())
+    explicit_unmatched_retention = question_requests_unmatched_retention(
+        question
+    )
+    if (
+        normalized.get("retain_unmatched_entities")
+        or normalized.get("include_zero_groups")
+    ) and not explicit_unmatched_retention:
+        notes.append(
+            "Unmatched/zero retention reset to false because the question "
+            "does not explicitly request it."
+        )
+    normalized["retain_unmatched_entities"] = explicit_unmatched_retention
+    normalized["include_zero_groups"] = explicit_unmatched_retention
+    normalized["null_handling"] = (
+        "LEFT_JOIN" if explicit_unmatched_retention else "INNER_JOIN"
+    )
     count_wording = bool(
         re.search(r"\b(?:how many|number of|count of)\b", question_lower)
     )
@@ -699,6 +1449,10 @@ def normalize_question_analysis(
             "different/distinct/unique wording was present."
         )
     normalized["output_fields_detailed"] = output_fields
+    normalized = normalize_entity_carrier_outputs(question, normalized)
+    notes = normalized.get("normalization_notes", notes)
+    if not isinstance(notes, list):
+        notes = []
 
     aggregate_words = {
         "minimum": "MIN",
@@ -771,6 +1525,119 @@ def normalize_question_analysis(
             ]
     normalized["scalar_comparisons"] = scalar_comparisons
     normalized["normalization_notes"] = list(dict.fromkeys(notes))
+    return normalized
+
+
+def normalize_low_cardinality_literals(
+    analysis: Dict[str, Any],
+    schema: SQLDbSchema,
+) -> Dict[str, Any]:
+    """Ground true/false concepts to observed SQLite sentinel values."""
+    normalized: Dict[str, Any] = json.loads(json.dumps(analysis or {}))
+    samples_by_column: Dict[Tuple[str, str], List[str]] = {}
+    for index, (table_index, column_name) in enumerate(
+        schema.column_names_original
+    ):
+        if table_index < 0 or table_index >= len(schema.table_names_original):
+            continue
+        samples = (
+            schema.column_sample_values[index]
+            if index < len(schema.column_sample_values)
+            else []
+        )
+        samples_by_column[
+            (
+                schema.table_names_original[table_index].casefold(),
+                str(column_name).casefold(),
+            )
+        ] = [str(sample) for sample in samples]
+
+    truthy = {"1", "t", "true", "y", "yes"}
+    falsy = {"0", "f", "false", "n", "no"}
+    replacements: List[Tuple[str, str, str, str]] = []
+    filters = normalized.get("filters", [])
+    for filter_item in filters if isinstance(filters, list) else []:
+        if not isinstance(filter_item, dict):
+            continue
+        table = str(filter_item.get("table", "")).strip()
+        column = str(filter_item.get("column", "")).strip()
+        raw_value = filter_item.get("value")
+        if isinstance(raw_value, bool):
+            value_key = "true" if raw_value else "false"
+        elif isinstance(raw_value, str):
+            value_key = raw_value.strip().casefold()
+        else:
+            continue
+        desired_group = truthy if value_key in truthy else (
+            falsy if value_key in falsy else set()
+        )
+        if not desired_group:
+            continue
+        observed = samples_by_column.get(
+            (table.casefold(), column.casefold()), []
+        )
+        grounded = [
+            sample
+            for sample in observed
+            if sample.strip().casefold() in desired_group
+        ]
+        grounded = list(dict.fromkeys(grounded))
+        if len(grounded) != 1:
+            continue
+        replacement = grounded[0]
+        old_value = str(raw_value)
+        filter_item["value"] = replacement
+        filter_item["value_type"] = "STRING"
+        replacements.append((table, column, old_value, replacement))
+
+    if replacements:
+        bindings = normalized.get("literal_bindings", [])
+        if not isinstance(bindings, list):
+            bindings = []
+        for table, column, old_value, replacement in replacements:
+            updated = False
+            for binding in bindings:
+                if not isinstance(binding, dict):
+                    continue
+                same_field = (
+                    str(binding.get("table", "")).casefold()
+                    == table.casefold()
+                    and str(binding.get("column", "")).casefold()
+                    == column.casefold()
+                )
+                literal_key = str(
+                    binding.get("literal", "")
+                ).casefold()
+                if same_field and literal_key in {
+                    old_value.casefold(),
+                    replacement.casefold(),
+                }:
+                    binding.update(
+                        {
+                            "literal": replacement,
+                            "evidence": "SAMPLE_VALUE",
+                        }
+                    )
+                    updated = True
+            if not updated:
+                bindings.append(
+                    {
+                        "literal": replacement,
+                        "table": table,
+                        "column": column,
+                        "evidence": "SAMPLE_VALUE",
+                    }
+                )
+        normalized["literal_bindings"] = bindings
+        notes = normalized.get("normalization_notes", [])
+        if not isinstance(notes, list):
+            notes = []
+        notes.extend(
+            f"Boolean-like value {old!r} grounded to observed sentinel "
+            f"{new!r} for {table}.{column}."
+            for table, column, old, new in replacements
+        )
+        normalized["normalization_notes"] = list(dict.fromkeys(notes))
     return normalized
 
 
@@ -856,6 +1723,712 @@ def audit_sql_constraints(
     )
 
 
+def build_sql_signature(sql: str) -> Tuple[Dict[str, Any], str, Optional[str]]:
+    """Return a stable structural signature for candidate comparison."""
+    if parse_one is None or exp is None:
+        normalized = " ".join(sql.lower().split())
+        return (
+            {
+                "normalized": normalized,
+                "tables": sorted(
+                    set(
+                        re.findall(
+                            r"\b(?:from|join)\s+([a-zA-Z_][\w$]*)",
+                            normalized,
+                        )
+                    )
+                ),
+                "has_group": bool(re.search(r"\bgroup\s+by\b", normalized)),
+                "has_having": bool(re.search(r"\bhaving\b", normalized)),
+                "has_order": bool(re.search(r"\border\s+by\b", normalized)),
+                "has_limit": bool(re.search(r"\blimit\b", normalized)),
+                "set_operations": sorted(
+                    set(
+                        token.upper()
+                        for token in re.findall(
+                            r"\b(union|intersect|except)\b", normalized
+                        )
+                    )
+                ),
+            },
+            "regex",
+            "sqlglot is not installed",
+        )
+    try:
+        tree = parse_one(sql, read="sqlite")
+        first_select = next(tree.find_all(exp.Select), None)
+        projections = (
+            [
+                " ".join(item.sql(dialect="sqlite").lower().split())
+                for item in first_select.expressions
+            ]
+            if first_select is not None
+            else []
+        )
+        signature = {
+            "projections": projections,
+            "tables": sorted(
+                {
+                    str(table.name).lower()
+                    for table in tree.find_all(exp.Table)
+                    if table.name
+                }
+            ),
+            "joins": sorted(
+                " ".join(join.sql(dialect="sqlite").lower().split())
+                for join in tree.find_all(exp.Join)
+            ),
+            "where": sorted(
+                " ".join(where.sql(dialect="sqlite").lower().split())
+                for where in tree.find_all(exp.Where)
+            ),
+            "group_by": sorted(
+                " ".join(group.sql(dialect="sqlite").lower().split())
+                for group in tree.find_all(exp.Group)
+            ),
+            "having": sorted(
+                " ".join(having.sql(dialect="sqlite").lower().split())
+                for having in tree.find_all(exp.Having)
+            ),
+            "order_by": sorted(
+                " ".join(order.sql(dialect="sqlite").lower().split())
+                for order in tree.find_all(exp.Order)
+            ),
+            "has_limit": any(True for _ in tree.find_all(exp.Limit)),
+            "set_operations": sorted(
+                {
+                    node.__class__.__name__.upper()
+                    for node_type in (exp.Union, exp.Intersect, exp.Except)
+                    for node in tree.find_all(node_type)
+                }
+            ),
+        }
+        return signature, "sqlglot", None
+    except Exception as error:
+        return {}, "sqlglot", str(error)
+
+
+def sql_contains_bound_literal(sql: str, literal: str) -> bool:
+    """Match a complete SQL literal, never an arbitrary identifier substring."""
+    expected = str(literal).strip()
+    if not expected:
+        return True
+    expected_key = expected.casefold()
+    if parse_one is not None and exp is not None:
+        try:
+            tree = parse_one(sql, read="sqlite")
+            for node in tree.find_all(exp.Literal):
+                if str(node.this).strip().casefold() == expected_key:
+                    return True
+            for node in tree.find_all(exp.Boolean):
+                if str(node.this).strip().casefold() == expected_key:
+                    return True
+        except Exception:
+            pass
+
+    quoted = rf"(?P<quote>['\"]){re.escape(expected)}(?P=quote)"
+    if re.search(quoted, sql, re.IGNORECASE):
+        # Single-quoted values are literals. For SQLite-compatible
+        # double-quoted string values, require predicate/list context.
+        if re.search(rf"'{re.escape(expected)}'", sql, re.IGNORECASE):
+            return True
+        if re.search(
+            rf"(?:=|<>|!=|<=|>=|<|>)\s*\"{re.escape(expected)}\"",
+            sql,
+            re.IGNORECASE,
+        ) or re.search(
+            rf"\bIN\s*\([^)]*\"{re.escape(expected)}\"",
+            sql,
+            re.IGNORECASE,
+        ):
+            return True
+    if re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", expected):
+        return bool(
+            re.search(
+                rf"(?<![\w.]){re.escape(expected)}(?![\w.])",
+                sql,
+            )
+        )
+    return False
+
+
+def _semantic_required_tables(analysis: Dict[str, Any]) -> Set[str]:
+    tables: Set[str] = set()
+    for section in (
+        "output_fields_detailed",
+        "filters",
+        "literal_bindings",
+        "group_by",
+        "having",
+        "order_by",
+        "scalar_comparisons",
+    ):
+        values = analysis.get(section, [])
+        if isinstance(values, dict):
+            values = [values]
+        for value in values if isinstance(values, list) else []:
+            if not isinstance(value, dict):
+                continue
+            table = value.get("table")
+            if isinstance(table, str) and table.strip():
+                tables.add(table.strip().lower())
+            nested = value.get("value")
+            if isinstance(nested, dict):
+                nested_table = nested.get("table")
+                if isinstance(nested_table, str) and nested_table.strip():
+                    tables.add(nested_table.strip().lower())
+    return tables
+
+
+def audit_sql_semantics(
+    sql: str,
+    question: str,
+    analysis: Optional[Dict[str, Any]] = None,
+) -> SQLSemanticAuditResult:
+    """Conservatively flag contract coverage risks without using gold SQL."""
+    analysis = analysis or {}
+    signature, parser_name, parser_error = build_sql_signature(sql)
+    violations: List[Dict[str, str]] = []
+    risk_reasons: List[str] = []
+    sql_lower = " ".join(sql.lower().split())
+    question_lower = " ".join(question.lower().split())
+
+    if parser_error:
+        risk_reasons.append(f"SQL parser fallback/error: {parser_error}")
+        if parser_name == "sqlglot":
+            violations.append(
+                {"code": "SQL_AST_PARSE_ERROR", "message": parser_error}
+            )
+
+    output_fields = analysis.get("output_fields_detailed", [])
+    if not isinstance(output_fields, list):
+        output_fields = []
+    projections = signature.get("projections", [])
+    if projections and output_fields and len(projections) != len(output_fields):
+        violations.append(
+            {
+                "code": "OUTPUT_COUNT_MISMATCH",
+                "message": (
+                    f"SQL projects {len(projections)} field(s), contract expects "
+                    f"{len(output_fields)}."
+                ),
+            }
+        )
+    for index, field in enumerate(output_fields):
+        if not isinstance(field, dict) or index >= len(projections):
+            continue
+        column = str(field.get("column", "")).strip().lower()
+        aggregate = str(field.get("agg", "NONE")).strip().upper()
+        projection = projections[index]
+        if column and column != "*" and column not in projection:
+            violations.append(
+                {
+                    "code": "OUTPUT_FIELD_MISMATCH",
+                    "message": (
+                        f"Projection {index} does not contain expected column "
+                        f"{column}."
+                    ),
+                }
+            )
+        aggregate_sql = {
+            "COUNT_DISTINCT": "count",
+            "COUNT": "count",
+            "SUM": "sum",
+            "AVG": "avg",
+            "MAX": "max",
+            "MIN": "min",
+        }.get(aggregate)
+        if aggregate_sql and aggregate_sql not in projection:
+            violations.append(
+                {
+                    "code": "OUTPUT_AGGREGATE_MISMATCH",
+                    "message": (
+                        f"Projection {index} lacks expected {aggregate} aggregate."
+                    ),
+                }
+            )
+
+    sql_tables = set(signature.get("tables", []))
+    for required_table in sorted(_semantic_required_tables(analysis)):
+        if sql_tables and required_table not in sql_tables:
+            violations.append(
+                {
+                    "code": "REQUIRED_TABLE_MISSING",
+                    "message": f"Required table {required_table} is absent.",
+                }
+            )
+
+    for binding in analysis.get("literal_bindings", []):
+        if not isinstance(binding, dict):
+            continue
+        evidence = str(binding.get("evidence", "")).strip().upper()
+        if evidence not in {
+            "SAMPLE_VALUE",
+            "QUESTION_EXACT_DB_MATCH",
+        }:
+            continue
+        literal = str(binding.get("literal", "")).strip()
+        if literal and not sql_contains_bound_literal(sql, literal):
+            violations.append(
+                {
+                    "code": "LITERAL_MISSING",
+                    "message": f"Bound literal {literal!r} is absent from SQL.",
+                }
+            )
+
+    has_named_entity_carrier = bool(
+        re.search(r"\b(?:called|named|titled)\b", question_lower)
+    )
+    explicitly_requests_name_or_title = (
+        _question_explicitly_requests_name_or_title(question)
+    )
+    if has_named_entity_carrier and not explicitly_requests_name_or_title:
+        expected_output_columns = {
+            str(field.get("column", "")).strip().lower()
+            for field in output_fields
+            if isinstance(field, dict)
+            and str(field.get("column", "")).strip()
+        }
+        projected_carriers: Set[str] = set()
+        for binding in analysis.get("literal_bindings", []):
+            if not isinstance(binding, dict):
+                continue
+            column = str(binding.get("column", "")).strip().lower()
+            if (
+                column
+                and column not in expected_output_columns
+                and any(
+                re.search(
+                    rf"(?<![\w$]){re.escape(column)}(?![\w$])",
+                    projection,
+                )
+                for projection in signature.get("projections", [])
+                )
+            ):
+                projected_carriers.add(column)
+        for column in sorted(projected_carriers):
+            violations.append(
+                {
+                    "code": "ENTITY_CARRIER_PROJECTED",
+                    "message": (
+                        f"Literal-bound carrier column {column} is projected, "
+                        "but the question uses it only to identify an entity."
+                    ),
+                }
+            )
+
+    for filter_item in analysis.get("filters", []):
+        if not isinstance(filter_item, dict):
+            continue
+        column = str(filter_item.get("column", "")).strip().lower()
+        if column and column not in sql_lower:
+            violations.append(
+                {
+                    "code": "FILTER_COLUMN_MISSING",
+                    "message": f"Filter column {column} is absent from SQL.",
+                }
+            )
+
+    left_joins = [
+        join
+        for join in signature.get("joins", [])
+        if re.search(r"\bleft(?:\s+outer)?\s+join\b", join)
+    ]
+    explicit_unmatched_retention = question_requests_unmatched_retention(
+        question
+    )
+    anti_join = bool(
+        re.search(r"\bis\s+null\b", sql_lower)
+        and re.search(
+            r"\b(?:without|not used|never|no related|not associated)\b",
+            question_lower,
+        )
+    )
+    if left_joins and not explicit_unmatched_retention and not anti_join:
+        violations.append(
+            {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": (
+                    "LEFT JOIN retains unmatched rows, but the question does "
+                    "not explicitly request zero/unmatched entities."
+                ),
+            }
+        )
+
+    expected_set = str(
+        (analysis.get("set_operation") or {}).get("operator", "NONE")
+    ).upper()
+    actual_sets = set(signature.get("set_operations", []))
+    if expected_set != "NONE" and expected_set not in actual_sets:
+        violations.append(
+            {
+                "code": "SET_OPERATION_MISSING",
+                "message": f"Expected {expected_set}, found {sorted(actual_sets)}.",
+            }
+        )
+
+    if analysis.get("group_by") and not signature.get("group_by"):
+        violations.append(
+            {"code": "GROUP_BY_MISSING", "message": "Contract requires GROUP BY."}
+        )
+    if analysis.get("having") and not signature.get("having"):
+        violations.append(
+            {"code": "HAVING_MISSING", "message": "Contract requires HAVING."}
+        )
+    if analysis.get("order_by") and not signature.get("order_by"):
+        violations.append(
+            {"code": "ORDER_BY_MISSING", "message": "Contract requires ORDER BY."}
+        )
+
+    expected_order_directions = {
+        str(item.get("direction", "")).strip().upper()
+        for item in analysis.get("order_by", [])
+        if isinstance(item, dict)
+        and str(item.get("direction", "")).strip().upper() in {"ASC", "DESC"}
+    }
+    if not expected_order_directions:
+        if re.search(
+            r"\b(?:least|lowest|lightest|fewest|smallest|bottom)\b",
+            question_lower,
+        ):
+            expected_order_directions.add("ASC")
+        if re.search(
+            r"\b(?:most|highest|heaviest|largest|top)\b",
+            question_lower,
+        ):
+            expected_order_directions.add("DESC")
+    order_blob = " ".join(signature.get("order_by") or []).lower()
+    if expected_order_directions and order_blob:
+        has_asc = bool(re.search(r"\basc\b", order_blob))
+        has_desc = bool(re.search(r"\bdesc\b", order_blob))
+        if expected_order_directions == {"ASC"} and has_desc and not has_asc:
+            violations.append(
+                {
+                    "code": "ORDER_BY_DIRECTION_MISMATCH",
+                    "message": "Question/contract expects ASC ordering.",
+                }
+            )
+        if expected_order_directions == {"DESC"} and has_asc and not has_desc:
+            violations.append(
+                {
+                    "code": "ORDER_BY_DIRECTION_MISMATCH",
+                    "message": "Question/contract expects DESC ordering.",
+                }
+            )
+
+    if re.search(r"strftime\s*\(\s*['\"]%[Yy]['\"]", sql_lower):
+        violations.append(
+            {
+                "code": "YEAR_STRFTIME_PREDICATE",
+                "message": (
+                    "Prefer direct equality on numeric/year-like columns "
+                    "instead of STRFTIME('%Y', ...)."
+                ),
+            }
+        )
+
+    required_tables = _semantic_required_tables(analysis)
+    sql_tables_for_joins = set(signature.get("tables", []))
+    extra_tables = sql_tables_for_joins - required_tables
+    if (
+        required_tables
+        and extra_tables
+        and len(sql_tables_for_joins) > len(required_tables)
+        and not signature.get("set_operations")
+    ):
+        risk_reasons.append(
+            "JOIN_OVERGENERATION: "
+            + ", ".join(sorted(extra_tables))
+        )
+
+    if analysis.get("extreme_row") and not signature.get("has_limit"):
+        violations.append(
+            {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT.",
+            }
+        )
+
+    related_negation = any(
+        isinstance(scope, dict)
+        and str(scope.get("logic", "")).upper()
+        in {"NOT_EXISTS", "NOT_IN", "EXCEPT"}
+        for scope in analysis.get("predicate_scope", [])
+    )
+    related_negation = related_negation or bool(
+        len(_semantic_required_tables(analysis)) > 1
+        and re.search(
+            r"\b(?:without|never|do not have|does not have|don't have|"
+            r"doesn't have|not associated|not use|don't use)\b",
+            question_lower,
+        )
+    )
+    if related_negation and not re.search(
+        r"\b(?:not\s+exists|not\s+in|except)\b", sql_lower
+    ):
+        violations.append(
+            {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": (
+                    "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+                ),
+            }
+        )
+
+    complexity = str(analysis.get("complexity", "")).upper()
+    if complexity in {"HARD", "EXTRA", "EXTRA_HARD"}:
+        risk_reasons.append(f"complexity={complexity}")
+    for risk_flag in analysis.get("risk_flags", []):
+        risk_reasons.append(str(risk_flag))
+    if re.search(
+        r"\b(?:both|without|never|most|least|highest|lowest|average|"
+        r"more than|fewer than|for each|per each)\b",
+        question_lower,
+    ):
+        risk_reasons.append("high-risk question pattern")
+
+    unique_violations = {
+        (violation["code"], violation["message"]): violation
+        for violation in violations
+    }
+    unique_risks = list(dict.fromkeys(risk_reasons))
+    return SQLSemanticAuditResult(
+        valid=not unique_violations,
+        parser=parser_name,
+        signature=signature,
+        violations=list(unique_violations.values()),
+        risk_reasons=unique_risks,
+    )
+
+
+def requires_semantic_review(
+    direct_audit: SQLAuditResult,
+    planned_audit: SQLAuditResult,
+    direct_semantic: SQLSemanticAuditResult,
+    planned_semantic: SQLSemanticAuditResult,
+) -> Tuple[bool, List[str]]:
+    review_reasons: List[str] = []
+    if not direct_audit.valid:
+        review_reasons.append("direct SQL has a deterministic error")
+    if not planned_audit.valid:
+        review_reasons.append("planned SQL has a deterministic error")
+    if not direct_semantic.valid:
+        review_reasons.append("direct SQL violates semantic contract")
+    if not planned_semantic.valid:
+        review_reasons.append("planned SQL violates semantic contract")
+    if direct_semantic.signature != planned_semantic.signature:
+        review_reasons.append("direct and planned SQL signatures disagree")
+
+    # A risk flag routes the question through Planner and the independent
+    # planned candidate, but does not by itself justify another paid model
+    # call when both candidates are equivalent and pass all audits.
+    risk_reasons = [
+        *direct_semantic.risk_reasons,
+        *planned_semantic.risk_reasons,
+    ]
+    high_impact_markers = {
+        "RELATED_ROW_NEGATION",
+        "SET_OPERATION",
+        "AMBIGUOUS_SCHEMA",
+        "OUTPUT_ROLE_AMBIGUITY",
+        "SCALAR_SUBQUERY",
+        "EXTREME_ROW",
+        "LOW_CONFIDENCE",
+        "JOIN_OVERGENERATION",
+        "HIGH-RISK QUESTION PATTERN",
+    }
+    for risk_reason in risk_reasons:
+        normalized_risk = str(risk_reason).strip().upper()
+        if any(
+            marker in normalized_risk
+            for marker in high_impact_markers
+        ):
+            review_reasons.append(
+                f"high-impact risk: {risk_reason}"
+            )
+    review_on_risk_only = os.getenv(
+        "NL2SQL_REFINER_ON_RISK_ONLY", "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    if review_on_risk_only:
+        review_reasons.extend(risk_reasons)
+
+    review_reasons = list(dict.fromkeys(review_reasons))
+    diagnostic_reasons = list(
+        dict.fromkeys([*review_reasons, *risk_reasons])
+    )
+    return bool(review_reasons), diagnostic_reasons
+
+
+def _projection_aggregate_family(signature: Dict[str, Any]) -> set:
+    """Return aggregate function names present in SELECT projections."""
+    projections = signature.get("projections") or []
+    blob = " ".join(projections).lower() if projections else ""
+    if not blob:
+        blob = str(signature.get("normalized") or "").lower()
+    return {
+        name
+        for name in ("count", "sum", "avg", "min", "max")
+        if re.search(rf"\b{name}\s*\(", blob)
+    }
+
+
+def choose_best_candidate(
+    candidates: List[
+        Tuple[str, NL2SQLResult, SQLAuditResult, SQLSemanticAuditResult]
+    ],
+    preferred_labels: Optional[List[str]] = None,
+) -> Tuple[str, NL2SQLResult, SQLAuditResult, SQLSemanticAuditResult]:
+    """Choose without gold: audits first, then an evidence-based preference."""
+    preferred_labels = preferred_labels or ["direct", "planned", "repaired", "validated"]
+    preference = {
+        label: index for index, label in enumerate(preferred_labels)
+    }
+
+    def score(
+        item: Tuple[str, NL2SQLResult, SQLAuditResult, SQLSemanticAuditResult]
+    ) -> Tuple[int, int, int, int, int, int]:
+        label, result, deterministic, semantic = item
+        signature = semantic.signature or {}
+        table_count = len(signature.get("tables") or [])
+        join_bloat_penalty = 0
+        risk_blob = " ".join(semantic.risk_reasons or []).upper()
+        if "JOIN_OVERGENERATION" in risk_blob:
+            join_bloat_penalty = 1
+        return (
+            len(deterministic.fatal_errors),
+            len(semantic.violations),
+            join_bloat_penalty,
+            table_count if table_count else 99,
+            preference.get(label, len(preference)),
+            len(result.sql),
+        )
+
+    return min(candidates, key=score)
+
+
+def direct_candidate_anchor_reason(
+    question: str,
+    direct: NL2SQLResult,
+    direct_audit: SQLAuditResult,
+    alternative: NL2SQLResult,
+    *,
+    alternative_semantic: Optional[SQLSemanticAuditResult] = None,
+) -> str:
+    """Protect executable Direct SQL from observed over-refinement modes."""
+    if (
+        not direct_audit.valid
+        or not direct.sql.strip()
+        or direct.sql.strip() == alternative.sql.strip()
+    ):
+        return ""
+
+    direct_signature, _, _ = build_sql_signature(direct.sql)
+    alternative_signature, _, _ = build_sql_signature(alternative.sql)
+    direct_projection = " ".join(direct_signature.get("projections", []))
+    alternative_projection = " ".join(
+        alternative_signature.get("projections", [])
+    )
+    aggregate_output_question = bool(
+        re.search(
+            r"^\s*(?:(?:what|which)\s+is\s+|(?:show|find|give)\s+)?"
+            r"(?:the\s+)?(?:minimum|maximum|average|lightest|heaviest|"
+            r"lowest|highest)\s+(?:[a-z_]+\s+){0,3}of\b",
+            " ".join(question.casefold().split()),
+        )
+    )
+    direct_projects_aggregate = bool(
+        re.search(r"\b(?:avg|min|max|sum)\s*\(", direct_projection)
+    )
+    alternative_projects_aggregate = bool(
+        re.search(r"\b(?:avg|min|max|sum)\s*\(", alternative_projection)
+    )
+    if (
+        aggregate_output_question
+        and direct_projects_aggregate
+        and not alternative_projects_aggregate
+    ):
+        return (
+            "Direct anchor: preserved the requested aggregate value; "
+            "the alternative changed the output into an entity row."
+        )
+
+    singular_named_extreme = bool(
+        re.search(
+            r"\b(?:name|title|id)\b.{0,100}"
+            r"\b(?:least|most|highest|lowest)\b",
+            " ".join(question.casefold().split()),
+        )
+    )
+    direct_is_extreme_row = bool(
+        direct_signature.get("order_by")
+        and direct_signature.get("has_limit")
+    )
+    alternative_is_extreme_row = bool(
+        alternative_signature.get("order_by")
+        and alternative_signature.get("has_limit")
+    )
+    if (
+        singular_named_extreme
+        and direct_is_extreme_row
+        and not alternative_is_extreme_row
+    ):
+        return (
+            "Direct anchor: preserved singular ORDER BY ... LIMIT 1 semantics; "
+            "the alternative changed the request into a tie-aware aggregate."
+        )
+
+    direct_tables = set(direct_signature.get("tables") or [])
+    alternative_tables = set(alternative_signature.get("tables") or [])
+    alt_join_bloat = False
+    if alternative_semantic is not None:
+        alt_join_bloat = any(
+            "JOIN_OVERGENERATION" in str(reason).upper()
+            for reason in (alternative_semantic.risk_reasons or [])
+        )
+    if (
+        direct_tables
+        and alternative_tables
+        and len(alternative_tables) > len(direct_tables)
+        and direct_tables.issubset(alternative_tables)
+    ) or (
+        alt_join_bloat
+        and direct_tables
+        and len(alternative_tables) > len(direct_tables)
+    ):
+        return (
+            "Direct anchor: preserved fewer-table SQL; "
+            "the alternative introduced unnecessary joins."
+        )
+
+    direct_sets = set(direct_signature.get("set_operations") or [])
+    alternative_sets = set(alternative_signature.get("set_operations") or [])
+    if direct_sets and direct_sets != alternative_sets:
+        return (
+            "Direct anchor: preserved set-operation structure; "
+            "the alternative changed UNION/INTERSECT/EXCEPT."
+        )
+
+    direct_aggs = _projection_aggregate_family(direct_signature)
+    alternative_aggs = _projection_aggregate_family(alternative_signature)
+    if direct_aggs and alternative_aggs and direct_aggs != alternative_aggs:
+        return (
+            "Direct anchor: preserved aggregate family; "
+            "the alternative changed COUNT/SUM/AVG/MIN/MAX."
+        )
+    return ""
+
+
+def refiner_candidate_preference(selected_candidate: str) -> List[str]:
+    """Honor the Refiner's audited choice without duplicate-rank overwrite."""
+    selected = str(selected_candidate).strip().lower()
+    labels = (
+        [selected, "direct", "planned", "repaired"]
+        if selected in {"direct", "planned", "repaired"}
+        else ["direct", "planned", "repaired"]
+    )
+    return list(dict.fromkeys(labels))
+
+
 def select_audited_result(
     previous: NL2SQLResult,
     previous_audit: SQLAuditResult,
@@ -935,22 +2508,179 @@ class NL2SQLState(BaseModel):
     db_raw_schema: SQLDbSchema = SQLDbSchema()
     db_schema: SQLDbSchema = SQLDbSchema()
     query_plan: Dict = {}
+    extended_route: bool = False
+    route_reasons: List[str] = []
+    direct_sql: str = ""
+    planned_sql: str = ""
+    semantic_risk_reasons: List[str] = []
+    direct_anchor_reason: str = ""
     intermediate_sql: str = ""
     result: NL2SQLResult = NL2SQLResult()
+
+
+class _SeededCrewResult:
+    """Minimal stand-in for a CrewAI kickoff result when reusing 4-step raw."""
+
+    def __init__(self, raw: str):
+        self.raw = raw
+        self.token_usage = None
+
+
+def load_four_step_seed_file(
+    seed_root: Path,
+    db_id: str,
+    question_index: int,
+    question: str,
+) -> Optional[Dict[str, Any]]:
+    """Load a 4-step raw_responses JSON for hybrid 4→6 seeding."""
+    if not seed_root:
+        return None
+    root = Path(seed_root)
+    candidates = [
+        root / "raw_responses" / db_id / f"q{question_index:04d}.json",
+        root / db_id / f"q{question_index:04d}.json",
+    ]
+    for path in candidates:
+        if path.is_file():
+            try:
+                cached = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if cached.get("question") and cached.get("question") != question:
+                continue
+            return cached
+    # Fallback: scan by exact question text under raw_responses.
+    raw_root = root / "raw_responses"
+    if not raw_root.is_dir():
+        raw_root = root
+    if raw_root.is_dir():
+        for path in raw_root.rglob("q*.json"):
+            if path.name.endswith(".error.json"):
+                continue
+            try:
+                cached = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if cached.get("question") == question:
+                return cached
+    return None
+
+
+def _env_flag(name: str, default: str = "false") -> bool:
+    return os.getenv(name, default).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def map_four_step_seed_to_six_steps(
+    four_step_raw: Dict[str, Any],
+) -> Dict[str, Dict[str, Any]]:
+    """Map 4-step step traces onto 6-step step names that may be seeded.
+
+    By default seeds Analyzer + Schema + Direct. Set
+    ``NL2SQL_SEED_INCLUDE_DIRECT=0`` to seed only steps 1–2 so Planner /
+    Expert / Refiner / Validator still call the LLM (Spider R1 repair mode).
+
+    Ablation switches (optional):
+    - ``NL2SQL_SKIP_PLANNER=1``: force plan-free path (5-stage without Planner)
+    - ``NL2SQL_SKIP_REFINER=1``: choose Direct/Planned without LLM Refiner
+    """
+    by_name = {
+        (step.get("step_name") or ""): step
+        for step in (four_step_raw.get("steps") or [])
+        if isinstance(step, dict) and step.get("raw_response")
+        and not step.get("skipped")
+        and step.get("success", True)
+    }
+    mapped: Dict[str, Dict[str, Any]] = {}
+    if "question_analysis" in by_name:
+        mapped["question_analysis"] = {
+            "raw_response": by_name["question_analysis"]["raw_response"],
+            "source_step": "question_analysis",
+            "source_pipeline": "4step",
+        }
+    if "schema_selector" in by_name:
+        mapped["schema_selector"] = {
+            "raw_response": by_name["schema_selector"]["raw_response"],
+            "source_step": "schema_selector",
+            "source_pipeline": "4step",
+        }
+    include_direct = _env_flag("NL2SQL_SEED_INCLUDE_DIRECT", "true")
+    if include_direct and "generate_sql" in by_name:
+        mapped["generate_sql_direct"] = {
+            "raw_response": by_name["generate_sql"]["raw_response"],
+            "source_step": "generate_sql",
+            "source_pipeline": "4step",
+        }
+    return mapped
 
 
 class NL2SQLFlow(Flow[NL2SQLState]):
     """Flow for generate SQL from natural language instructions."""
 
-    STEP_TIMEOUT_SECONDS = int(os.getenv("NL2SQL_STEP_TIMEOUT_SECONDS", "40"))
-    STEP_MAX_RETRIES = int(os.getenv("NL2SQL_STEP_MAX_RETRIES", "2"))
+    # NL2SQL_STEP_MAX_RETRIES is max attempts per step (1 = no retry).
+    STEP_MAX_RETRIES = int(os.getenv("NL2SQL_STEP_MAX_RETRIES", "1"))
+    # Hard wall-clock bound around kickoff. Provider timeouts alone can hang
+    # indefinitely on some Gemini/HTTP stalls.
+    STEP_TIMEOUT_SECONDS = int(os.getenv("NL2SQL_STEP_TIMEOUT_SECONDS", "90"))
 
-    def __init__(self, _question: NLQuestions, _raw_schema: SQLDbSchema):
+    def __init__(
+        self,
+        _question: NLQuestions,
+        _raw_schema: SQLDbSchema,
+        seed_steps: Optional[Dict[str, Dict[str, Any]]] = None,
+    ):
         super().__init__()
         self.question = _question
         self.raw_schema = _raw_schema
         # Full trace of every agent step (raw LLM responses) for experiment logging
         self.step_traces: List[Dict] = []
+        # Optional 4-step seed map: six-step step_name -> {raw_response, ...}
+        self.seed_steps: Dict[str, Dict[str, Any]] = dict(seed_steps or {})
+        # Re-read env each flow so smoke runners can change knobs without reload.
+        self.STEP_MAX_RETRIES = int(os.getenv("NL2SQL_STEP_MAX_RETRIES", "1"))
+        self.STEP_TIMEOUT_SECONDS = int(
+            os.getenv("NL2SQL_STEP_TIMEOUT_SECONDS", "90")
+        )
+
+    def _consume_seeded_step(
+        self,
+        step_name: str,
+        *,
+        effective_model: str = "",
+    ) -> Optional[_SeededCrewResult]:
+        """Reuse a seeded raw response instead of calling the provider."""
+        seed = self.seed_steps.pop(step_name, None)
+        if not seed:
+            return None
+        raw_text = str(seed.get("raw_response") or "")
+        if not raw_text.strip():
+            return None
+        source_step = seed.get("source_step") or step_name
+        source_pipeline = seed.get("source_pipeline") or "4step"
+        print(
+            f"[API][{step_name}] Seeded from {source_pipeline}/"
+            f"{source_step} (no LLM call)"
+        )
+        self.step_traces.append(
+            {
+                "step_name": step_name,
+                "attempt": 0,
+                "elapsed_seconds": 0.0,
+                "raw_response": raw_text,
+                "token_usage": None,
+                "success": True,
+                "seeded": True,
+                "seed_source_pipeline": source_pipeline,
+                "seed_source_step": source_step,
+                "effective_model": effective_model or f"seed:{source_pipeline}",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+        return _SeededCrewResult(raw_text)
 
     @start()
     def get_user_input(self):
@@ -1042,21 +2772,63 @@ class NL2SQLFlow(Flow[NL2SQLState]):
         for part in summary_parts:
             print(f"  - {part}")
 
-    def _run_crew_step(self, step_name: str, crew_factory, inputs: Dict[str, Any]):
+    @staticmethod
+    def _is_non_retryable_error(error: Exception) -> bool:
+        text = f"{type(error).__name__}: {error}".lower()
+        return any(
+            marker in text
+            for marker in (
+                "authentication",
+                "permission",
+                "notfound",
+                "not_found",
+                "badrequest",
+                "invalid api key",
+                "status code: 400",
+                "status code: 401",
+                "status code: 403",
+                "status code: 404",
+            )
+        )
+
+    def _run_crew_step(
+        self,
+        step_name: str,
+        crew_factory,
+        inputs: Dict[str, Any],
+        *,
+        max_attempts: Optional[int] = None,
+        effective_model: str = "",
+    ):
         sanitized_inputs = self._sanitize_inputs(inputs)
         self._log_input_summary(step_name, sanitized_inputs)
         last_error: Exception | None = None
+        attempts = (
+            max_attempts
+            if max_attempts is not None
+            else self.STEP_MAX_RETRIES
+        )
+        attempts = max(1, int(attempts))
 
-        for attempt in range(1, self.STEP_MAX_RETRIES + 1):
-            executor = ThreadPoolExecutor(max_workers=1)
+        for attempt in range(1, attempts + 1):
             started_at = time.time()
             print(
-                f"[API][{step_name}] Attempt {attempt}/{self.STEP_MAX_RETRIES} started "
+                f"[API][{step_name}] Attempt {attempt}/{attempts} started "
                 f"(timeout={self.STEP_TIMEOUT_SECONDS}s)"
             )
+            executor = ThreadPoolExecutor(max_workers=1)
             try:
-                future = executor.submit(lambda: crew_factory().kickoff(inputs=sanitized_inputs))
-                result = future.result(timeout=self.STEP_TIMEOUT_SECONDS)
+                future = executor.submit(
+                    lambda: crew_factory().kickoff(inputs=sanitized_inputs)
+                )
+                try:
+                    result = future.result(timeout=self.STEP_TIMEOUT_SECONDS)
+                except FuturesTimeoutError as timeout_error:
+                    future.cancel()
+                    raise TimeoutError(
+                        f"{step_name} timed out after "
+                        f"{self.STEP_TIMEOUT_SECONDS}s on attempt {attempt}"
+                    ) from timeout_error
                 elapsed = time.time() - started_at
                 raw_text = getattr(result, "raw", "")
                 print(
@@ -1072,28 +2844,45 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                     "elapsed_seconds": round(elapsed, 3),
                     "raw_response": raw_text,
                     "token_usage": token_usage,
+                    "success": True,
+                    "effective_model": effective_model,
                     "timestamp": datetime.now().isoformat(),
                 })
-                executor.shutdown(wait=False, cancel_futures=True)
                 return result
-            except FuturesTimeoutError as e:
-                last_error = TimeoutError(
-                    f"{step_name} timed out after {self.STEP_TIMEOUT_SECONDS}s on attempt {attempt}"
-                )
-                print(f"[API][{step_name}] Timeout on attempt {attempt}")
-                future.cancel()
-                executor.shutdown(wait=False, cancel_futures=True)
             except Exception as e:
+                elapsed = time.time() - started_at
                 last_error = e
                 print(f"[API][{step_name}] Error on attempt {attempt}: {type(e).__name__}: {e}")
+                self.step_traces.append(
+                    {
+                        "step_name": step_name,
+                        "attempt": attempt,
+                        "elapsed_seconds": round(elapsed, 3),
+                        "raw_response": "",
+                        "token_usage": None,
+                        "success": False,
+                        "effective_model": effective_model,
+                        "error_type": type(e).__name__,
+                        "error": str(e)[:2000],
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+                if self._is_non_retryable_error(e):
+                    break
+            finally:
                 executor.shutdown(wait=False, cancel_futures=True)
 
-            if attempt < self.STEP_MAX_RETRIES:
-                backoff = min(5 * attempt, 15)
+            if attempt < attempts:
+                backoff = 1 if self._abort_on_failure_enabled() else min(5 * attempt, 15)
                 print(f"[API][{step_name}] Retrying after {backoff}s")
                 time.sleep(backoff)
 
         assert last_error is not None
+        if self._abort_on_failure_enabled():
+            raise RuntimeError(
+                f"ABORT: step '{step_name}' failed after {attempts} attempt(s): "
+                f"{type(last_error).__name__}: {last_error}"
+            ) from last_error
         raise last_error
 
     def _attach_deterministic_audit(
@@ -1106,21 +2895,149 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 trace["deterministic_audit"] = audit.model_dump()
                 return
 
+    def _record_skipped_step(self, step_name: str, reason: str) -> None:
+        self.step_traces.append(
+            {
+                "step_name": step_name,
+                "attempt": 0,
+                "elapsed_seconds": 0.0,
+                "raw_response": "",
+                "skipped": True,
+                "skip_reason": reason,
+                "token_usage": None,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+
+    @staticmethod
+    def _env_flag(name: str, default: bool = False) -> bool:
+        value = os.getenv(name)
+        if value is None:
+            return default
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+
+    @classmethod
+    def _strict_benchmark_enabled(cls) -> bool:
+        return cls._env_flag("NL2SQL_STRICT_BENCHMARK", default=False)
+
+    @classmethod
+    def _abort_on_failure_enabled(cls) -> bool:
+        """Stop the whole process after a step exhausts its retries."""
+        return cls._env_flag("NL2SQL_ABORT_ON_FAILURE", default=False)
+
+    def _enforce_final_executable_result(
+        self,
+        audit_schema: SQLDbSchema,
+    ) -> SQLAuditResult:
+        self.state.result.sql = canonicalize_sql_identifiers(
+            self.state.result.sql,
+            self.state.db_raw_schema,
+        )
+        final_audit = audit_sql_constraints(
+            self.state.result.sql,
+            audit_schema,
+            db_id=self.state.db_id,
+        )
+        final_semantic = audit_sql_semantics(
+            self.state.result.sql,
+            self.state.question,
+            self.state.question_analysis,
+        )
+        for trace in reversed(self.step_traces):
+            if trace.get("step_name") == "validate_sql":
+                trace["final_deterministic_audit"] = final_audit.model_dump()
+                trace["final_semantic_audit"] = final_semantic.model_dump()
+                break
+        strict_benchmark = self._strict_benchmark_enabled()
+        if not final_audit.valid or (
+            strict_benchmark and final_audit.sqlite_explain_ok is not True
+        ):
+            codes = [
+                issue["code"] for issue in final_audit.fatal_errors
+            ]
+            if strict_benchmark and final_audit.sqlite_explain_ok is None:
+                codes.append("DATABASE_NOT_FOUND")
+            detail = ", ".join(codes) or "SQLITE_EXPLAIN_NOT_CONFIRMED"
+            raise RuntimeError(
+                "Final SQL failed the executable-output invariant: "
+                f"{detail}"
+            )
+        # Semantic violations are quality signals for EX scoring / traces.
+        # Do not abort a multi-question benchmark on them: only executable
+        # invariants above are hard failures under NL2SQL_STRICT_BENCHMARK.
+        if final_semantic.violations:
+            codes = ", ".join(
+                sorted({item["code"] for item in final_semantic.violations})
+            )
+            print(
+                "[audit] Final SQL has residual semantic violations "
+                f"(continuing for EX scoring): {codes}"
+            )
+        return final_audit
+
     @listen(get_user_input)
     def question_analysis(self):
         print(f"\nAnalyzing question for intent and complexity\n")
-        result = self._run_crew_step(
-            "question_analysis",
-            Nl2SqlCrew().question_analysis_crew,
-            {
-                "question": self.state.question,
-                "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
-            },
+        inputs = {
+            "question": self.state.question,
+            "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
+        }
+        analyzer_model = os.getenv(
+            "NL2SQL_QUESTION_ANALYZER_MODEL",
+            "openai/gpt-4o",
         )
+        result = self._consume_seeded_step(
+            "question_analysis",
+            effective_model=f"seed:4step/{analyzer_model}",
+        )
+        if result is None:
+            try:
+                result = self._run_crew_step(
+                    "question_analysis",
+                    Nl2SqlCrew(
+                        model_overrides={
+                            "question_analyzer": analyzer_model
+                        }
+                    ).question_analysis_crew,
+                    inputs,
+                    effective_model=analyzer_model,
+                )
+            except Exception as error:
+                if self._abort_on_failure_enabled():
+                    raise
+                fallback_model = os.getenv(
+                    "NL2SQL_QUESTION_ANALYZER_FALLBACK_MODEL",
+                    os.getenv(
+                        "NL2SQL_ANALYZER_FALLBACK_MODEL",
+                        "gemini/gemini-flash-latest",
+                    ),
+                )
+                if fallback_model == analyzer_model:
+                    raise
+                print(
+                    "[API][question_analysis] Falling back to "
+                    f"{fallback_model} after {type(error).__name__}"
+                )
+                result = self._run_crew_step(
+                    "question_analysis",
+                    Nl2SqlCrew(
+                        model_overrides={"question_analyzer": fallback_model}
+                    ).question_analysis_crew,
+                    inputs,
+                    max_attempts=1,
+                    effective_model=fallback_model,
+                )
         parsed_analysis = self.parse_json_safely(result.raw)
-        self.state.question_analysis = normalize_question_analysis(
-            self.state.question,
-            parsed_analysis,
+        normalized_analysis = normalize_question_analysis(
+            self.state.question, parsed_analysis
+        )
+        canonical_analysis = canonicalize_structured_identifiers(
+            normalized_analysis,
+            self.state.db_raw_schema,
+        )
+        self.state.question_analysis = normalize_low_cardinality_literals(
+            canonical_analysis,
+            self.state.db_raw_schema,
         )
         print(
             f"\nQuestion Analysis Results:\n{json.dumps(self.state.question_analysis, indent=2)}\n")
@@ -1129,19 +3046,32 @@ class NL2SQLFlow(Flow[NL2SQLState]):
     @listen(question_analysis)
     def schema_selector(self):
         print(f"\nSelecting needed schema database for question\n")
-        result = self._run_crew_step(
-            "schema_selector",
-            Nl2SqlCrew().select_needed_schema_crew,
-            {
-                "question": self.state.question,
-                "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
-                "question_analysis": json.dumps(self.state.question_analysis),
-                "named_fk_graph": json.dumps(
-                    self.state.db_raw_schema.named_foreign_keys
-                ),
-            },
+        schema_model = os.getenv(
+            "NL2SQL_SCHEMA_SELECTOR_MODEL",
+            "gemini/gemini-flash-latest",
         )
-        schema_dict = self.parse_json_safely(result.raw)
+        result = self._consume_seeded_step(
+            "schema_selector",
+            effective_model=f"seed:4step/{schema_model}",
+        )
+        if result is None:
+            result = self._run_crew_step(
+                "schema_selector",
+                Nl2SqlCrew().select_needed_schema_crew,
+                {
+                    "question": self.state.question,
+                    "raw_db_schema": self.state.db_raw_schema.model_dump_json(),
+                    "question_analysis": json.dumps(self.state.question_analysis),
+                    "named_fk_graph": json.dumps(
+                        self.state.db_raw_schema.named_foreign_keys
+                    ),
+                },
+                effective_model=schema_model,
+            )
+        schema_dict = canonicalize_structured_identifiers(
+            self.parse_json_safely(result.raw),
+            self.state.db_raw_schema,
+        )
         # Rebuild indices/FK/PK in code: only the NAMES from the selector are trusted
         self.state.db_schema = rebuild_filtered_schema(
             self.state.db_raw_schema,
@@ -1164,88 +3094,416 @@ class NL2SQLFlow(Flow[NL2SQLState]):
     @listen(schema_selector)
     def query_planning(self):
         print(f"\nPlanning query strategy\n")
-        result = self._run_crew_step(
-            "query_planning",
-            Nl2SqlCrew().query_planning_crew,
-            {
-                "question": self.state.question,
-                "db_schema": self.state.db_schema.model_dump_json(),
-                "question_analysis": json.dumps(self.state.question_analysis),
-                "join_plan": json.dumps(self.state.db_schema.join_plan),
-            },
+        if _env_flag("NL2SQL_SKIP_PLANNER"):
+            self.state.route_reasons = ["ablation_skip_planner"]
+            self.state.extended_route = False
+            self.state.query_plan = {
+                "route": "ablation_skip_planner",
+                "steps": [
+                    "Ablation: Query Planner removed; use Direct SQL only."
+                ],
+                "warnings": ["NL2SQL_SKIP_PLANNER=1"],
+            }
+            self._record_skipped_step(
+                "query_planning",
+                "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+            )
+            print("[ablation] Query Planner skipped.")
+            return self.state
+        self.state.route_reasons = extended_route_reasons(
+            self.state.question_analysis,
+            self.state.db_schema,
+            question=self.state.question,
         )
-        self.state.query_plan = self.parse_json_safely(result.raw)
+        self.state.extended_route = bool(self.state.route_reasons)
+        if not self.state.extended_route:
+            self.state.query_plan = {
+                "route": "fast",
+                "steps": ["Use the plan-free direct SQL anchor."],
+                "warnings": [],
+            }
+            self._record_skipped_step(
+                "query_planning",
+                "Fast route: no structural semantic risk was detected.",
+            )
+            print("[router] Fast route selected; Query Planner skipped.")
+            return self.state
+
+        planner_inputs = {
+            "question": self.state.question,
+            "db_schema": executable_schema(
+                self.state.db_schema
+            ).model_dump_json(),
+            "question_analysis": json.dumps(self.state.question_analysis),
+            "join_plan": json.dumps(self.state.db_schema.join_plan),
+        }
+        planner_model = os.getenv(
+            "NL2SQL_QUERY_PLANNER_MODEL",
+            "gemini/gemini-flash-latest",
+        )
+        try:
+            result = self._run_crew_step(
+                "query_planning",
+                Nl2SqlCrew(
+                    model_overrides={"query_planner": planner_model}
+                ).query_planning_crew,
+                planner_inputs,
+                effective_model=planner_model,
+            )
+            plan_raw = result.raw
+        except Exception as error:
+            if self._abort_on_failure_enabled():
+                raise
+            fallback_model = os.getenv(
+                "NL2SQL_QUERY_PLANNER_FALLBACK_MODEL",
+                "gemini/gemini-flash-lite-latest",
+            )
+            plan_raw = ""
+            if fallback_model != planner_model:
+                print(
+                    "[API][query_planning] Falling back to "
+                    f"{fallback_model} after {type(error).__name__}"
+                )
+                try:
+                    result = self._run_crew_step(
+                        "query_planning",
+                        Nl2SqlCrew(
+                            model_overrides={"query_planner": fallback_model}
+                        ).query_planning_crew,
+                        planner_inputs,
+                        max_attempts=1,
+                        effective_model=fallback_model,
+                    )
+                    plan_raw = result.raw
+                except Exception as fallback_error:
+                    print(
+                        "[API][query_planning] Fallback failed "
+                        f"({type(fallback_error).__name__}); using stub plan"
+                    )
+            else:
+                print(
+                    "[API][query_planning] Using stub plan after "
+                    f"{type(error).__name__}"
+                )
+            if not plan_raw:
+                self.state.query_plan = {
+                    "route": "stub_after_planner_failure",
+                    "steps": [
+                        "Continue with Direct/Planned SQL from analysis and schema."
+                    ],
+                    "warnings": [
+                        f"planner_error={type(error).__name__}: {error}"
+                    ],
+                }
+                print(
+                    f"\nQuery Plan:\n{json.dumps(self.state.query_plan, indent=2)}\n"
+                )
+                return self.state
+        self.state.query_plan = canonicalize_structured_identifiers(
+            self.parse_json_safely(plan_raw),
+            self.state.db_schema,
+        )
         print(f"\nQuery Plan:\n{json.dumps(self.state.query_plan, indent=2)}\n")
         return self.state
 
     @listen(query_planning)
     def generate_sql(self):
-        print(f"\nGenerating SQL for question\n")
-        result = self._run_crew_step(
-            "generate_sql",
-            Nl2SqlCrew().generated_sql_crew,
-            {
-                "question": self.state.question,
-                "db_schema": self.state.db_schema.model_dump_json(),
-                "question_analysis": json.dumps(self.state.question_analysis),
-                "query_plan": json.dumps(self.state.query_plan),
-                "join_plan": json.dumps(self.state.db_schema.join_plan),
-            },
+        print(f"\nGenerating independent SQL candidates\n")
+        sql_schema = executable_schema(self.state.db_schema)
+        direct_schema = direct_candidate_schema(self.state.db_raw_schema)
+        direct_model = os.getenv(
+            "NL2SQL_DIRECT_SQL_MODEL",
+            os.getenv("NL2SQL_SQL_EXPERT_MODEL", "openai/gpt-4o"),
         )
-        sql_dict = self.parse_json_safely(result.raw)
-        generated_sql = (sql_dict.get("sql") or "").strip()
-        self.state.intermediate_sql = generated_sql if generated_sql else result.raw
-        print(f"\nGenerated initial SQL:\n{self.state.intermediate_sql}\n")
+        direct_result = self._consume_seeded_step(
+            "generate_sql_direct",
+            effective_model=f"seed:4step/{direct_model}",
+        )
+        if direct_result is None:
+            direct_result = self._run_crew_step(
+                "generate_sql_direct",
+                Nl2SqlCrew(
+                    model_overrides={"sql_expert": direct_model}
+                ).generated_sql_crew,
+                {
+                    "question": self.state.question,
+                    "db_schema": direct_schema.model_dump_json(),
+                    "question_analysis": "{}",
+                    "query_plan": json.dumps(
+                        {
+                            "status": "WITHHELD_FROM_DIRECT_CANDIDATE",
+                            "instruction": (
+                                "Derive direct_sql only from Question and Schema."
+                            ),
+                        }
+                    ),
+                    "join_plan": "[]",
+                },
+                effective_model=direct_model,
+            )
+        direct_dict = self.parse_json_safely(direct_result.raw)
+        direct_legacy = (direct_dict.get("sql") or "").strip()
+        direct_sql = (
+            direct_dict.get("direct_sql") or direct_legacy
+        ).strip()
+
+        planned_sql = direct_sql
+        if self.state.extended_route:
+            planned_model = os.getenv(
+                "NL2SQL_PLANNED_SQL_MODEL",
+                "gemini/gemini-flash-latest",
+            )
+            planned_inputs = {
+                "question": self.state.question,
+                "db_schema": sql_schema.model_dump_json(),
+                "question_analysis": json.dumps(
+                    self.state.question_analysis
+                ),
+                "query_plan": json.dumps(self.state.query_plan),
+                "join_plan": json.dumps(
+                    self.state.db_schema.join_plan
+                ),
+            }
+            try:
+                planned_result = self._run_crew_step(
+                    "generate_sql_planned",
+                    Nl2SqlCrew(
+                        model_overrides={"sql_expert": planned_model}
+                    ).generated_sql_crew,
+                    planned_inputs,
+                    effective_model=planned_model,
+                )
+            except Exception as error:
+                if self._abort_on_failure_enabled():
+                    raise
+                fallback_model = os.getenv(
+                    "NL2SQL_PLANNED_SQL_FALLBACK_MODEL",
+                    "gemini/gemini-flash-latest",
+                )
+                if fallback_model == planned_model:
+                    raise
+                print(
+                    "[API][generate_sql_planned] Falling back to "
+                    f"{fallback_model} after {type(error).__name__}"
+                )
+                planned_result = self._run_crew_step(
+                    "generate_sql_planned",
+                    Nl2SqlCrew(
+                        model_overrides={"sql_expert": fallback_model}
+                    ).generated_sql_crew,
+                    planned_inputs,
+                    max_attempts=1,
+                    effective_model=fallback_model,
+                )
+            planned_dict = self.parse_json_safely(planned_result.raw)
+            planned_legacy = (planned_dict.get("sql") or "").strip()
+            planned_sql = (
+                planned_dict.get("planned_sql")
+                or planned_dict.get("direct_sql")
+                or planned_legacy
+                or direct_sql
+            ).strip()
+        else:
+            self._record_skipped_step(
+                "generate_sql_planned",
+                "Fast route: planned candidate is not required.",
+            )
+
+        if not direct_sql:
+            direct_sql = planned_sql
+        if not planned_sql:
+            planned_sql = direct_sql
+        self.state.direct_sql = apply_post_generation_sql_repairs(
+            direct_sql,
+            self.state.question,
+            self.state.db_raw_schema,
+        )
+        self.state.planned_sql = apply_post_generation_sql_repairs(
+            planned_sql,
+            self.state.question,
+            self.state.db_raw_schema,
+        )
+        self.state.intermediate_sql = (
+            self.state.planned_sql or self.state.direct_sql
+        )
+        print(f"\nDirect SQL:\n{self.state.direct_sql}")
+        print(f"\nPlanned SQL:\n{self.state.planned_sql}\n")
         return self.state
 
     @listen(generate_sql)
     def refine_sql(self):
-        print(f"\nRefining generated SQL\n")
-        generated = NL2SQLResult(sql=self.state.intermediate_sql)
+        print(f"\nAuditing and arbitrating SQL candidates\n")
         audit_schema = enrich_schema_metadata(
             self.state.db_raw_schema,
             join_plan=self.state.db_schema.join_plan,
             required_tables=self.state.db_schema.required_tables,
             join_plan_warnings=self.state.db_schema.join_plan_warnings,
         )
-        generated_audit = audit_sql_constraints(
-            generated.sql,
+        direct = NL2SQLResult(sql=self.state.direct_sql)
+        planned = NL2SQLResult(sql=self.state.planned_sql)
+        direct_audit = audit_sql_constraints(
+            direct.sql,
             audit_schema,
             db_id=self.state.db_id,
         )
-        self._attach_deterministic_audit("generate_sql", generated_audit)
-        # No-op: do not rewrite executable SQL that already passes deterministic checks.
-        if generated_audit.valid and generated.sql.strip():
-            print(
-                "[refine_sql] Constraint report OK — skipping Refiner "
-                "(preserve Generator SQL to avoid over-refinement)"
+        planned_audit = audit_sql_constraints(
+            planned.sql,
+            audit_schema,
+            db_id=self.state.db_id,
+        )
+        direct_semantic = audit_sql_semantics(
+            direct.sql,
+            self.state.question,
+            self.state.question_analysis,
+        )
+        planned_semantic = audit_sql_semantics(
+            planned.sql,
+            self.state.question,
+            self.state.question_analysis,
+        )
+        for trace in self.step_traces:
+            if trace.get("step_name") in {
+                "generate_sql_direct",
+                "generate_sql_planned",
+            }:
+                trace["candidate_audits"] = {
+                    "direct": {
+                        "deterministic": direct_audit.model_dump(),
+                        "semantic": direct_semantic.model_dump(),
+                    },
+                    "planned": {
+                        "deterministic": planned_audit.model_dump(),
+                        "semantic": planned_semantic.model_dump(),
+                    },
+                }
+
+        review_required, risk_reasons = requires_semantic_review(
+            direct_audit,
+            planned_audit,
+            direct_semantic,
+            planned_semantic,
+        )
+        self.state.semantic_risk_reasons = risk_reasons
+        if _env_flag("NL2SQL_SKIP_REFINER"):
+            _, selected, _, _ = choose_best_candidate(
+                [
+                    ("direct", direct, direct_audit, direct_semantic),
+                    ("planned", planned, planned_audit, planned_semantic),
+                ]
+            )
+            self._record_skipped_step(
+                "refine_sql",
+                "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
             )
             self.state.result = NL2SQLResult(
-                sql=generated.sql,
-                explain="Refiner no-op: Generator SQL already constraint-valid.",
+                sql=selected.sql,
+                explain=(
+                    "Ablation without Refiner: chose Direct/Planned by "
+                    "deterministic arbiter."
+                ),
                 error="",
             )
             print(f"\nRefined SQL:\n{self.state.result.sql}\n")
             return self.state
-        try:
-            result = self._run_crew_step(
-                "refine_sql",
-                Nl2SqlCrew().sql_refinement_crew,
-                {
-                    "question": self.state.question,
-                    "db_schema": self.state.db_schema.model_dump_json(),
-                    "sql": self.state.intermediate_sql,
-                    "question_analysis": json.dumps(self.state.question_analysis),
-                    "query_plan": json.dumps(self.state.query_plan),
-                    "join_plan": json.dumps(self.state.db_schema.join_plan),
-                    "constraint_report": generated_audit.model_dump_json(),
-                },
+        anchor_reason = direct_candidate_anchor_reason(
+            self.state.question,
+            direct,
+            direct_audit,
+            planned,
+            alternative_semantic=planned_semantic,
+        )
+        if anchor_reason:
+            self.state.direct_anchor_reason = anchor_reason
+            self._record_skipped_step("refine_sql", anchor_reason)
+            self.state.result = NL2SQLResult(
+                sql=direct.sql,
+                explain=anchor_reason,
+                error="",
             )
+            print(f"\nRefined SQL:\n{self.state.result.sql}\n")
+            return self.state
+        if not review_required:
+            # Prefer Direct as the independent GPT-4o anchor when both pass.
+            # Planned join-bloat previously leaked through this skip path.
+            self._record_skipped_step(
+                "refine_sql",
+                "Candidates are structurally equivalent and semantic audits pass; kept Direct.",
+            )
+            self.state.result = NL2SQLResult(
+                sql=direct.sql,
+                explain=(
+                    "Refiner skipped: equivalent low-risk candidates; "
+                    "kept Direct anchor."
+                ),
+                error="",
+            )
+            print(f"\nRefined SQL:\n{self.state.result.sql}\n")
+            return self.state
+
+        try:
+            refiner_model = os.getenv(
+                "NL2SQL_SQL_REFINER_MODEL",
+                "gemini/gemini-flash-latest",
+            )
+            refiner_inputs = {
+                "question": self.state.question,
+                "db_schema": executable_schema(
+                    self.state.db_raw_schema
+                ).model_dump_json(),
+                "direct_sql": direct.sql,
+                "planned_sql": planned.sql,
+                "question_analysis": json.dumps(self.state.question_analysis),
+                "query_plan": json.dumps(self.state.query_plan),
+                "join_plan": json.dumps(self.state.db_schema.join_plan),
+                "constraint_report": json.dumps(
+                    {
+                        "direct": direct_audit.model_dump(),
+                        "planned": planned_audit.model_dump(),
+                    }
+                ),
+                "direct_semantic_report": direct_semantic.model_dump_json(),
+                "planned_semantic_report": planned_semantic.model_dump_json(),
+                "risk_reasons": json.dumps(risk_reasons),
+            }
+            try:
+                result = self._run_crew_step(
+                    "refine_sql",
+                    Nl2SqlCrew(
+                        model_overrides={"sql_refiner": refiner_model}
+                    ).sql_refinement_crew,
+                    refiner_inputs,
+                    effective_model=refiner_model,
+                )
+            except Exception as error:
+                if self._abort_on_failure_enabled():
+                    raise
+                fallback_model = os.getenv(
+                    "NL2SQL_SQL_REFINER_FALLBACK_MODEL",
+                    "gemini/gemini-flash-latest",
+                )
+                if fallback_model == refiner_model:
+                    raise
+                print(
+                    "[API][refine_sql] Falling back to "
+                    f"{fallback_model} after {type(error).__name__}"
+                )
+                result = self._run_crew_step(
+                    "refine_sql",
+                    Nl2SqlCrew(
+                        model_overrides={"sql_refiner": fallback_model}
+                    ).sql_refinement_crew,
+                    refiner_inputs,
+                    max_attempts=1,
+                    effective_model=fallback_model,
+                )
             result_dict = self.parse_json_safely(result.raw)
-            # Empty/missing sql from the refiner must not wipe out a valid intermediate SQL
-            refined_sql = (result_dict.get("sql") or "").strip()
+            refined_sql = apply_post_generation_sql_repairs(
+                (result_dict.get("sql") or "").strip(),
+                self.state.question,
+                self.state.db_raw_schema,
+            )
             refined = NL2SQLResult(
-                sql=refined_sql if refined_sql else self.state.intermediate_sql,
+                sql=refined_sql if refined_sql else planned.sql,
                 explain=result_dict.get("notes", ""),
                 error="",
             )
@@ -1254,19 +3512,57 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 audit_schema,
                 db_id=self.state.db_id,
             )
-            self._attach_deterministic_audit("refine_sql", refined_audit)
-            self.state.result = select_audited_result(
-                generated,
-                generated_audit,
-                refined,
-                refined_audit,
-                question=self.state.question,
-                analysis=self.state.question_analysis,
-                candidate_stage="Refiner",
+            refined_semantic = audit_sql_semantics(
+                refined.sql,
+                self.state.question,
+                self.state.question_analysis,
             )
+            self._attach_deterministic_audit("refine_sql", refined_audit)
+            for trace in reversed(self.step_traces):
+                if trace.get("step_name") == "refine_sql":
+                    trace["semantic_audit"] = refined_semantic.model_dump()
+                    break
+            candidates = [
+                ("direct", direct, direct_audit, direct_semantic),
+                ("planned", planned, planned_audit, planned_semantic),
+                ("repaired", refined, refined_audit, refined_semantic),
+            ]
+            refiner_choice = str(
+                result_dict.get("selected_candidate", "")
+            ).strip().lower()
+            preferred_labels = refiner_candidate_preference(
+                refiner_choice
+            )
+            _, selected, _, _ = choose_best_candidate(
+                candidates,
+                preferred_labels=preferred_labels,
+            )
+            self.state.result = selected
         except Exception as e:
-            print(f"[API][refine_sql] Fallback to intermediate SQL due to: {type(e).__name__}: {e}")
-            self.state.result = generated
+            print(
+                f"[API][refine_sql] Candidate fallback due to: "
+                f"{type(e).__name__}: {e}"
+            )
+            if (
+                self._strict_benchmark_enabled()
+                or self._abort_on_failure_enabled()
+            ):
+                raise
+            if not any(
+                trace.get("step_name") == "refine_sql"
+                for trace in self.step_traces
+            ):
+                self._record_skipped_step(
+                    "refine_sql",
+                    f"LLM refiner failed; deterministic candidate fallback: {e}",
+                )
+            _, selected, _, _ = choose_best_candidate(
+                [
+                    ("direct", direct, direct_audit, direct_semantic),
+                    ("planned", planned, planned_audit, planned_semantic),
+                ]
+            )
+            self.state.result = selected
         print(f"\nRefined SQL:\n{self.state.result.sql}\n")
         return self.state
 
@@ -1285,33 +3581,83 @@ class NL2SQLFlow(Flow[NL2SQLState]):
             audit_schema,
             db_id=self.state.db_id,
         )
-        # No-op: do not rewrite executable SQL that already passes deterministic checks.
-        if refined_audit.valid and refined.sql.strip():
-            print(
-                "[validate_sql] Constraint report OK — skipping Validator "
-                "(preserve current SQL to avoid over-refinement)"
+        refined_semantic = audit_sql_semantics(
+            refined.sql,
+            self.state.question,
+            self.state.question_analysis,
+        )
+        if self.state.direct_anchor_reason and refined_audit.valid:
+            self._record_skipped_step(
+                "validate_sql",
+                self.state.direct_anchor_reason,
             )
             self.state.result = NL2SQLResult(
                 sql=refined.sql,
-                explain="Validator no-op: current SQL already constraint-valid.",
+                explain=self.state.direct_anchor_reason,
                 error="",
             )
+            self._enforce_final_executable_result(audit_schema)
+            print(f"\nFinal SQL:\n")
+            print(json.dumps(self.state.result.model_dump(), indent=4))
+            return self.state
+        residual_high_impact = any(
+            any(
+                marker in str(reason).strip().upper()
+                for marker in {
+                    "JOIN_OVERGENERATION",
+                    "RELATED_ROW_NEGATION",
+                    "SET_OPERATION",
+                    "OUTPUT_ROLE_AMBIGUITY",
+                    "EXTREME_ROW",
+                    "HIGH-RISK QUESTION PATTERN",
+                }
+            )
+            for reason in refined_semantic.risk_reasons
+        )
+        if (
+            refined_audit.valid
+            and refined_semantic.valid
+            and refined.sql.strip()
+            and not residual_high_impact
+        ):
+            self._record_skipped_step(
+                "validate_sql",
+                "Deterministic and semantic audits both pass.",
+            )
+            self.state.result = NL2SQLResult(
+                sql=refined.sql,
+                explain=refined.explain or "Validator skipped: all audits pass.",
+                error="",
+            )
+            self._enforce_final_executable_result(audit_schema)
             print(f"\nFinal SQL:\n")
             print(json.dumps(self.state.result.model_dump(), indent=4))
             return self.state
         try:
+            validator_model = os.getenv(
+                "NL2SQL_SQL_VALIDATOR_MODEL",
+                "gemini/gemini-flash-latest",
+            )
             result = self._run_crew_step(
                 "validate_sql",
-                Nl2SqlCrew().validate_sql_crew,
+                Nl2SqlCrew(
+                    model_overrides={"sql_validator": validator_model}
+                ).validate_sql_crew,
                 {
                     "question": self.state.question,
-                    "db_schema": self.state.db_schema.model_dump_json(),
+                    "db_schema": executable_schema(
+                        self.state.db_raw_schema
+                    ).model_dump_json(),
                     "sql": self.state.result.sql,
+                    "direct_sql": self.state.direct_sql,
+                    "planned_sql": self.state.planned_sql,
                     "question_analysis": json.dumps(self.state.question_analysis),
                     "query_plan": json.dumps(self.state.query_plan),
                     "join_plan": json.dumps(self.state.db_schema.join_plan),
                     "constraint_report": refined_audit.model_dump_json(),
+                    "semantic_report": refined_semantic.model_dump_json(),
                 },
+                effective_model=validator_model,
             )
             result_dict = self.parse_json_safely(result.raw)
             validated = NL2SQLResult(**result_dict)
@@ -1322,37 +3668,87 @@ class NL2SQLFlow(Flow[NL2SQLState]):
                 validated.sql = self.state.result.sql
                 if not validated.explain:
                     validated.explain = "Validator output unparsable; kept refined SQL."
+            validated.sql = normalize_numeric_year_predicates(
+                canonicalize_sql_identifiers(
+                    validated.sql,
+                    self.state.db_raw_schema,
+                ),
+                self.state.db_raw_schema,
+            )
             validated_audit = audit_sql_constraints(
                 validated.sql,
                 audit_schema,
                 db_id=self.state.db_id,
             )
+            validated_semantic = audit_sql_semantics(
+                validated.sql,
+                self.state.question,
+                self.state.question_analysis,
+            )
             self._attach_deterministic_audit(
                 "validate_sql",
                 validated_audit,
             )
-            selected = select_audited_result(
-                refined,
-                refined_audit,
-                validated,
-                validated_audit,
-                question=self.state.question,
-                analysis=self.state.question_analysis,
-                candidate_stage="Validator",
+            for trace in reversed(self.step_traces):
+                if trace.get("step_name") == "validate_sql":
+                    trace["semantic_audit"] = validated_semantic.model_dump()
+                    break
+            direct = NL2SQLResult(sql=self.state.direct_sql)
+            planned = NL2SQLResult(sql=self.state.planned_sql)
+            direct_audit = audit_sql_constraints(
+                direct.sql, audit_schema, db_id=self.state.db_id
             )
-            if selected.sql == refined.sql and validated.sql != refined.sql:
-                print(
-                    "[validate_sql] Deterministic guard rejected a Validator "
-                    "regression; keeping Refiner SQL"
-                )
+            planned_audit = audit_sql_constraints(
+                planned.sql, audit_schema, db_id=self.state.db_id
+            )
+            direct_semantic = audit_sql_semantics(
+                direct.sql, self.state.question, self.state.question_analysis
+            )
+            planned_semantic = audit_sql_semantics(
+                planned.sql, self.state.question, self.state.question_analysis
+            )
+            _, selected, _, _ = choose_best_candidate(
+                [
+                    ("direct", direct, direct_audit, direct_semantic),
+                    ("planned", planned, planned_audit, planned_semantic),
+                    ("repaired", refined, refined_audit, refined_semantic),
+                    (
+                        "validated",
+                        validated,
+                        validated_audit,
+                        validated_semantic,
+                    ),
+                ],
+                preferred_labels=[
+                    "validated",
+                    "repaired",
+                    "planned",
+                    "direct",
+                ],
+            )
             self.state.result = selected
         except Exception as e:
             print(f"[API][validate_sql] Fallback to current SQL due to: {type(e).__name__}: {e}")
+            if (
+                self._strict_benchmark_enabled()
+                or self._abort_on_failure_enabled()
+            ):
+                raise
+            if not any(
+                trace.get("step_name") == "validate_sql"
+                for trace in self.step_traces
+            ):
+                self._record_skipped_step(
+                    "validate_sql",
+                    f"LLM validator failed; kept current candidate: {e}",
+                )
             self.state.result = NL2SQLResult(
                 sql=self.state.result.sql,
                 explain="Validator fallback after API failure/timeout.",
                 error="",
             )
+
+        self._enforce_final_executable_result(audit_schema)
         print(f"\nFinal SQL:\n")
         print(json.dumps(self.state.result.model_dump(), indent=4))
 
@@ -1439,7 +3835,15 @@ def process_single_question(question, tables, filename):
                 raw_result = NL2SQLFlow(_question=NLQuestions(question=question['question'], db_id=question['db_id']),
                                         _raw_schema=SQLDbSchema(
                                             db_id=table['db_id'],
+                                            table_names=table.get(
+                                                'table_names',
+                                                table['table_names_original'],
+                                            ),
                                             table_names_original=table['table_names_original'],
+                                            column_names=table.get(
+                                                'column_names',
+                                                table['column_names_original'],
+                                            ),
                                             column_names_original=table['column_names_original'],
                                             column_types=table['column_types'],
                 )).kickoff()

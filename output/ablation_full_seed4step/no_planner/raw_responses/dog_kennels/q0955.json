@@ -1,0 +1,385 @@
+{
+  "question_index": 955,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "dog_kennels",
+  "question": "Which dogs are of the rarest breed? Show their names and treatment dates.",
+  "gold_query": "SELECT T1.name ,  T2.date_of_treatment FROM Dogs AS T1 JOIN Treatments AS T2 ON T1.dog_id  =  T2.dog_id WHERE T1.breed_code  =  ( SELECT breed_code FROM Dogs GROUP BY breed_code ORDER BY count(*) ASC LIMIT 1 )",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"name\", \"date_of_treatment\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Dogs\", \"column\": \"name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Treatments\", \"column\": \"date_of_treatment\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"Breeds\", \"column\": \"breed_code\", \"direction\": \"ASC\"}],\n  \"join_hints\": [\n    {\"from_table\": \"Dogs\", \"to_table\": \"Breeds\", \"reason\": \"link dogs to their breeds via breed_code\"},\n    {\"from_table\": \"Dogs\", \"to_table\": \"Treatments\", \"reason\": \"get treatment dates for dogs via dog_id\"}\n  ],\n  \"entities\": {\"tables\": [\"Breeds\", \"Dogs\", \"Treatments\"], \"columns\": [\"name\", \"date_of_treatment\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:55:13.738995"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I have carefully reviewed the question, analysis, and original schema.\nMy goal is to preserve only the necessary tables, columns, and their PK/FK relationships to answer the question: \"Which dogs are of the rarest breed? Show their names and treatment dates.\"\n\n1.  **Identify core tables from `entities.tables` and `output_fields_detailed`**:\n    *   `Breeds`\n    *   `Dogs`\n    *   `Treatments`\n\n2.  **Identify columns needed for outputs, filters, group_by, order_by**:\n    *   `Dogs.name` (output)\n    *   `Treatments.date_of_treatment` (output)\n    *   `Breeds.breed_code` (order_by, and implicitly for determining \"rarest breed\" by counting)\n\n3.  **Identify PK/FK for joins based on `join_hints` and required connectivity**:\n    *   **Dogs to Breeds**: Requires `Dogs.breed_code` (FK) and `Breeds.breed_code` (PK).\n    *   **Dogs to Treatments**: Requires `Dogs.dog_id` (PK) and `Treatments.dog_id` (FK).\n\n4.  **Determine specific columns to keep from each table**:\n\n    *   **Breeds (table_id 0)**:\n        *   `breed_code` (column_id 1): PK, involved in `order_by`, crucial for identifying \"rarest breed\" (counting dogs per breed).\n        *   `breed_name` (column_id 2): Not strictly an output, but commonly used to describe the breed identified as \"rarest\". Keeping it for completeness and interpretability as per \"Prefer a safe small superset\".\n\n    *   **Dogs (table_id 5)**:\n        *   `dog_id` (column_id 20): PK, needed to join with `Treatments`.\n        *   `breed_code` (column_id 23): FK, needed to join with `Breeds` and for counting breeds.\n        *   `name` (column_id 25): Output column.\n\n    *   **Treatments (table_id 7)**:\n        *   `treatment_id` (column_id 44): PK (good practice to keep PKs for all kept tables).\n        *   `dog_id` (column_id 45): FK, needed to join with `Dogs`.\n        *   `date_of_treatment` (column_id 48): Output column.\n\n5.  **Filter `foreign_keys` and `primary_keys`**:\n    *   **`foreign_keys`**:\n        *   `[23, 1]` (Dogs.breed_code -> Breeds.breed_code): Keep.\n        *   `[45, 20]` (Treatments.dog_id -> Dogs.dog_id): Keep.\n        *   Discard others not involving the selected tables/columns.\n    *   **`primary_keys`**:\n        *   `1` (Breeds.breed_code): Keep.\n        *   `20` (Dogs.dog_id): Keep.\n        *   `44` (Treatments.treatment_id): Keep.\n        *   Discard others.\n\n6.  **Construct the filtered schema JSON**.```json\n{\"db_id\": \"dog_kennels\", \"table_names_original\": [\"Breeds\", \"Dogs\", \"Treatments\"], \"column_names_original\": [[-1, \"*\"], [0, \"breed_code\"], [0, \"breed_name\"], [5, \"dog_id\"], [5, \"breed_code\"], [5, \"name\"], [7, \"treatment_id\"], [7, \"dog_id\"], [7, \"date_of_treatment\"]], \"column_types\": [\"text\", \"text\", \"text\", \"number\", \"text\", \"text\", \"number\", \"number\", \"time\"], \"foreign_keys\": [[4, 1], [7, 3]], \"primary_keys\": [1, 3, 6], \"column_sample_values\": [[], [\"BUL\", \"ESK\", \"HUS\"], [\"Eskimo\", \"Husky\", \"Bulldog\"], [], [\"ESK\", \"BUL\", \"HUS\"], [\"Kacey\", \"Hipolito\", \"Mavis\", \"Houston\"], [], [], []]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:55:13.741744"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:55:13.743292"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT d.name, t.date_of_treatment FROM Dogs d JOIN Breeds b ON d.breed_code = b.breed_code JOIN Treatments t ON d.dog_id = t.dog_id WHERE b.breed_code = (SELECT b.breed_code FROM Breeds b LEFT JOIN Dogs d ON b.breed_code = d.breed_code GROUP BY b.breed_code ORDER BY COUNT(d.dog_id) ASC LIMIT 1)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:55:13.744561",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.name",
+                "t.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds as b on d.breed_code = b.breed_code",
+                "join treatments as t on d.dog_id = t.dog_id",
+                "left join dogs as d on b.breed_code = d.breed_code"
+              ],
+              "where": [
+                "where b.breed_code = (select b.breed_code from breeds as b left join dogs as d on b.breed_code = d.breed_code group by b.breed_code order by count(d.dog_id) asc limit 1)"
+              ],
+              "group_by": [
+                "group by b.breed_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(d.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.name",
+                "t.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds as b on d.breed_code = b.breed_code",
+                "join treatments as t on d.dog_id = t.dog_id",
+                "left join dogs as d on b.breed_code = d.breed_code"
+              ],
+              "where": [
+                "where b.breed_code = (select b.breed_code from breeds as b left join dogs as d on b.breed_code = d.breed_code group by b.breed_code order by count(d.dog_id) asc limit 1)"
+              ],
+              "group_by": [
+                "group by b.breed_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(d.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:55:13.744569",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.name",
+                "t.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds as b on d.breed_code = b.breed_code",
+                "join treatments as t on d.dog_id = t.dog_id",
+                "left join dogs as d on b.breed_code = d.breed_code"
+              ],
+              "where": [
+                "where b.breed_code = (select b.breed_code from breeds as b left join dogs as d on b.breed_code = d.breed_code group by b.breed_code order by count(d.dog_id) asc limit 1)"
+              ],
+              "group_by": [
+                "group by b.breed_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(d.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.name",
+                "t.date_of_treatment"
+              ],
+              "tables": [
+                "breeds",
+                "dogs",
+                "treatments"
+              ],
+              "joins": [
+                "join breeds as b on d.breed_code = b.breed_code",
+                "join treatments as t on d.dog_id = t.dog_id",
+                "left join dogs as d on b.breed_code = d.breed_code"
+              ],
+              "where": [
+                "where b.breed_code = (select b.breed_code from breeds as b left join dogs as d on b.breed_code = d.breed_code group by b.breed_code order by count(d.dog_id) asc limit 1)"
+              ],
+              "group_by": [
+                "group by b.breed_code"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(d.dog_id) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.654,
+      "raw_response": "{\n  \"sql\": \"SELECT d.name, t.date_of_treatment FROM Dogs AS d JOIN Breeds AS b ON d.breed_code = b.breed_code JOIN Treatments AS t ON d.dog_id = t.dog_id WHERE b.breed_code = (SELECT b.breed_code FROM Breeds AS b JOIN Dogs AS d ON b.breed_code = d.breed_code GROUP BY b.breed_code ORDER BY COUNT(d.dog_id) ASC LIMIT 1)\",\n  \"selected_candidate\": \"repaired\",\n  \"notes\": \"Changed LEFT JOIN to JOIN to remove unjustified inclusion of unmatched rows, which was not requested by the question.\",\n  \"diagnostics\": []\n}",
+      "token_usage": {
+        "total_tokens": 4162,
+        "prompt_tokens": 4010,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 152,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:55:17.424415",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "d.name",
+            "t.date_of_treatment"
+          ],
+          "tables": [
+            "breeds",
+            "dogs",
+            "treatments"
+          ],
+          "joins": [
+            "join breeds as b on d.breed_code = b.breed_code",
+            "join dogs as d on b.breed_code = d.breed_code",
+            "join treatments as t on d.dog_id = t.dog_id"
+          ],
+          "where": [
+            "where b.breed_code = (select b.breed_code from breeds as b join dogs as d on b.breed_code = d.breed_code group by b.breed_code order by count(d.dog_id) asc limit 1)"
+          ],
+          "group_by": [
+            "group by b.breed_code"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(d.dog_id) asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:55:17.437660",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "d.name",
+            "t.date_of_treatment"
+          ],
+          "tables": [
+            "breeds",
+            "dogs",
+            "treatments"
+          ],
+          "joins": [
+            "join breeds as b on d.breed_code = b.breed_code",
+            "join dogs as d on b.breed_code = d.breed_code",
+            "join treatments as t on d.dog_id = t.dog_id"
+          ],
+          "where": [
+            "where b.breed_code = (select b.breed_code from breeds as b join dogs as d on b.breed_code = d.breed_code group by b.breed_code order by count(d.dog_id) asc limit 1)"
+          ],
+          "group_by": [
+            "group by b.breed_code"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(d.dog_id) asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT d.name, t.date_of_treatment FROM Dogs AS d JOIN Breeds AS b ON d.breed_code = b.breed_code JOIN Treatments AS t ON d.dog_id = t.dog_id WHERE b.breed_code = (SELECT b.breed_code FROM Breeds AS b JOIN Dogs AS d ON b.breed_code = d.breed_code GROUP BY b.breed_code ORDER BY COUNT(d.dog_id) ASC LIMIT 1)",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:55:17.446577"
+}

@@ -1,0 +1,365 @@
+{
+  "question_index": 5,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "concert_singer",
+  "question": "What is the average, minimum, and maximum age for all French singers?",
+  "gold_query": "SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"AGGREGATION\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"AVG(Age)\", \"MIN(Age)\", \"MAX(Age)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"singer\", \"column\": \"Age\", \"agg\": \"AVG\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"singer\", \"column\": \"Age\", \"agg\": \"MIN\", \"alias\": null, \"order_index\": 1},\n    {\"table\": \"singer\", \"column\": \"Age\", \"agg\": \"MAX\", \"alias\": null, \"order_index\": 2}\n  ],\n  \"filters\": [\n    {\"table\": \"singer\", \"column\": \"Country\", \"operator\": \"=\", \"value\": \"France\", \"value_type\": \"STRING\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"singer\"], \"columns\": [\"Age\", \"Country\"], \"values\": [\"France\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:46:40.781641"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema based on the question \"What is the average, minimum, and maximum age for all French singers?\".\n1. **Identify required tables**: The analysis clearly points to the `singer` table for `Age` (output) and `Country` (filter).\n2. **Identify required columns**:\n    - `Age` (from `singer` table, for AVG, MIN, MAX).\n    - `Country` (from `singer` table, for filtering by 'France').\n    - `Singer_ID` (PK of `singer` table, always keep PKs of kept tables).\n3. **Determine table and column re-indexing**:\n    - Only `singer` table is kept. It becomes the table at index 0 in the new `table_names_original`.\n    - Columns kept: `*`, `Singer_ID`, `Country`, `Age`. I will map these to new global column indices starting from 0.\n    - Original `[-1,\"*\"]` (global index 0) becomes `[-1,\"*\"]` (new global index 0).\n    - Original `[1,\"Singer_ID\"]` (global index 8) becomes `[0,\"Singer_ID\"]` (new global index 1).\n    - Original `[1,\"Country\"]` (global index 10) becomes `[0,\"Country\"]` (new global index 2).\n    - Original `[1,\"Age\"]` (global index 13) becomes `[0,\"Age\"]` (new global index 3).\n4. **Update `column_types`**: Based on the new set of columns and their original types.\n    - `*`: `text`\n    - `Singer_ID`: `number`\n    - `Country`: `text`\n    - `Age`: `number`\n5. **Update `primary_keys`**: Only `Singer_ID` (original global index 8) is a PK from the kept table. Its new global index is 1. So, `primary_keys` becomes `[1]`.\n6. **Update `foreign_keys`**: No other tables are kept, so no foreign keys are needed for joins, or to preserve relationships between kept tables. `foreign_keys` becomes `[]`.\n7. **Update `column_sample_values`**: Extract samples for the kept columns, maintaining original empty lists if samples were not provided.\n    - `*`: `[]` (original was empty)\n    - `Singer_ID`: `[]` (original was empty)\n    - `Country`: `[\"Netherlands\",\"United States\",\"France\"]` (original was this)\n    - `Age`: `[]` (original was empty)```json\n{\n  \"db_id\": \"concert_singer\",\n  \"table_names_original\": [\n    \"singer\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Singer_ID\"],\n    [0, \"Country\"],\n    [0, \"Age\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"text\",\n    \"number\"\n  ],\n  \"foreign_keys\": [],\n  \"primary_keys\": [\n    1\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [\n      \"Netherlands\",\n      \"United States\",\n      \"France\"\n    ],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:46:40.785153"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:46:40.786265"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France'\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:46:40.787222",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)",
+                "min(age)",
+                "max(age)"
+              ],
+              "tables": [
+                "singer"
+              ],
+              "joins": [],
+              "where": [
+                "where country = 'france'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)",
+                "min(age)",
+                "max(age)"
+              ],
+              "tables": [
+                "singer"
+              ],
+              "joins": [],
+              "where": [
+                "where country = 'france'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:46:40.787231",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)",
+                "min(age)",
+                "max(age)"
+              ],
+              "tables": [
+                "singer"
+              ],
+              "joins": [],
+              "where": [
+                "where country = 'france'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "avg(age)",
+                "min(age)",
+                "max(age)"
+              ],
+              "tables": [
+                "singer"
+              ],
+              "joins": [],
+              "where": [
+                "where country = 'france'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.15,
+      "raw_response": "{\"sql\": \"SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France'\", \"selected_candidate\": \"direct\", \"notes\": \"Candidates pass all checks and perfectly answer the question.\", \"diagnostics\": []}",
+      "token_usage": {
+        "total_tokens": 2768,
+        "prompt_tokens": 2541,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 227,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:46:42.957630",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(age)",
+            "min(age)",
+            "max(age)"
+          ],
+          "tables": [
+            "singer"
+          ],
+          "joins": [],
+          "where": [
+            "where country = 'france'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 4.062,
+      "raw_response": "{\"sql\": \"SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France'\", \"explain\": \"Valid SQL query matching question and schema.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2847,
+        "prompt_tokens": 2168,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 679,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:46:47.049783",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(age)",
+            "min(age)",
+            "max(age)"
+          ],
+          "tables": [
+            "singer"
+          ],
+          "joins": [],
+          "where": [
+            "where country = 'france'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "avg(age)",
+            "min(age)",
+            "max(age)"
+          ],
+          "tables": [
+            "singer"
+          ],
+          "joins": [],
+          "where": [
+            "where country = 'france'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France'",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T02:46:47.058396"
+}

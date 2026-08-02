@@ -1,0 +1,298 @@
+{
+  "question_index": 566,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "student_transcripts_tracking",
+  "question": "What is the earliest date of a transcript release, and what details can you tell me?",
+  "gold_query": "SELECT transcript_date ,  other_details FROM Transcripts ORDER BY transcript_date ASC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"transcript_date\", \"other_details\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"agg\": \"MIN\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Transcripts\", \"column\": \"other_details\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"direction\": \"ASC\"}],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"Transcripts\"], \"columns\": [\"transcript_date\", \"other_details\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:14:52.245835"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\"db_id\":\"student_transcripts_tracking\",\"table_names_original\":[\"Transcripts\"],\"column_names_original\":[[-1,\"*\"],[9,\"transcript_id\"],[9,\"transcript_date\"],[9,\"other_details\"]],\"column_types\":[\"text\",\"number\",\"time\",\"text\"],\"foreign_keys\":[],\"primary_keys\":[52],\"column_sample_values\":[[],[],[],[]]}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:14:52.248283"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 4.765,
+      "raw_response": "{\n  \"steps\": [\"Identify the table required for query\", \"Use MIN to find the earliest transcript date\", \"Retrieve associated details\"],\n  \"select\": [{\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"agg\": \"MIN\", \"order_index\": 0}, {\"table\": \"Transcripts\", \"column\": \"other_details\", \"agg\": \"NONE\", \"order_index\": 1}],\n  \"joins\": [],\n  \"predicates\": [],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"Transcripts\", \"column\": \"transcript_date\", \"direction\": \"ASC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2034,
+        "prompt_tokens": 1707,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 327,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:14:57.029017"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT transcript_date, other_details FROM Transcripts WHERE transcript_date = (SELECT MIN(transcript_date) FROM Transcripts)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:14:57.031866",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "transcript_date",
+                "other_details"
+              ],
+              "tables": [
+                "transcripts"
+              ],
+              "joins": [],
+              "where": [
+                "where transcript_date = (select min(transcript_date) from transcripts)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_AGGREGATE_MISMATCH",
+                "message": "Projection 0 lacks expected MIN aggregate."
+              },
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "min(transcript_date) as transcript_date",
+                "other_details"
+              ],
+              "tables": [
+                "transcripts"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by transcript_date asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.513,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT MIN(transcript_date) AS transcript_date, other_details FROM Transcripts ORDER BY transcript_date ASC LIMIT 1\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 1999,
+        "prompt_tokens": 1937,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 62,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:14:58.563726",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "transcript_date",
+                "other_details"
+              ],
+              "tables": [
+                "transcripts"
+              ],
+              "joins": [],
+              "where": [
+                "where transcript_date = (select min(transcript_date) from transcripts)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "OUTPUT_AGGREGATE_MISMATCH",
+                "message": "Projection 0 lacks expected MIN aggregate."
+              },
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "min(transcript_date) as transcript_date",
+                "other_details"
+              ],
+              "tables": [
+                "transcripts"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by transcript_date asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:14:58.572198"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:14:58.574927",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/student_transcripts_tracking/student_transcripts_tracking.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "min(transcript_date) as transcript_date",
+            "other_details"
+          ],
+          "tables": [
+            "transcripts"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by transcript_date asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT MIN(transcript_date) AS transcript_date, other_details FROM Transcripts ORDER BY transcript_date ASC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T02:14:58.579917"
+}

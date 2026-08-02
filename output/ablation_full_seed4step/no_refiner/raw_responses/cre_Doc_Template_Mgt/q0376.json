@@ -1,0 +1,300 @@
+{
+  "question_index": 376,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "cre_Doc_Template_Mgt",
+  "question": "Return the id of the document with the fewest paragraphs.",
+  "gold_query": "SELECT document_id FROM Paragraphs GROUP BY document_id ORDER BY count(*) ASC LIMIT 1",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"MAX_MIN\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Document_ID\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [{\"table\": \"Paragraphs\", \"column\": \"Document_ID\"}],\n  \"order_by\": [{\"table\": \"Documents\", \"column\": \"Document_ID\", \"direction\": \"ASC\"}],\n  \"join_hints\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"reason\": \"to count paragraphs per document\"}],\n  \"entities\": {\"tables\": [\"Documents\", \"Paragraphs\"], \"columns\": [\"Document_ID\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:52:38.760371"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"cre_Doc_Template_Mgt\",\n  \"table_names_original\": [\n    \"Documents\",\n    \"Paragraphs\"\n  ],\n  \"column_names_original\": [\n    [-1, \"*\"],\n    [0, \"Document_ID\"],\n    [0, \"Template_ID\"],\n    [1, \"Document_ID\"],\n    [1, \"Paragraph_Text\"]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [4, 2]\n  ],\n  \"primary_keys\": [\n    2,\n    3\n  ],\n  \"column_sample_values\": []\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:52:38.762479"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.56,
+      "raw_response": "{\n  \"steps\": [\"Join Documents and Paragraphs to count the number of paragraphs per document\", \"Select the Document_ID with the minimum paragraph count\"],\n  \"select\": [{\"table\": \"Documents\", \"column\": \"Document_ID\", \"agg\": \"NONE\", \"order_index\": 0}],\n  \"joins\": [{\"from_table\": \"Documents\", \"to_table\": \"Paragraphs\", \"condition\": \"Paragraphs.Document_ID = Documents.Document_ID\"}],\n  \"predicates\": [],\n  \"group_by\": [{\"table\": \"Paragraphs\", \"column\": \"Document_ID\"}],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": 1,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2184,
+        "prompt_tokens": 2007,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 177,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:52:41.338524"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT d.Document_ID FROM Documents d JOIN Paragraphs p ON d.Document_ID = p.Document_ID GROUP BY d.Document_ID ORDER BY COUNT(*) ASC LIMIT 1\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:52:41.340985",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.document_id"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "join paragraphs as p on d.document_id = p.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by d.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "documents.document_id"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "inner join documents on paragraphs.document_id = documents.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by paragraphs.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.356,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT Documents.Document_ID FROM Paragraphs INNER JOIN Documents ON Paragraphs.Document_ID = Documents.Document_ID GROUP BY Paragraphs.Document_ID ORDER BY COUNT(*) ASC LIMIT 1\",\n  \"disagreement_reason\": \"empty if structurally equivalent\"\n}",
+      "token_usage": {
+        "total_tokens": 2304,
+        "prompt_tokens": 2232,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 72,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:52:42.716419",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "d.document_id"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "join paragraphs as p on d.document_id = p.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by d.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "documents.document_id"
+              ],
+              "tables": [
+                "documents",
+                "paragraphs"
+              ],
+              "joins": [
+                "inner join documents on paragraphs.document_id = documents.document_id"
+              ],
+              "where": [],
+              "group_by": [
+                "group by paragraphs.document_id"
+              ],
+              "having": [],
+              "order_by": [
+                "order by count(*) asc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:52:42.727671"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:52:42.731339",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/cre_Doc_Template_Mgt/cre_Doc_Template_Mgt.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "d.document_id"
+          ],
+          "tables": [
+            "documents",
+            "paragraphs"
+          ],
+          "joins": [
+            "join paragraphs as p on d.document_id = p.document_id"
+          ],
+          "where": [],
+          "group_by": [
+            "group by d.document_id"
+          ],
+          "having": [],
+          "order_by": [
+            "order by count(*) asc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT d.Document_ID FROM Documents AS d JOIN Paragraphs AS p ON d.Document_ID = p.Document_ID GROUP BY d.Document_ID ORDER BY COUNT(*) ASC LIMIT 1",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:52:42.735704"
+}

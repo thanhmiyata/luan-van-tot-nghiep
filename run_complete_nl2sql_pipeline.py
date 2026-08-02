@@ -6,6 +6,8 @@ Pipeline hoàn chỉnh để chạy NL2SQL experiment với CrewAI và đánh gi
 
 import os
 import sys
+import hashlib
+import inspect
 
 # Tắt CrewAI telemetry để tránh timeout (gửi dữ liệu đến telemetry.crewai.com)
 os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
@@ -21,6 +23,9 @@ import time
 import re
 import argparse
 from dotenv import load_dotenv
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 
 # Đường dẫn cơ sở cho các thành phần dự án (cố định)
@@ -29,39 +34,477 @@ SPIDER_DATA_DIR = DATA_DIR / "spider_data"       # chứa database Spider
 OUTPUT_BASE_DIR = Path("output")          # thư mục output chung
 DEV_QUESTIONS_FILE = OUTPUT_BASE_DIR / "questions_dev.json"
 
-# Các biến toàn cục phụ thuộc loại pipeline (4-step hoặc 6-step)
+# Các biến toàn cục phụ thuộc loại pipeline (4-step / 5-step / 6-step)
 NL2SQL_BASE_DIR: Path | None = None       # sẽ được set trong configure_pipeline()
 PIPELINE_OUTPUT_DIR: Path | None = None   # output riêng cho từng pipeline
-PIPELINE_TYPE: str = "4step"              # "4step" hoặc "6step"
+PIPELINE_TYPE: str = "4step"              # "4step" | "6step" | "5step_without_planner" | "5step_without_refiner"
+_CONFIGURED_PIPELINE_PATH: str | None = None
+
+# CLI aliases → canonical PIPELINE_TYPE
+PIPELINE_TYPE_ALIASES = {
+    "4step": "4step",
+    "6step": "6step",
+    "5step_without_planner": "5step_without_planner",
+    "5step_without_refiner": "5step_without_refiner",
+    "without_planner": "5step_without_planner",
+    "without_refiner": "5step_without_refiner",
+    "5step_no_planner": "5step_without_planner",
+    "5step_no_refiner": "5step_without_refiner",
+    "no_planner": "5step_without_planner",
+    "no_refiner": "5step_without_refiner",
+}
+
+
+def normalize_pipeline_type(pipeline_type: str) -> str:
+    key = pipeline_type.strip().lower().replace("-", "_")
+    if key not in PIPELINE_TYPE_ALIASES:
+        raise ValueError(
+            "pipeline_type must be one of: 4step, 6step, "
+            "5step_without_planner (without_planner), "
+            "5step_without_refiner (without_refiner); "
+            f"got {pipeline_type!r}"
+        )
+    return PIPELINE_TYPE_ALIASES[key]
+
+
+def uses_six_step_codebase() -> bool:
+    """5-step variants reuse src/nl2sql_6step with one stage skipped."""
+    return PIPELINE_TYPE == "6step" or PIPELINE_TYPE.startswith("5step_")
+
+
+def code_package_key() -> str:
+    """Directory name under src/: nl2sql_4step or nl2sql_6step."""
+    return "4step" if PIPELINE_TYPE == "4step" else "6step"
+
+
+def _clear_ablation_skip_flags() -> None:
+    os.environ.pop("NL2SQL_SKIP_PLANNER", None)
+    os.environ.pop("NL2SQL_SKIP_REFINER", None)
+
+
+def _apply_5step_route(pipeline_type: str) -> None:
+    """Full-LLM 5-stage route: skip one stage, never seed from 4-step cache."""
+    for key in ("NL2SQL_SEED_FROM_4STEP", "NL2SQL_SEED_INCLUDE_DIRECT"):
+        os.environ.pop(key, None)
+    if pipeline_type == "5step_without_planner":
+        os.environ["NL2SQL_SKIP_PLANNER"] = "1"
+        os.environ.pop("NL2SQL_SKIP_REFINER", None)
+    elif pipeline_type == "5step_without_refiner":
+        os.environ["NL2SQL_SKIP_REFINER"] = "1"
+        os.environ.pop("NL2SQL_SKIP_PLANNER", None)
+    else:
+        raise ValueError(pipeline_type)
 
 
 def configure_pipeline(pipeline_type: str) -> None:
     """
-    Cấu hình đường dẫn và môi trường cho pipeline 4-step hoặc 6-step.
+    Cấu hình đường dẫn và môi trường cho pipeline 4-step, 5-step, hoặc 6-step.
+
+    5-step variants use the 6-step codebase with Planner or Refiner removed.
+    Every remaining stage calls the LLM (no 4-step early-stage seed).
     """
     global NL2SQL_BASE_DIR, PIPELINE_OUTPUT_DIR, PIPELINE_TYPE
+    global _CONFIGURED_PIPELINE_PATH
 
-    if pipeline_type not in ("4step", "6step"):
-        raise ValueError("pipeline_type must be '4step' or '6step'")
+    PIPELINE_TYPE = normalize_pipeline_type(pipeline_type)
 
-    PIPELINE_TYPE = pipeline_type
-
-    if pipeline_type == "4step":
+    if PIPELINE_TYPE == "4step":
         NL2SQL_BASE_DIR = Path("src") / "nl2sql_4step"
         PIPELINE_OUTPUT_DIR = OUTPUT_BASE_DIR / "nl2sql_4step"
-    else:
+        _clear_ablation_skip_flags()
+    elif PIPELINE_TYPE == "6step":
         NL2SQL_BASE_DIR = Path("src") / "nl2sql_6step"
         PIPELINE_OUTPUT_DIR = OUTPUT_BASE_DIR / "nl2sql_6step"
+        _clear_ablation_skip_flags()
+    elif PIPELINE_TYPE == "5step_without_planner":
+        NL2SQL_BASE_DIR = Path("src") / "nl2sql_6step"
+        PIPELINE_OUTPUT_DIR = OUTPUT_BASE_DIR / "nl2sql_5step" / "without_planner"
+        _apply_5step_route(PIPELINE_TYPE)
+    elif PIPELINE_TYPE == "5step_without_refiner":
+        NL2SQL_BASE_DIR = Path("src") / "nl2sql_6step"
+        PIPELINE_OUTPUT_DIR = OUTPUT_BASE_DIR / "nl2sql_5step" / "without_refiner"
+        _apply_5step_route(PIPELINE_TYPE)
+    else:
+        raise ValueError(f"Unhandled pipeline_type: {PIPELINE_TYPE}")
 
-    # Load environment variables từ .env file (nếu có)
+    PIPELINE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Root .env is the project's single source of API keys/model overrides.
+    # A pipeline-local .env remains an optional fallback for backward
+    # compatibility, but never overrides root or shell environment variables.
+    project_root = Path(__file__).resolve().parent
+    load_dotenv(project_root / ".env")
     load_dotenv(NL2SQL_BASE_DIR / ".env")  # type: ignore[arg-type]
 
-    # Thêm đường dẫn để import các module CrewAI (nl2sql_flow)
-    base_dir_str = str(NL2SQL_BASE_DIR)
+    # The 4-step and 6-step packages intentionally share the import name
+    # ``nl2sql_flow``. If a process switches pipelines, remove the old package
+    # from both sys.path and sys.modules before importing the new one.
+    base_dir_str = str(NL2SQL_BASE_DIR.resolve())
+    if _CONFIGURED_PIPELINE_PATH and _CONFIGURED_PIPELINE_PATH != base_dir_str:
+        sys.path = [
+            path
+            for path in sys.path
+            if str(Path(path).resolve()) != _CONFIGURED_PIPELINE_PATH
+        ]
+        for module_name in list(sys.modules):
+            if module_name == "nl2sql_flow" or module_name.startswith("nl2sql_flow."):
+                del sys.modules[module_name]
     if base_dir_str not in sys.path:
-        sys.path.append(base_dir_str)
+        sys.path.insert(0, base_dir_str)
+    _CONFIGURED_PIPELINE_PATH = base_dir_str
 
-    print(f"🔧 Đã cấu hình pipeline: {PIPELINE_TYPE} (base dir = {NL2SQL_BASE_DIR})")
+    skip_note = ""
+    if PIPELINE_TYPE == "5step_without_planner":
+        skip_note = " [skip Planner; full LLM]"
+    elif PIPELINE_TYPE == "5step_without_refiner":
+        skip_note = " [skip Refiner; full LLM]"
+    print(
+        f"🔧 Đã cấu hình pipeline: {PIPELINE_TYPE} "
+        f"(base dir = {NL2SQL_BASE_DIR}){skip_note}"
+    )
+    print(f"   output = {PIPELINE_OUTPUT_DIR}")
+
+
+def compute_pipeline_signature() -> str:
+    """Hash code, prompts, and model routing so stale raw caches are rejected."""
+    if NL2SQL_BASE_DIR is None:
+        raise RuntimeError("Pipeline chưa được cấu hình")
+    digest = hashlib.sha256()
+    relative_files = (
+        "nl2sql_flow/main.py",
+        "nl2sql_flow/crews/nl2sql_crew/nl2sql_crew.py",
+        "nl2sql_flow/crews/nl2sql_crew/config/agents.yaml",
+        "nl2sql_flow/crews/nl2sql_crew/config/tasks.yaml",
+    )
+    digest.update(Path(__file__).read_bytes())
+    for relative_file in relative_files:
+        path = NL2SQL_BASE_DIR / relative_file
+        digest.update(relative_file.encode("utf-8"))
+        if path.is_file():
+            digest.update(path.read_bytes())
+    # Operational knobs should not invalidate resume caches.
+    signature_ignore = {
+        "NL2SQL_STEP_TIMEOUT_SECONDS",
+        "NL2SQL_STEP_MAX_RETRIES",
+        "NL2SQL_ABORT_ON_FAILURE",
+        "NL2SQL_RESUME_IGNORE_SIGNATURE",
+    }
+    for name in sorted(
+        key
+        for key in os.environ
+        if key.startswith("NL2SQL_") and key not in signature_ignore
+    ):
+        digest.update(name.encode("utf-8"))
+        digest.update(os.environ[name].encode("utf-8"))
+    digest.update(PIPELINE_TYPE.encode("utf-8"))
+    return digest.hexdigest()[:20]
+
+
+def assert_loaded_pipeline(flow_class: type) -> None:
+    """Fail fast if Python imported the other pipeline's shared package name."""
+    loaded_path = Path(inspect.getfile(flow_class)).resolve().as_posix()
+    expected_fragment = f"/src/nl2sql_{code_package_key()}/"
+    if expected_fragment not in loaded_path:
+        raise RuntimeError(
+            f"Loaded wrong pipeline module: expected {expected_fragment}, "
+            f"got {loaded_path}"
+        )
+
+
+_TRUE_ENV_VALUES = {"1", "true", "yes", "on", "enabled"}
+_FALSE_ENV_VALUES = {"0", "false", "no", "off", "disabled"}
+_SIX_STEP_TRACE_PHASES = (
+    "question_analysis",
+    "schema_selector",
+    "query_planning",
+    "generate_sql_direct",
+    "generate_sql_planned",
+    "refine_sql",
+    "validate_sql",
+)
+_DEFAULT_REFINER_MODEL = "gemini/gemini-2.5-flash"
+
+
+def env_flag(name: str, default: bool = False) -> bool:
+    """Read a strict boolean environment flag."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in _TRUE_ENV_VALUES:
+        return True
+    if normalized in _FALSE_ENV_VALUES:
+        return False
+    raise ValueError(f"{name} must be a boolean value")
+
+
+def count_trace_attempts(step_traces: List[Dict]) -> int:
+    """Count actual inference attempts, including failed retries."""
+    count = 0
+    for trace in step_traces:
+        try:
+            attempt = int(trace.get("attempt", 0))
+        except (TypeError, ValueError):
+            attempt = 0
+        if attempt > 0:
+            count += 1
+    return count
+
+
+def validate_configured_provider_keys() -> None:
+    """Fail before inference when a configured provider key is absent."""
+    if env_flag("USE_LOCAL_LLM", default=False):
+        return
+
+    if PIPELINE_TYPE == "4step":
+        configured_models = [
+            "gemini/gemini-2.5-flash",
+            "openai/gpt-4o",
+        ]
+    else:
+        # 6-step and 5-step variants share the same model env surface.
+        configured_models = [
+            os.getenv(
+                "NL2SQL_QUESTION_ANALYZER_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_QUESTION_ANALYZER_FALLBACK_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_SCHEMA_SELECTOR_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_QUERY_PLANNER_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_QUERY_PLANNER_FALLBACK_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_DIRECT_SQL_MODEL",
+                os.getenv("NL2SQL_SQL_EXPERT_MODEL", "openai/gpt-4o"),
+            ),
+            os.getenv(
+                "NL2SQL_PLANNED_SQL_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_PLANNED_SQL_FALLBACK_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_SQL_REFINER_MODEL",
+                _DEFAULT_REFINER_MODEL,
+            ),
+            os.getenv(
+                "NL2SQL_SQL_REFINER_FALLBACK_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+            os.getenv(
+                "NL2SQL_SQL_VALIDATOR_MODEL",
+                "gemini/gemini-2.5-flash",
+            ),
+        ]
+
+    provider_keys = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "claude": "ANTHROPIC_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "gpt": "OPENAI_API_KEY",
+    }
+    required_keys = set()
+    for model in configured_models:
+        normalized = str(model).strip().lower()
+        provider = normalized.split("/", 1)[0].split("-", 1)[0]
+        key_name = provider_keys.get(provider)
+        if key_name:
+            required_keys.add(key_name)
+    missing = sorted(
+        key_name
+        for key_name in required_keys
+        if not os.getenv(key_name, "").strip()
+    )
+    if missing:
+        raise RuntimeError(
+            "Missing API key(s) for configured models: "
+            + ", ".join(missing)
+        )
+
+
+def validate_six_step_trace(step_traces: List[Dict]) -> None:
+    """Validate logical phase order while allowing retries and skipped phases."""
+    phase_index = {
+        phase_name: index
+        for index, phase_name in enumerate(_SIX_STEP_TRACE_PHASES)
+    }
+    seen_phases = set()
+    terminal_trace_by_phase: Dict[str, Dict] = {}
+    last_phase_index = -1
+
+    for trace_index, trace in enumerate(step_traces):
+        step_name = trace.get("step_name")
+        if step_name not in phase_index:
+            raise RuntimeError(
+                f"Invalid 6-step trace entry {trace_index}: "
+                f"unknown step_name={step_name!r}"
+            )
+        current_phase_index = phase_index[step_name]
+        if current_phase_index < last_phase_index:
+            raise RuntimeError(
+                "Invalid 6-step trace order: "
+                f"{step_name!r} appears after "
+                f"{_SIX_STEP_TRACE_PHASES[last_phase_index]!r}"
+            )
+        last_phase_index = current_phase_index
+        seen_phases.add(step_name)
+        terminal_trace_by_phase[step_name] = trace
+
+    missing_phases = [
+        phase_name
+        for phase_name in _SIX_STEP_TRACE_PHASES
+        if phase_name not in seen_phases
+    ]
+    if missing_phases:
+        raise RuntimeError(
+            f"Invalid 6-step trace: missing logical phases {missing_phases}"
+        )
+    failed_terminal_phases = [
+        phase_name
+        for phase_name in _SIX_STEP_TRACE_PHASES
+        if not terminal_trace_by_phase[phase_name].get("success", False)
+        and not terminal_trace_by_phase[phase_name].get("skipped", False)
+    ]
+    if failed_terminal_phases:
+        raise RuntimeError(
+            "Invalid 6-step trace: phases did not finish successfully or "
+            f"skip explicitly: {failed_terminal_phases}"
+        )
+
+
+def fetch_anthropic_model_ids(
+    api_key: str,
+    *,
+    base_url: str = "https://api.anthropic.com",
+    timeout: int = 10,
+) -> set[str]:
+    """List model IDs visible to an Anthropic key without running inference."""
+    if not api_key.strip():
+        raise RuntimeError(
+            "Anthropic model preflight requires ANTHROPIC_API_KEY"
+        )
+
+    normalized_base = base_url.rstrip("/")
+    models_endpoint = (
+        f"{normalized_base}/models"
+        if normalized_base.endswith("/v1")
+        else f"{normalized_base}/v1/models"
+    )
+    model_ids: set[str] = set()
+    after_id = ""
+
+    for _ in range(20):
+        query = {"limit": 100}
+        if after_id:
+            query["after_id"] = after_id
+        request = Request(
+            f"{models_endpoint}?{urlencode(query)}",
+            method="GET",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "accept": "application/json",
+            },
+        )
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except HTTPError as error:
+            raise RuntimeError(
+                "Anthropic model preflight failed "
+                f"with HTTP status {error.code}"
+            ) from error
+        except (URLError, TimeoutError) as error:
+            raise RuntimeError(
+                "Anthropic model preflight could not reach the models endpoint"
+            ) from error
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise RuntimeError(
+                "Anthropic model preflight returned invalid JSON"
+            ) from error
+
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                "Anthropic model preflight returned an invalid response shape"
+            )
+        data = payload.get("data")
+        if not isinstance(data, list):
+            raise RuntimeError(
+                "Anthropic model preflight response is missing model data"
+            )
+        model_ids.update(
+            item["id"]
+            for item in data
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+        )
+        if not payload.get("has_more"):
+            return model_ids
+        next_after_id = payload.get("last_id")
+        if not isinstance(next_after_id, str) or not next_after_id:
+            if data and isinstance(data[-1], dict):
+                next_after_id = data[-1].get("id")
+        if not isinstance(next_after_id, str) or not next_after_id:
+            raise RuntimeError(
+                "Anthropic model preflight pagination is missing last_id"
+            )
+        after_id = next_after_id
+
+    raise RuntimeError("Anthropic model preflight exceeded 20 model pages")
+
+
+def preflight_configured_refiner() -> None:
+    """Fail before paid inference when the six-step Anthropic model is absent."""
+    # 5-step without Refiner does not call the Refiner LLM.
+    if not uses_six_step_codebase() or env_flag("NL2SQL_SKIP_REFINER", default=False):
+        return
+    if env_flag("NL2SQL_SKIP_MODEL_PREFLIGHT", default=False):
+        print("[PREFLIGHT] Anthropic model check skipped by configuration.")
+        return
+
+    configured_model = os.getenv(
+        "NL2SQL_SQL_REFINER_MODEL",
+        _DEFAULT_REFINER_MODEL,
+    ).strip()
+    normalized_model = configured_model.lower()
+    if normalized_model.startswith("anthropic/"):
+        provider_model_id = configured_model.split("/", 1)[1]
+    elif normalized_model.startswith("claude-"):
+        provider_model_id = configured_model
+    else:
+        print("[PREFLIGHT] Refiner is not an Anthropic model; check not required.")
+        return
+
+    api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    timeout = int(os.getenv("NL2SQL_MODEL_PREFLIGHT_TIMEOUT_SECONDS", "10"))
+    model_ids = fetch_anthropic_model_ids(
+        api_key,
+        base_url=os.getenv(
+            "ANTHROPIC_BASE_URL",
+            "https://api.anthropic.com",
+        ),
+        timeout=timeout,
+    )
+    if provider_model_id not in model_ids:
+        raise RuntimeError(
+            "Configured Anthropic Refiner model is unavailable to this API "
+            f"account: {provider_model_id}"
+        )
+    print(f"[PREFLIGHT] Anthropic Refiner available: {provider_model_id}")
 
 # Global tracking variables
 ai_request_count = 0
@@ -142,9 +585,9 @@ def group_questions_by_db(spider_data):
 def collect_column_sample_values(db_id, table_schema, max_values=4, max_len=30):
     """Collect a few distinct sample values per TEXT column for value grounding.
 
-    Returns a list aligned with column_names_original ([] for '*', non-text
-    columns, or on any error). This lets agents see real literal casing/spelling
-    (e.g. 'Republic' vs 'republic') instead of guessing values.
+    Returns a list aligned with column_names_original ([] for '*', unsupported
+    columns, or on any error). Text samples preserve literal casing/spelling;
+    boolean samples expose database sentinels such as T/F or Y/N.
     """
     import sqlite3
 
@@ -162,7 +605,10 @@ def collect_column_sample_values(db_id, table_schema, max_values=4, max_len=30):
         con.text_factory = lambda b: b.decode(errors='replace')
         tables = table_schema['table_names_original']
         for idx, (t_idx, col_name) in enumerate(columns):
-            if t_idx < 0 or idx >= len(types) or types[idx] != 'text':
+            column_type = (
+                str(types[idx]).lower() if idx < len(types) else ""
+            )
+            if t_idx < 0 or column_type not in {'text', 'boolean'}:
                 continue
             try:
                 rows = con.execute(
@@ -174,7 +620,10 @@ def collect_column_sample_values(db_id, table_schema, max_values=4, max_len=30):
                 pass  # per-column failure is non-fatal
         con.close()
         n_grounded = sum(1 for s in samples if s)
-        print(f"🔎 Value grounding: lấy giá trị mẫu cho {n_grounded} cột text của '{db_id}'")
+        print(
+            "🔎 Value grounding: lấy giá trị mẫu cho "
+            f"{n_grounded} cột text/boolean của '{db_id}'"
+        )
     except Exception as e:
         print(f"⚠️  Value grounding lỗi ({e}), tiếp tục không có sample values")
     return samples
@@ -257,7 +706,13 @@ def get_test_questions(num_questions=40, db_id=None, seed=None):
                 'db_id': item['db_id'],
                 'question': item['question'],
                 'gold_query': item['query'],  # Thêm ground truth
+                'table_names': table_schema.get(
+                    'table_names', table_schema['table_names_original']
+                ),
                 'table_names_original': table_schema['table_names_original'],
+                'column_names': table_schema.get(
+                    'column_names', table_schema['column_names_original']
+                ),
                 'column_names_original': table_schema['column_names_original'],
                 'column_types': table_schema['column_types'],
                 'foreign_keys': table_schema.get('foreign_keys', []),
@@ -321,12 +776,28 @@ def run_nl2sql_system(test_questions):
             "PIPELINE_OUTPUT_DIR chưa được cấu hình. Hãy gọi configure_pipeline() trước."
         )
 
+    strict_benchmark = env_flag("NL2SQL_STRICT_BENCHMARK", default=False)
+    abort_on_failure = env_flag("NL2SQL_ABORT_ON_FAILURE", default=False)
+    resume_ignore_signature = env_flag(
+        "NL2SQL_RESUME_IGNORE_SIGNATURE", default=False
+    )
+    validate_configured_provider_keys()
+    preflight_configured_refiner()
+
     print("\n🤖 Đang chạy hệ thống NL2SQL CrewAI...")
 
     # Import các module cần thiết từ CrewAI
     try:
         from pydantic import BaseModel
+        import nl2sql_flow.main as nl2sql_main
         from nl2sql_flow.main import NL2SQLFlow, NLQuestions, SQLDbSchema, NL2SQLResult
+        assert_loaded_pipeline(NL2SQLFlow)
+        load_four_step_seed_file = getattr(
+            nl2sql_main, "load_four_step_seed_file", None
+        )
+        map_four_step_seed_to_six_steps = getattr(
+            nl2sql_main, "map_four_step_seed_to_six_steps", None
+        )
     except ImportError as e:
         print(f"❌ Lỗi import module CrewAI: {e}")
         print("💡 Hãy đảm bảo đã cài đặt crewai và các dependencies")
@@ -352,6 +823,7 @@ def run_nl2sql_system(test_questions):
 
     # Thư mục lưu raw responses của từng agent theo từng câu hỏi
     raw_responses_dir = PIPELINE_OUTPUT_DIR / 'raw_responses'
+    run_signature = compute_pipeline_signature()
 
     for i, question in enumerate(test_questions, 1):
         question_start_time = time.time()
@@ -361,12 +833,31 @@ def run_nl2sql_system(test_questions):
         q_index = question.get('question_index', i)
         raw_db_dir = raw_responses_dir / question['db_id']
         raw_file = raw_db_dir / f"q{q_index:04d}.json"
+        flow = None
+        step_traces: List[Dict] = []
+        question_api_calls = 0
+        api_calls_recorded = False
 
         # Resume: nếu câu này đã có kết quả từ lần chạy trước thì dùng lại, không gọi API
         if raw_file.exists():
             try:
                 with open(raw_file, 'r', encoding='utf-8') as f:
                     cached = json.load(f)
+                if cached.get('run_signature') != run_signature:
+                    if resume_ignore_signature:
+                        print(
+                            f"   ⚠️  Cache signature mismatch for {raw_file.name}; "
+                            "NL2SQL_RESUME_IGNORE_SIGNATURE=1 → reuse cache."
+                        )
+                    else:
+                        raise ValueError(
+                            "cache signature differs from the active code/prompts/models"
+                        )
+                if (
+                    cached.get('db_id') != question['db_id']
+                    or cached.get('question') != question['question']
+                ):
+                    raise ValueError("cache question identity mismatch")
                 result = {
                     'db_id': cached['db_id'],
                     'question': cached['question'],
@@ -383,6 +874,14 @@ def run_nl2sql_system(test_questions):
                 with open(csv_filename, 'a', newline='', encoding='utf-8') as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writerow(result)
+                api_call_details['per_question'].append({
+                    'question_id': i,
+                    'question': question['question'][:50] + '...',
+                    'api_calls': 0,
+                    'processing_time': time.time() - question_start_time,
+                    'success': bool(result['sql'] and not result['error']),
+                    'cache_hit': True,
+                })
                 print(f"   ⏩ Đã có kết quả từ lần chạy trước ({raw_file.name}), bỏ qua.")
                 continue
             except Exception as e:
@@ -392,26 +891,70 @@ def run_nl2sql_system(test_questions):
             # Chạy NL2SQL flow với schema đã có sẵn trong question
             print("   🔄 Đang chạy multi-agent flow...")
 
-            # Track AI requests (estimate based on typical CrewAI flow)
-            # 4-step: khoảng 4 calls, 6-step: khoảng 6 calls
-            question_api_calls = 6 if PIPELINE_TYPE == "6step" else 4
-            ai_request_count += question_api_calls
-            api_call_details['total_agent_calls'] += question_api_calls
+            seed_steps = None
+            seed_meta = None
+            seed_root = os.getenv("NL2SQL_SEED_FROM_4STEP", "").strip()
+            if (
+                PIPELINE_TYPE == "6step"
+                and seed_root
+                and load_four_step_seed_file
+                and map_four_step_seed_to_six_steps
+            ):
+                four_raw = load_four_step_seed_file(
+                    Path(seed_root),
+                    question["db_id"],
+                    int(q_index),
+                    question["question"],
+                )
+                if four_raw:
+                    seed_steps = map_four_step_seed_to_six_steps(four_raw)
+                    seed_meta = {
+                        "seed_root": str(Path(seed_root).resolve()),
+                        "seeded_steps": sorted(seed_steps.keys()),
+                        "source_question_index": four_raw.get("question_index"),
+                        "source_db_id": four_raw.get("db_id"),
+                    }
+                    print(
+                        "   🌱 Hybrid 4→6 seed: "
+                        + (", ".join(seed_meta["seeded_steps"]) or "(none)")
+                    )
+                else:
+                    print(
+                        f"   ⚠️  Không tìm thấy seed 4-step cho "
+                        f"{question['db_id']}/q{int(q_index):04d}; chạy full 6-step."
+                    )
 
+            flow_kwargs = {}
+            if seed_steps is not None:
+                flow_kwargs["seed_steps"] = seed_steps
             flow = NL2SQLFlow(
                 _question=NLQuestions(
                     question=question['question'], db_id=question['db_id']),
                 _raw_schema=SQLDbSchema(
                     db_id=question['db_id'],
+                    table_names=question.get(
+                        'table_names', question['table_names_original']
+                    ),
                     table_names_original=question['table_names_original'],
+                    column_names=question.get(
+                        'column_names', question['column_names_original']
+                    ),
                     column_names_original=question['column_names_original'],
                     column_types=question['column_types'],
                     foreign_keys=question.get('foreign_keys', []),
                     primary_keys=question.get('primary_keys', []),
                     column_sample_values=question.get('column_sample_values', []),
-                )
+                ),
+                **flow_kwargs,
             )
             flow_result = flow.kickoff()
+            step_traces = getattr(flow, 'step_traces', [])
+            question_api_calls = count_trace_attempts(step_traces)
+            if uses_six_step_codebase():
+                validate_six_step_trace(step_traces)
+            ai_request_count += question_api_calls
+            api_call_details['total_agent_calls'] += question_api_calls
+            api_calls_recorded = True
 
             result = {
                 'db_id': flow_result.db_id,
@@ -421,22 +964,33 @@ def run_nl2sql_system(test_questions):
                 'explain': flow_result.result.explain,
                 'error': flow_result.result.error,
             }
+            if strict_benchmark and (
+                not (result['sql'] or '').strip() or result['error']
+            ):
+                raise RuntimeError(
+                    "Strict benchmark received an empty or errored flow result: "
+                    f"{result['error'] or 'empty SQL'}"
+                )
 
             # Lưu raw response của TẤT CẢ agent steps cho câu hỏi này
             os.makedirs(raw_db_dir, exist_ok=True)
+            raw_payload = {
+                'question_index': q_index,
+                'pipeline': PIPELINE_TYPE,
+                'run_signature': run_signature,
+                'db_id': question['db_id'],
+                'question': question['question'],
+                'gold_query': question['gold_query'],
+                'steps': step_traces,
+                'final_sql': result['sql'],
+                'explain': result['explain'],
+                'error': result['error'],
+                'timestamp': datetime.now().isoformat(),
+            }
+            if seed_meta is not None:
+                raw_payload['hybrid_seed_from_4step'] = seed_meta
             with open(raw_file, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'question_index': q_index,
-                    'pipeline': PIPELINE_TYPE,
-                    'db_id': question['db_id'],
-                    'question': question['question'],
-                    'gold_query': question['gold_query'],
-                    'steps': getattr(flow, 'step_traces', []),
-                    'final_sql': result['sql'],
-                    'explain': result['explain'],
-                    'error': result['error'],
-                    'timestamp': datetime.now().isoformat(),
-                }, f, ensure_ascii=False, indent=2)
+                json.dump(raw_payload, f, ensure_ascii=False, indent=2)
 
             # ===== PHASE 1 IMPROVEMENT: SQL Enhancement =====
             if result['sql'] and not result['error']:
@@ -483,8 +1037,8 @@ def run_nl2sql_system(test_questions):
             api_call_details['per_question'].append({
                 'question_id': i,
                 'question': question['question'][:50] + '...',
-                # +1 for enhancement if successful
-                'api_calls': question_api_calls + (1 if result['sql'] and not result['error'] else 0),
+                # enhance_sql_query is local formatting, not a provider request.
+                'api_calls': question_api_calls,
                 'processing_time': question_time,
                 'success': bool(result['sql'] and not result['error'])
             })
@@ -495,44 +1049,31 @@ def run_nl2sql_system(test_questions):
         except Exception as e:
             print(f"   ❌ Lỗi xử lý câu hỏi: {e}")
             execution_metrics['failed'] += 1
-            failed_api_calls = 2  # Even failed attempts make some AI requests
-            ai_request_count += failed_api_calls
-            api_call_details['total_agent_calls'] += failed_api_calls
-
-            # Placeholder always-wrong SQL keeps one eval line per question (never drop failures)
-            error_result = {
-                'db_id': question['db_id'],
-                'question': question['question'],
-                'gold_query': question['gold_query'],
-                'sql': 'SELECT 1',
-                'explain': '',
-                'error': str(e),
-            }
-            results.append(error_result)
+            partial_steps = getattr(flow, 'step_traces', []) if flow else []
+            failed_api_calls = count_trace_attempts(partial_steps)
+            if not api_calls_recorded:
+                ai_request_count += failed_api_calls
+                api_call_details['total_agent_calls'] += failed_api_calls
 
             # Lưu trace lỗi vào file riêng (.error.json) để resume vẫn chạy lại câu này
             try:
                 os.makedirs(raw_db_dir, exist_ok=True)
                 error_trace_file = raw_db_dir / f"q{q_index:04d}.error.json"
-                partial_steps = getattr(locals().get('flow'), 'step_traces', []) if 'flow' in locals() else []
                 with open(error_trace_file, 'w', encoding='utf-8') as f:
                     json.dump({
                         'question_index': q_index,
                         'pipeline': PIPELINE_TYPE,
+                        'run_signature': run_signature,
                         'db_id': question['db_id'],
                         'question': question['question'],
                         'gold_query': question['gold_query'],
                         'steps': partial_steps,
+                        'api_calls': failed_api_calls,
                         'error': str(e),
                         'timestamp': datetime.now().isoformat(),
                     }, f, ensure_ascii=False, indent=2)
             except Exception as log_err:
                 print(f"   ⚠️  Không lưu được error trace: {log_err}")
-
-            # Ghi lỗi vào CSV
-            with open(csv_filename, 'a', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writerow(error_result)
 
             # Track failed question timing and API calls
             question_time = time.time() - question_start_time
@@ -543,6 +1084,38 @@ def run_nl2sql_system(test_questions):
                 'processing_time': question_time,
                 'success': False
             })
+
+            # Keep one evaluation line even in strict mode so multi-question
+            # smokes can finish EX scoring. Provider/parse failures count as
+            # wrong via the SELECT 1 placeholder; error.json forces resume.
+            # Abort mode stops the whole process after retries are exhausted.
+            if abort_on_failure:
+                print(
+                    "   🛑 NL2SQL_ABORT_ON_FAILURE=1: stopping process after "
+                    f"failed question {i}/{len(test_questions)}."
+                )
+                raise RuntimeError(
+                    f"Aborting pipeline after question failure: {e}"
+                ) from e
+
+            if strict_benchmark:
+                print(
+                    "   ⚠️  Strict benchmark mode: recording failure and "
+                    "continuing (SELECT 1 placeholder for EX)."
+                )
+
+            error_result = {
+                'db_id': question['db_id'],
+                'question': question['question'],
+                'gold_query': question['gold_query'],
+                'sql': 'SELECT 1',
+                'explain': '',
+                'error': str(e),
+            }
+            results.append(error_result)
+            with open(csv_filename, 'a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writerow(error_result)
 
     timing_metrics['nl2sql_processing_time'] = time.time() - start_time
     print(
@@ -850,9 +1423,16 @@ def print_detailed_api_statistics():
 
     print(f"📊 Tổng quan API calls:")
     print(f"   • Tổng agent calls: {api_call_details['total_agent_calls']}")
-    print(f"   • Enhancement calls: {api_call_details['enhancement_calls']}")
     print(
-        f"   • Trung bình API calls/câu hỏi: {api_call_details['total_agent_calls']/total_questions:.1f}")
+        "   • Local SQL formatting passes: "
+        f"{api_call_details['enhancement_calls']}"
+    )
+    average_api_calls = (
+        api_call_details['total_agent_calls'] / total_questions
+        if total_questions
+        else 0.0
+    )
+    print(f"   • Trung bình API calls/câu hỏi: {average_api_calls:.1f}")
 
     if api_call_details['per_question']:
         avg_time_per_question = sum(
@@ -1124,13 +1704,30 @@ def main():
 
     # Parse tham số dòng lệnh
     parser = argparse.ArgumentParser(
-        description="Chạy complete NL2SQL pipeline với lựa chọn 4-step hoặc 6-step."
+        description=(
+            "Chạy complete NL2SQL pipeline: 4step | 6step | "
+            "5step_without_planner | 5step_without_refiner."
+        )
     )
     parser.add_argument(
         "--pipeline",
-        choices=["4step", "6step"],
+        choices=[
+            "4step",
+            "6step",
+            "5step_without_planner",
+            "5step_without_refiner",
+            "without_planner",
+            "without_refiner",
+            "5step_no_planner",
+            "5step_no_refiner",
+            "no_planner",
+            "no_refiner",
+        ],
         default="4step",
-        help="Chọn loại pipeline NL2SQL: 4step (mặc định) hoặc 6step."
+        help=(
+            "Pipeline: 4step | 6step | 5step_without_planner | 5step_without_refiner "
+            "(aliases: without_planner, without_refiner)."
+        ),
     )
     parser.add_argument(
         "--num_questions",

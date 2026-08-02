@@ -1,0 +1,379 @@
+{
+  "question_index": 66,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "pets_1",
+  "question": "What is the first name of every student who has a dog but does not have a cat?",
+  "gold_query": "SELECT T1.fname ,  T1.age FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'dog' AND T1.stuid NOT IN (SELECT T1.stuid FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'cat')",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Fname\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Student\", \"column\": \"Fname\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"Has_Pet\", \"column\": \"PetID\", \"operator\": \"IN\", \"value\": \"(SELECT PetID FROM Pets WHERE PetType = 'dog')\", \"value_type\": \"SUBQUERY\"},\n    {\"table\": \"Has_Pet\", \"column\": \"PetID\", \"operator\": \"NOT IN\", \"value\": \"(SELECT PetID FROM Pets WHERE PetType = 'cat')\", \"value_type\": \"SUBQUERY\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"Student\", \"to_table\": \"Has_Pet\", \"reason\": \"to connect students with their pets\"}],\n  \"entities\": {\"tables\": [\"Student\", \"Has_Pet\", \"Pets\"], \"columns\": [\"Fname\", \"PetID\", \"PetType\"], \"values\": [\"dog\", \"cat\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:07:53.519549"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"pets_1\",\n  \"table_names_original\": [\n    \"Student\",\n    \"Has_Pet\",\n    \"Pets\"\n  ],\n  \"column_names_original\": [\n    [0, \"StuID\"],\n    [0, \"Fname\"],\n    [1, \"StuID\"],\n    [1, \"PetID\"],\n    [2, \"PetID\"],\n    [2, \"PetType\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [2, 0],\n    [3, 4]\n  ],\n  \"primary_keys\": [\n    0,\n    4\n  ],\n  \"column_sample_values\": [\n    [],\n    [\n      \"Linda\",\n      \"Tracy\",\n      \"Shiela\",\n      \"Dinesh\"\n    ],\n    [],\n    [],\n    [],\n    [\n      \"cat\",\n      \"dog\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:07:53.521898"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: no structural semantic risk was detected.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:07:53.523093"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Fname FROM Student WHERE StuID IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'dog')) AND StuID NOT IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'cat'))\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:07:53.524042",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "fname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where petid in (select petid from pets where pettype = 'cat')",
+                "where petid in (select petid from pets where pettype = 'dog')",
+                "where pettype = 'cat'",
+                "where pettype = 'dog'",
+                "where stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'dog')) and not stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'cat'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: pets"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "fname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where petid in (select petid from pets where pettype = 'cat')",
+                "where petid in (select petid from pets where pettype = 'dog')",
+                "where pettype = 'cat'",
+                "where pettype = 'dog'",
+                "where stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'dog')) and not stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'cat'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: pets"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:07:53.524050",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "fname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where petid in (select petid from pets where pettype = 'cat')",
+                "where petid in (select petid from pets where pettype = 'dog')",
+                "where pettype = 'cat'",
+                "where pettype = 'dog'",
+                "where stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'dog')) and not stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'cat'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: pets"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "fname"
+              ],
+              "tables": [
+                "has_pet",
+                "pets",
+                "student"
+              ],
+              "joins": [],
+              "where": [
+                "where petid in (select petid from pets where pettype = 'cat')",
+                "where petid in (select petid from pets where pettype = 'dog')",
+                "where pettype = 'cat'",
+                "where pettype = 'dog'",
+                "where stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'dog')) and not stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'cat'))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "RELATED_NEGATION_UNSAFE",
+                "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: pets"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:07:53.533363"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 14.987,
+      "raw_response": "{\n  \"sql",
+      "token_usage": {
+        "total_tokens": 4418,
+        "prompt_tokens": 2374,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:08:08.537123",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "fname"
+          ],
+          "tables": [
+            "has_pet",
+            "pets",
+            "student"
+          ],
+          "joins": [],
+          "where": [
+            "where petid in (select petid from pets where pettype = 'cat')",
+            "where petid in (select petid from pets where pettype = 'dog')",
+            "where pettype = 'cat'",
+            "where pettype = 'dog'",
+            "where stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'dog')) and not stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'cat'))"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "RELATED_NEGATION_UNSAFE",
+            "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: pets"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/pets_1/pets_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "fname"
+          ],
+          "tables": [
+            "has_pet",
+            "pets",
+            "student"
+          ],
+          "joins": [],
+          "where": [
+            "where petid in (select petid from pets where pettype = 'cat')",
+            "where petid in (select petid from pets where pettype = 'dog')",
+            "where pettype = 'cat'",
+            "where pettype = 'dog'",
+            "where stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'dog')) and not stuid in (select stuid from has_pet where petid in (select petid from pets where pettype = 'cat'))"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "RELATED_NEGATION_UNSAFE",
+            "message": "Related-row negation requires NOT EXISTS, NOT IN, or EXCEPT."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: pets"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Fname FROM Student WHERE StuID IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'dog')) AND NOT StuID IN (SELECT StuID FROM Has_Pet WHERE PetID IN (SELECT PetID FROM Pets WHERE PetType = 'cat'))",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:08:08.558787"
+}

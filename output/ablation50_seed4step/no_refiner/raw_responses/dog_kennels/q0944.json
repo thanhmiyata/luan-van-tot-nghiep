@@ -1,0 +1,343 @@
+{
+  "question_index": 944,
+  "pipeline": "ablation_no_refiner",
+  "db_id": "dog_kennels",
+  "question": "What are the first name and last name of the professionals who have done treatment with cost below average?",
+  "gold_query": "SELECT DISTINCT T1.first_name ,  T1.last_name FROM Professionals AS T1 JOIN Treatments AS T2 WHERE cost_of_treatment  <  ( SELECT avg(cost_of_treatment) FROM Treatments )",
+  "hardness": "extra",
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"first_name\", \"last_name\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"Professionals\", \"column\": \"first_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"Professionals\", \"column\": \"last_name\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"filters\": [\n    {\"table\": \"Treatments\", \"column\": \"cost_of_treatment\", \"operator\": \"<\", \"value\": \"(SELECT AVG(cost_of_treatment) FROM Treatments)\", \"value_type\": \"OTHER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [\n    {\"from_table\": \"Treatments\", \"to_table\": \"Professionals\", \"reason\": \"Link treatments to professionals based on professional_id\"}\n  ],\n  \"entities\": {\n    \"tables\": [\"Professionals\", \"Treatments\"],\n    \"columns\": [\"first_name\", \"last_name\", \"cost_of_treatment\"],\n    \"values\": []\n  },\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-29T17:04:54.561125"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"dog_kennels\",\n  \"table_names_original\": [\n    \"Professionals\",\n    \"Treatments\"\n  ],\n  \"column_names_original\": [\n    [0, \"professional_id\"],\n    [0, \"first_name\"],\n    [0, \"last_name\"],\n    [1, \"treatment_id\"],\n    [1, \"professional_id\"],\n    [1, \"cost_of_treatment\"]\n  ],\n  \"column_types\": [\n    \"number\",\n    \"text\",\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\"\n  ],\n  \"foreign_keys\": [\n    [4, 0]\n  ],\n  \"primary_keys\": [\n    0,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [\"Taryn\", \"Jayson\", \"Olaf\", \"Vernice\"],\n    [\"Braun\", \"Ullrich\", \"Watsica\", \"Tillman\"],\n    [],\n    [],\n    []\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-29T17:04:54.564692"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 2.969,
+      "raw_response": "{\n  \"steps\": [\"Evaluate the average cost of treatments.\", \"Identify treatment records with costs below the average.\", \"Join the Professionals and Treatments tables to retrieve relevant professional details.\"],\n  \"select\": [{\"table\": \"Professionals\", \"column\": \"first_name\", \"agg\": \"NONE\", \"order_index\": 0}, {\"table\": \"Professionals\", \"column\": \"last_name\", \"agg\": \"NONE\", \"order_index\": 1}],\n  \"joins\": [{\"from_table\": \"Professionals\", \"to_table\": \"Treatments\", \"condition\": \"Treatments.professional_id = Professionals.professional_id\"}],\n  \"predicates\": [{\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"Treatments.cost_of_treatment < (SELECT AVG(cost_of_treatment) FROM Treatments)\"}],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": []},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 2631,
+        "prompt_tokens": 2393,
+        "cached_prompt_tokens": 2176,
+        "completion_tokens": 238,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-29T17:04:57.550087"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Professionals.first_name, Professionals.last_name FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id WHERE Treatments.cost_of_treatment < (SELECT AVG(cost_of_treatment) FROM Treatments)\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-29T17:04:57.556664",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "professionals.last_name"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on professionals.professional_id = treatments.professional_id"
+              ],
+              "where": [
+                "where treatments.cost_of_treatment < (select avg(cost_of_treatment) from treatments)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "professionals.last_name"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on treatments.professional_id = professionals.professional_id"
+              ],
+              "where": [
+                "where treatments.cost_of_treatment < (select avg(cost_of_treatment) from treatments)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.036,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT Professionals.first_name, Professionals.last_name FROM Professionals JOIN Treatments ON Treatments.professional_id = Professionals.professional_id WHERE Treatments.cost_of_treatment < (SELECT AVG(cost_of_treatment) FROM Treatments)\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2751,
+        "prompt_tokens": 2679,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 72,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-29T17:04:58.614917",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "professionals.last_name"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on professionals.professional_id = treatments.professional_id"
+              ],
+              "where": [
+                "where treatments.cost_of_treatment < (select avg(cost_of_treatment) from treatments)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "professionals.first_name",
+                "professionals.last_name"
+              ],
+              "tables": [
+                "professionals",
+                "treatments"
+              ],
+              "joins": [
+                "join treatments on treatments.professional_id = professionals.professional_id"
+              ],
+              "where": [
+                "where treatments.cost_of_treatment < (select avg(cost_of_treatment) from treatments)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-29T17:04:58.625254"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.016,
+      "raw_response": "{\"sql\":\"SELECT Professionals.first_name, Professionals.last_name FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id WHERE Treatments.cost_of_treatment < (SELECT AVG(cost_of_treatment) FROM Treatments)\",\"explain\":\"The original query is correct and matches the question's requirement. It selects professionals who have performed treatments with costs below the average. The join is on the correct foreign key, and there are no semantic or deterministic violations.\",\"error\":\"\"}",
+      "token_usage": {
+        "total_tokens": 3591,
+        "prompt_tokens": 3484,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 107,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-29T17:05:00.661463",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "professionals.first_name",
+            "professionals.last_name"
+          ],
+          "tables": [
+            "professionals",
+            "treatments"
+          ],
+          "joins": [
+            "join treatments on professionals.professional_id = treatments.professional_id"
+          ],
+          "where": [
+            "where treatments.cost_of_treatment < (select avg(cost_of_treatment) from treatments)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/dog_kennels/dog_kennels.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "professionals.first_name",
+            "professionals.last_name"
+          ],
+          "tables": [
+            "professionals",
+            "treatments"
+          ],
+          "joins": [
+            "join treatments on professionals.professional_id = treatments.professional_id"
+          ],
+          "where": [
+            "where treatments.cost_of_treatment < (select avg(cost_of_treatment) from treatments)"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT Professionals.first_name, Professionals.last_name FROM Professionals JOIN Treatments ON Professionals.professional_id = Treatments.professional_id WHERE Treatments.cost_of_treatment < (SELECT AVG(cost_of_treatment) FROM Treatments)",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "timestamp": "2026-07-29T17:05:00.675221"
+}

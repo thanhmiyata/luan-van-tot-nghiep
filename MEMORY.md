@@ -1,10 +1,79 @@
-# Project Memory - Last Updated: 2026-07-26
+# Project Memory - Last Updated: 2026-07-30
 
 ## Trạng thái hiện tại
 
-- **Số liệu khóa (Spider 1.0 dev, 1034 câu, official eval)**: 6-step **EX=84.9% / EM=73.6%**; 4-step **EX=84.9% / EM=57.4%**. Per-DB trong `output/nl2sql_{4,6}step/benchmark_progress.json` (6-step đã sync weighted EM=73.6%).
+- **2026-07-30 (ĐANG CHẠY — ablation 5-stage full 1034 API)**: Runner mới `scripts/run_ablation_full_seed4step.py` (seed bắt buộc từ 4-step, resume-safe, output `output/ablation_full_seed4step/`). GPT-4o primary + Claude fallback nếu hết credit. **Không** đụng locked 4/6-step.
+  - **world_1 (120) DONE**:
+    - `no_planner`: seed **100%**, EX=**75.0**, EM=**46.7** (~201s)
+    - `no_refiner`: seed **100%**, EX=**73.3**, EM=**47.5** (~594s)
+  - **car_1 (92) DONE**:
+    - `no_planner`: seed **100%**, EX=**80.4**, EM=**35.9** (~261s) — vs locked 4-step 79.3 / 6-step 85.9
+    - `no_refiner`: seed **100%**, EX=**78.3**, EM=**34.8** (~604s)
+  - **2026-07-30 (smoke output2)**: `OUTPUT_BASE_DIR=output2`. Smoke `car_1` n=2 × 4 pipelines OK (exit 0): 4step EX0/EM0; without_planner EX100/EM0 (Planner skipped, no seed); without_refiner EX100/EM50 (Refiner skipped); 6step EX100/EM100. Logs: `output2/smoke_logs/`.
 
-- **2026-07-25 (publish/ sync)**: Dựng lại `publish/` (~11MB) để public GitHub: code 4/6-step + runners + eval scripts (không SQLite), `data/{dev,tables,questions}.json`, Spider `per_db` gold/predict + `benchmark_progress.json`, Dr.Spider-340 JSON + predict/summary (không `database/`), README/LICENSE. Loại: raw_responses, bak, MEMORY, paper, `.env`.
+- **2026-07-30 (QUYẾT ĐỊNH — ablation 5-stage full 1034, chạy API thật)**: Bỏ hướng sample-50 / offline Antigravity role-play cho Table 3. **Phải chạy thật LLM API** 2 biến thể 5-stage trên **toàn bộ Spider Dev 1,034 câu**, theo DB từ đầu → cuối, resume được. Không dùng số ablation-50 để điền paper. 4-step / 6-step **giữ số đã khóa** (không cần rerun). Paper `tab:main` đang để `--` cho 5-stage.
+
+- **Protocol ablation full**:
+  1. `no_planner` / `no_refiner` với seed Analyzer+Schema+Direct từ `output/nl2sql_4step`
+  2. Flags `NL2SQL_SKIP_PLANNER` / `NL2SQL_SKIP_REFINER`; thiếu seed → fail rõ
+  3. Output: `output/ablation_full_seed4step/{no_planner,no_refiner}/`
+  4. DB order: `world_1` → `car_1` → … (20 DB)
+  5. Model: GPT-4o; hết credit → Claude; cả hai hết → dừng
+  6. Paper note: 5-stage reuse 4-step early outputs để cô lập Planner/Refiner
+
+- **ĐÃ LOẠI (không dùng cho paper)**:
+  - Ablation-50: `output/ablation50_seed4step/` (EX~82–84, EM w/o Refiner thấp vì Planned thắng arbiter) — chỉ diagnostic
+  - Offline Antigravity tự đóng vai agent — **rejected**
+  - `prompt.md` offline role-play — superseded bởi quyết định full API 1034
+
+- **2026-07-29 (ablation-50 seed 4-step, diagnostic only)**: n=50 seed42. w/o Planner EX=84.0 EM=58.0; w/o Refiner EX=82.0 EM=50.0; same50 4-step 84.0/60.0; 6-step 84.0/76.0. Script: `scripts/run_ablation50_seed4step.py`.
+
+- **2026-07-27 (publish/ code-only)**: `publish/` (~1.5MB) code-only cho GitHub. Không raw/paper/MEMORY/`.env`.
+
+- **2026-07-27 (raw↔predict sync)**: `raw_responses` 6-step `final_sql` khớp `per_db/predict.sql` (1034/1034). Summary: `output/nl2sql_6step/raw_predict_sync_summary.json`.
+
+- **2026-07-27 (LOCKED rebenchmark Spider 1.0 full_dev)**: **6-step EX=89.0% / EM=75.0%**; **4-step EX=84.9% / EM=57.4%** (ΔEX **+4.1pp**, ΔEM **+17.6pp**). Protocol: sau R1–R4 hybrid fail-rerun, không phải fresh 1034 từ đầu. Backup: `output/nl2sql_6step/full_dev/_archive_before_rebenchmark_*`. `benchmark_progress.json` → `locked_full_dev`.
+
+- **Số liệu khóa Spider**: 6-step **89.0/75.0**, 4-step **84.9/57.4** — không đổi khi chạy ablation 5-stage.
+
+## Key paths (ablation full)
+
+| Item | Path |
+|------|------|
+| Seed 4-step raw | `output/nl2sql_4step/raw_responses/<db>/qXXXX.json` |
+| Skip flags | `NL2SQL_SKIP_PLANNER`, `NL2SQL_SKIP_REFINER` in `src/nl2sql_6step/nl2sql_flow/main.py` |
+| Seed helper | `load_four_step_seed_file`, `map_four_step_seed_to_six_steps` |
+| Starter script | `scripts/run_ablation50_seed4step.py` |
+| DB order | `output/nl2sql_6step/benchmark_progress.json` → `db_order` |
+| Eval | `experiments/test-suite-sql-eval/evaluation.py --etype all --plug_value` |
+| Paper gap | `Springer_Nature_LaTeX_Template/Paper.tex` Table `tab:main` rows 5-stage = `--` |
+
+## Locked Spider difficulty (official, N=1034)
+
+| | 4-step EM/EX | 6-step EM/EX |
+|--|---|---|
+| Easy | 72.2 / 91.1 | 87.9 / 95.2 |
+| Medium | 62.1 / 88.1 | 83.0 / 90.6 |
+| Hard | 54.6 / 82.2 | 60.9 / 89.7 |
+| Extra | 25.3 / 69.9 | 48.8 / 74.7 |
+| All | 57.4 / 84.9 | 75.0 / 89.0 |
+
+---
+
+## Lịch sử (rút gọn — chi tiết bên dưới vẫn giữ)
+
+- **2026-07-27 (Spider R4)**: Finetune repair deterministic (`SUM(Population)` cho “people live…”, `ORDER BY count(*)` thay alias bịa) + prompt Analyzer/Expert; offline +4; hybrid GPT-4o `dog_kennels`+`tvshow`. **dog_kennels 81.7→85.4** (+3); **tvshow 79.0→88.7** (+6 offline+LLM); **world_1 →80.0** (+1 offline). Tổng R4 ≈ **+10 câu** (target +15, thiếu ~5). Overall ước **~89.0%**. Summary: `r4_hybrid_arbiter_summary.json`, `r4_offline_repair_summary.json`.
+
+- **2026-07-27 (Spider R3 hybrid)**: `student_transcripts_tracking` **EX 75.6→83.3** (fix 7/24; vs4 78.2 → vượt target 80%). Protocol: GPT-4o + seed Analyzer/Schema/Direct. Summary: `r3_hybrid_arbiter_summary.json`. R1–R3 ước overall **~87.5%+** — nên `--aggregate` để khóa full 1034.
+
+- **2026-07-27 (Spider R2b rate-limit recovery)**: R2 bị Gemini **429** → 26 câu `world_1` thành `SELECT 1`. Rerun `--select1-only --gpt4o --include-direct --restore-bak`: **world_1 EX → 79.2%** (vs4 73.3, vượt target 75%); **car_1 giữ 85.9%**. Summary: `r2b_hybrid_arbiter_summary.json`.
+
+- **2026-07-27 (Spider R2 hybrid fail-rerun)**: **car_1 78.3→85.9**; **world_1 70.8→73.3** rồi bị 429 (xem R2b). R1+R2+R2b ước overall **~87%+** — cần `--aggregate` khóa.
+
+- **2026-07-26 (Spider R1 arbiter + hybrid fail-rerun)**: Siết step 3–5 arbiter: skip Refiner → Direct; Direct-anchor join-bloat/set-op/agg; `choose_best` phạt JOIN thừa. Env `NL2SQL_SEED_INCLUDE_DIRECT=0`. Script: `scripts/rerun_spider_r1_fail_hybrid.py`. **wta_1 82.3→91.9**; **pets_1 90.5→97.6**.
+
+- **2026-07-26 (hybrid 4→6 smoke-34)**: Mode `--seed-from-4step`: reuse Analyzer/Schema/Direct từ raw 4-step; gọi LLM Planner/Planned/Refiner/Validator. Smoke seed42 n=34 (`output/drspider_smoke34_hybrid4to6/`): EX=**31/34=91.2%**.
+
 
 - **2026-07-25 (Dr.Spider-340 full)**: Xong cả 4-step + 6-step trên **340/340** (`output/drspider340/`, script `scripts/smoke_test_drspider30.py --all`, seed raw từ smoke-30). EX (`exec_eval`): **4-step 268/340 = 78.8%** (DB 76.7 / NLQ 79.4 / SQL 79.0); **6-step 262/340 = 77.1%** (DB 71.7 / NLQ 78.9 / SQL 77.0). Official parser: 4-step EX~82.9/EM~61.4; 6-step EX~81.4/EM~60.0. Trên subset này 4-step nhỉnh hơn 6-step (~+1.7 EX). So leaderboard post-EX Dr.Spider (Picard ~65.9, Codex ~64.4): số tuyệt đối cao hơn nhưng chỉ là diagnostic subset 20×17, không claim full leaderboard.
 
@@ -195,6 +264,7 @@
 
 ## Thay đổi Lịch sử
 
+- **2026-07-26**: Tăng cường pipeline 6 bước cho Dr.Spider theo cấu hình tiết kiệm. Sửa lỗi `--pipeline both` có thể tái sử dụng module `nl2sql_flow` của 4 bước cho lượt 6 bước; hai pipeline nay chạy ở process riêng, kiểm tra đúng đường dẫn module, trace đủ sáu pha và cache có chữ ký code/prompt/model. Pipeline 6 bước nhận cả semantic schema names và executable `*_original`, dùng schema safe-superset, structured Pydantic outputs, sinh hai SQL candidates (direct/planned), audit bằng SQLite + `sqlglot`, và chỉ gọi Sonnet Refiner/Gemini Validator khi có rủi ro hoặc vi phạm. Budget profile mặc định: DeepSeek V4 Flash cho Analyzer/Planner, Gemini 2.5 Flash cho Schema/Validator, GPT-4o cho Generator, Claude Sonnet 4 cho Refiner. Thêm `test/test_drspider_process_guards.py`; kiểm thử offline đạt `4 passed`. Chưa chạy paid smoke/full benchmark sau thay đổi; số EX mới phải được đo lại trước khi đưa vào bài.
 - **2026-03-25**: Chốt chiến lược venue: `UCBICBIT 2026` là hội nghị chính, `AAU 2026` là dự phòng; dùng một bản gốc `Springer-format`; chốt journal fallback gồm `Applied Computer Science` (cửa chính trong ngân sách ~$500) và `JCS&T` (cửa tiết kiệm APC $0); bổ sung hồ sơ deadline/chi phí/template/rủi ro cho từng lựa chọn.
 - **2026-03-22**: Cập nhật `MEMORY.md`: mục **Nghiên cứu tạp chí & hội nghị** (đánh giá bản EN vs Q3, 5 tạp chí Q3–Q4, COMSIS, tốc độ vs dễ đậu, MDPI/JUFO, đích danh *Informatics* + lời khuyên format/nội dung), `experimental_tables_draft.md`, đồng bộ kế hoạch submission và danh sách file trong `report/`.
 - **2026-03-14**: Tái cấu trúc Mục 4 của bài báo theo chuẩn conference; thêm giải thích dùng Spider Dev Set, bảng baseline/ablation/model comparison/error analysis với placeholder rõ ràng, và chuẩn hóa FSED.

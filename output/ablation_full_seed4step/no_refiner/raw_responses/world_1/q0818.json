@@ -1,0 +1,397 @@
+{
+  "question_index": 818,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "world_1",
+  "question": "What is the total number of countries where Spanish is spoken by the largest percentage of people?",
+  "gold_query": "SELECT count(*) ,   max(Percentage) FROM countrylanguage WHERE LANGUAGE  =  \"Spanish\" GROUP BY CountryCode",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"total_number_of_countries\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"country\", \"countrylanguage\"],\n  \"required_columns\": [\n    {\"table\": \"country\", \"column\": \"Code\", \"purpose\": \"JOIN\"},\n    {\"table\": \"country\", \"column\": \"Name\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countrylanguage\", \"column\": \"CountryCode\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Language\", \"purpose\": \"FILTER\"},\n    {\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"purpose\": \"FILTER|ORDER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"country\", \"column\": \"Name\", \"agg\": \"COUNT\", \"alias\": \"total_number_of_countries\", \"order_index\": 0}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"operator\": \"=\", \"value\": \"Spanish\", \"value_type\": \"STRING\"}\n  ],\n  \"literal_bindings\": [{\"literal\": \"Spanish\", \"table\": \"countrylanguage\", \"column\": \"Language\", \"evidence\": \"QUESTION_EXACT_DB_MATCH\"}],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"SAME_ROW\", \"logic\": \"AND\", \"branch_ids\": [\"b1\"], \"reason\": \"Filter for countries where language is Spanish\"}],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"country\", \"column\": \"Code\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"countrylanguage\", \"column\": \"Percentage\", \"direction\": \"DESC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": {\"use_as\": \"SCALAR_THRESHOLD\", \"reason\": \"Select the row with the highest percentage of people speaking Spanish\"},\n  \"scalar_comparisons\": [],\n  \"join_hints\": [{\"from_table\": \"countrylanguage\", \"to_table\": \"country\", \"reason\": \"language spoken in countries\"}],\n  \"entities\": {\"tables\": [\"country\", \"countrylanguage\"], \"columns\": [\"Language\", \"Percentage\", \"Name\"], \"values\": [\"Spanish\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:21:47.965686"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"country\", \"countrylanguage\"], \"column_names_original\": [[\"country\", \"Code\"], [\"country\", \"Name\"], [\"countrylanguage\", \"CountryCode\"], [\"countrylanguage\", \"Language\"], [\"countrylanguage\", \"Percentage\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:21:47.969351"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 5.254,
+      "raw_response": "To answer the question \"What is the total number of countries where Spanish is spoken by the largest percentage of people?\", we need to identify countries with the highest percentage of Spanish speakers.\n\n1. **Tables needed**: `country` and `countrylanguage`.\n2. **Join needed**: Yes, to connect `country.Code` with `countrylanguage.CountryCode`.\n3. **Filters**: We need to filter rows in `countrylanguage` where `Language` is \"Spanish\".\n4. **Order by**: We need to determine the largest percentage, so we will order by `Percentage` in descending order and select the top ones.\n5. **Aggregation**: We need to count the countries where this highest percentage criterion is met.\n\nFollowing the analysis criteria and steps provided, here is the query plan:\n\n```json\n{\n  \"steps\": [\n    \"Select the largest percentage of countries speaking Spanish\",\n    \"Count the number of such countries\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"\",\n      \"column\": \"*\",\n      \"agg\": \"COUNT\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"country\",\n      \"to_table\": \"countrylanguage\",\n      \"condition\": \"countrylanguage.CountryCode = country.Code\"\n    }\n  ],\n  \"predicates\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"expression\": \"countrylanguage.Language = 'Spanish'\"\n    }\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [\n    {\n      \"table\": \"countrylanguage\",\n      \"column\": \"Percentage\",\n      \"direction\": \"DESC\"\n    }\n  ],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}\n```\nThis plan directs us to filter countries where Spanish is spoken, order them by the percentage of speakers, and count the countries with the maximum percentage.",
+      "token_usage": {
+        "total_tokens": 3026,
+        "prompt_tokens": 2598,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 428,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:21:53.239190"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) AS total_number_of_countries FROM (SELECT CountryCode FROM countrylanguage WHERE Language = 'Spanish' ORDER BY Percentage DESC LIMIT 1) AS top_country\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:21:53.242881",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as total_number_of_countries"
+              ],
+              "tables": [
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where language = 'spanish'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by percentage desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table country is absent."
+              },
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where language = 'spanish'",
+                "where language = 'spanish' and percentage = (select max(percentage) from countrylanguage where language = 'spanish')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table country is absent."
+              },
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              },
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              },
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.243,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT COUNT(*) FROM countrylanguage WHERE Language = 'Spanish' AND Percentage = (SELECT MAX(Percentage) FROM countrylanguage WHERE Language = 'Spanish')\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2905,
+        "prompt_tokens": 2842,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 63,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:21:54.508886",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as total_number_of_countries"
+              ],
+              "tables": [
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where language = 'spanish'"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by percentage desc"
+              ],
+              "has_limit": true,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table country is absent."
+              },
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              }
+            ],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "countrylanguage"
+              ],
+              "joins": [],
+              "where": [
+                "where language = 'spanish'",
+                "where language = 'spanish' and percentage = (select max(percentage) from countrylanguage where language = 'spanish')"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "REQUIRED_TABLE_MISSING",
+                "message": "Required table country is absent."
+              },
+              {
+                "code": "GROUP_BY_MISSING",
+                "message": "Contract requires GROUP BY."
+              },
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              },
+              {
+                "code": "EXTREME_LIMIT_MISSING",
+                "message": "Extreme-row contract requires LIMIT."
+              }
+            ],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:21:54.523030"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 3.654,
+      "raw_response": "{\n  \"sql\": \"SELECT COUNT(DISTINCT country.Code) AS total_number_of_countries FROM country INNER JOIN countrylanguage ON country.Code = countrylanguage.CountryCode WHERE countrylanguage.Language = 'Spanish' AND countrylanguage.Percentage = (SELECT MAX(Percentage) FROM countrylanguage WHERE Language = 'Spanish')\",\n  \"explain\": \"The query now joins the 'country' and 'countrylanguage' tables on their country codes, filters for the rows where Spanish is the language, and the percentage matches the highest percentage of Spanish speakers, then counts distinct countries.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2994,
+        "prompt_tokens": 2745,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 249,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:21:58.200787",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(distinct country.code) as total_number_of_countries"
+          ],
+          "tables": [
+            "country",
+            "countrylanguage"
+          ],
+          "joins": [
+            "inner join countrylanguage on country.code = countrylanguage.countrycode"
+          ],
+          "where": [
+            "where countrylanguage.language = 'spanish' and countrylanguage.percentage = (select max(percentage) from countrylanguage where language = 'spanish')",
+            "where language = 'spanish'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          },
+          {
+            "code": "ORDER_BY_MISSING",
+            "message": "Contract requires ORDER BY."
+          },
+          {
+            "code": "EXTREME_LIMIT_MISSING",
+            "message": "Extreme-row contract requires LIMIT."
+          }
+        ],
+        "risk_reasons": []
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/world_1/world_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*) as total_number_of_countries"
+          ],
+          "tables": [
+            "countrylanguage"
+          ],
+          "joins": [],
+          "where": [
+            "where language = 'spanish'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by percentage desc"
+          ],
+          "has_limit": true,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "REQUIRED_TABLE_MISSING",
+            "message": "Required table country is absent."
+          },
+          {
+            "code": "GROUP_BY_MISSING",
+            "message": "Contract requires GROUP BY."
+          }
+        ],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) AS total_number_of_countries FROM (SELECT CountryCode FROM countrylanguage WHERE Language = 'Spanish' ORDER BY Percentage DESC LIMIT 1) AS top_country",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:21:58.212714"
+}

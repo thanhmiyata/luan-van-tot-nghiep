@@ -1,0 +1,339 @@
+{
+  "question_index": 44,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "concert_singer",
+  "question": "What are the number of concerts that occurred in the stadium with the largest capacity ?",
+  "gold_query": "select count(*) from concert where stadium_id = (select stadium_id from stadium order by capacity desc limit 1)",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"number_of_concerts\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"concert\", \"column\": \"*\", \"agg\": \"COUNT\", \"alias\": \"number_of_concerts\", \"order_index\": 0}\n  ],\n  \"filters\": [{\"table\": \"stadium\", \"column\": \"Capacity\", \"operator\": \"=\", \"value\": \"(SELECT MAX(Capacity) FROM stadium)\", \"value_type\": \"NUMBER\"}],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"stadium\", \"to_table\": \"concert\", \"reason\": \"concerts occur in a stadium\"}],\n  \"entities\": {\"tables\": [\"stadium\", \"concert\"], \"columns\": [\"Capacity\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:58:32.301813"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema based on the provided question and analysis.\n1.  **Identify relevant tables**: The analysis specifies `stadium` and `concert` in `entities.tables`.\n2.  **Identify relevant columns**:\n    *   From `output_fields_detailed`: `concert`.* for `COUNT(*)`. This means we need `concert_ID` (PK) for counting, or any column, `concert_ID` is safest.\n    *   From `filters`: `stadium.Capacity`.\n3.  **Identify necessary PK/FK for joins**:\n    *   The `join_hints` indicate a join between `stadium` and `concert` on `Stadium_ID`.\n    *   `stadium` needs its PK `Stadium_ID`.\n    *   `concert` needs its FK `Stadium_ID` and its PK `concert_ID`.\n4.  **Map these to original column indices and types**:\n\n    *   `stadium` (table_id 0):\n        *   `Stadium_ID` (PK): original index 1, type \"number\"\n        *   `Capacity` (filter): original index 4, type \"number\"\n    *   `concert` (table_id 2):\n        *   `concert_ID` (PK, for count): original index 15, type \"number\"\n        *   `Stadium_ID` (FK): original index 18, type \"text\" (Note: type mismatch `number` in stadium vs `text` in concert for Stadium_ID is a schema inconsistency, but I will preserve the original types)\n\n5.  **Reconstruct the schema**:\n\n    *   `table_names_original`: Keep `stadium` and `concert`. The original indices are 0 and 2.\n    *   `column_names_original`:\n        *   `[-1,\"*\"]` (always kept, new index 0)\n        *   `[0,\"Stadium_ID\"]` (original index 1, new index 1)\n        *   `[0,\"Capacity\"]` (original index 4, new index 2)\n        *   `[2,\"concert_ID\"]` (original index 15, new index 3)\n        *   `[2,\"Stadium_ID\"]` (original index 18, new index 4)\n    *   `column_types`: Map types based on new column indices.\n        *   `-1`: \"text\" -> new index 0\n        *   `1`: \"number\" -> new index 1\n        *   `4`: \"number\" -> new index 2\n        *   `15`: \"number\" -> new index 3\n        *   `18`: \"text\" -> new index 4\n    *   `primary_keys`:\n        *   Original 1 (`stadium.Stadium_ID`) -> new 1\n        *   Original 15 (`concert.concert_ID`) -> new 3\n        *   Result: `[1, 3]`\n    *   `foreign_keys`:\n        *   Original `[18,1]` (`concert.Stadium_ID` -> `stadium.Stadium_ID`). Both kept.\n            *   Original 18 (`concert.Stadium_ID`) -> new 4\n            *   Original 1 (`stadium.Stadium_ID`) -> new 1\n            *   Result: `[[4,1]]`\n        *   Other FKs involving `singer` or `singer_in_concert` are dropped as those tables are not needed.\n    *   `column_sample_values`: Map values based on new column indices.\n        *   `[]` for -1 (new 0)\n        *   `[]` for original 1 (new 1)\n        *   `[]` for original 4 (new 2)\n        *   `[]` for original 15 (new 3)\n        *   `[\"1\",\"2\",\"10\",\"9\"]` for original 18 (new 4)```json\n{\n  \"db_id\": \"concert_singer\",\n  \"table_names_original\": [\n    \"stadium\",\n    \"concert\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"Stadium_ID\"\n    ],\n    [\n      0,\n      \"Capacity\"\n    ],\n    [\n      2,\n      \"concert_ID\"\n    ],\n    [\n      2,\n      \"Stadium_ID\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      4,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    [\n      \"1\",\n      \"2\",\n      \"10\",\n      \"9\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:58:32.304320"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 6.992,
+      "raw_response": "{\n  \"steps\": [\n    \"Join concert to stadium using concert.Stadium_ID = stadium.Stadium_ID\",\n    \"Filter for stadium records matching the maximum capacity via subquery SELECT MAX(Capacity) FROM stadium\",\n    \"Aggregate total records with COUNT(*) to obtain number_of_concerts\"\n  ],\n  \"select\": [\n    {\n      \"table\": \"concert\",\n      \"column\": \"*\",\n      \"agg\": \"COUNT\",\n      \"order_index\": 0\n    }\n  ],\n  \"joins\": [\n    {\n      \"from_table\": \"concert\",\n      \"to_table\": \"stadium\",\n      \"condition\": \"concert.Stadium_ID = stadium.Stadium_ID\"\n    }\n  ],\n  \"predicates\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"expression\": \"stadium.Capacity = (SELECT MAX(Capacity) FROM stadium)\"\n    }\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\n    \"operator\": \"NONE\",\n    \"branches\": []\n  },\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3495,
+        "prompt_tokens": 2227,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1268,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:58:39.313285"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) AS number_of_concerts FROM concert WHERE Stadium_ID = (SELECT Stadium_ID FROM stadium WHERE Capacity = (SELECT MAX(Capacity) FROM stadium))\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T02:58:39.316312",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as number_of_concerts"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [],
+              "where": [
+                "where capacity = (select max(capacity) from stadium)",
+                "where stadium_id = (select stadium_id from stadium where capacity = (select max(capacity) from stadium))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "inner join stadium on concert.stadium_id = stadium.stadium_id"
+              ],
+              "where": [
+                "where stadium.capacity = (select max(capacity) from stadium)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 1.303,
+      "raw_response": "{\n  \"direct_sql\": \"\",\n  \"planned_sql\": \"SELECT COUNT(*) FROM concert INNER JOIN stadium ON concert.Stadium_ID = stadium.Stadium_ID WHERE stadium.Capacity = (SELECT MAX(Capacity) FROM stadium)\",\n  \"disagreement_reason\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 2454,
+        "prompt_tokens": 2389,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 65,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T02:58:40.641401",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*) as number_of_concerts"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [],
+              "where": [
+                "where capacity = (select max(capacity) from stadium)",
+                "where stadium_id = (select stadium_id from stadium where capacity = (select max(capacity) from stadium))"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(*)"
+              ],
+              "tables": [
+                "concert",
+                "stadium"
+              ],
+              "joins": [
+                "inner join stadium on concert.stadium_id = stadium.stadium_id"
+              ],
+              "where": [
+                "where stadium.capacity = (select max(capacity) from stadium)"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: concert"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T02:58:40.654058"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 6.621,
+      "raw_response": "{\n  \"sql\": \"SELECT COUNT(*) AS number_of_concerts FROM concert WHERE Stadium_ID = (SELECT Stadium_ID FROM stadium WHERE Capacity = (SELECT MAX(Capacity) FROM stadium))\",\n  \"explain\": \"Input SQL passes both deterministic and semantic validations with no violations. Preserved as required.\",\n  \"error\": \"\"\n}",
+      "token_usage": {
+        "total_tokens": 3688,
+        "prompt_tokens": 2483,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1205,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T02:58:47.297649",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*) as number_of_concerts"
+          ],
+          "tables": [
+            "concert",
+            "stadium"
+          ],
+          "joins": [],
+          "where": [
+            "where capacity = (select max(capacity) from stadium)",
+            "where stadium_id = (select stadium_id from stadium where capacity = (select max(capacity) from stadium))"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: concert"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/concert_singer/concert_singer.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*) as number_of_concerts"
+          ],
+          "tables": [
+            "concert",
+            "stadium"
+          ],
+          "joins": [],
+          "where": [
+            "where capacity = (select max(capacity) from stadium)",
+            "where stadium_id = (select stadium_id from stadium where capacity = (select max(capacity) from stadium))"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: concert"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) AS number_of_concerts FROM concert WHERE Stadium_ID = (SELECT Stadium_ID FROM stadium WHERE Capacity = (SELECT MAX(Capacity) FROM stadium))",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T02:58:47.312923"
+}

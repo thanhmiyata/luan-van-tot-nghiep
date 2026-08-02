@@ -1,0 +1,395 @@
+{
+  "question_index": 503,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "battle_death",
+  "question": "How many battles did not lose any ship with tonnage '225'?",
+  "gold_query": "SELECT count(*) FROM battle WHERE id NOT IN ( SELECT lost_in_battle FROM ship WHERE tonnage  =  '225' );",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"COUNT(battle.id)\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"output_fields_detailed\": [\n    {\"table\": \"battle\", \"column\": \"id\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [\n    {\"table\": \"ship\", \"column\": \"tonnage\", \"operator\": \"=\", \"value\": \"225\", \"value_type\": \"NUMBER\"},\n    {\"table\": \"ship\", \"column\": \"lost_in_battle\", \"operator\": \"=\", \"value\": \"0\", \"value_type\": \"NUMBER\"}\n  ],\n  \"group_by\": [],\n  \"order_by\": [],\n  \"join_hints\": [{\"from_table\": \"battle\", \"to_table\": \"ship\", \"reason\": \"Link ships to the battles they participated in based on ids\"}],\n  \"entities\": {\"tables\": [\"battle\", \"ship\"], \"columns\": [\"id\", \"tonnage\", \"lost_in_battle\"], \"values\": [\"225\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:45:42.151921"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "```json\n{\n  \"db_id\": \"battle_death\",\n  \"table_names_original\": [\n    \"battle\",\n    \"ship\"\n  ],\n  \"column_names_original\": [\n    [\n      -1,\n      \"*\"\n    ],\n    [\n      0,\n      \"id\"\n    ],\n    [\n      1,\n      \"lost_in_battle\"\n    ],\n    [\n      1,\n      \"id\"\n    ],\n    [\n      1,\n      \"tonnage\"\n    ]\n  ],\n  \"column_types\": [\n    \"text\",\n    \"number\",\n    \"number\",\n    \"number\",\n    \"text\"\n  ],\n  \"foreign_keys\": [\n    [\n      2,\n      1\n    ]\n  ],\n  \"primary_keys\": [\n    1,\n    3\n  ],\n  \"column_sample_values\": [\n    [],\n    [],\n    [],\n    [],\n    [\n      \"t\",\n      \"391\",\n      \"225\"\n    ]\n  ]\n}\n```",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:45:42.154024"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:45:42.155099"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT COUNT(battle.id) FROM battle LEFT JOIN ship ON battle.id = ship.lost_in_battle WHERE ship.tonnage = '225' AND ship.lost_in_battle = 0\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:45:42.155981",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/battle_death/battle_death.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(battle.id)"
+              ],
+              "tables": [
+                "battle",
+                "ship"
+              ],
+              "joins": [
+                "left join ship on battle.id = ship.lost_in_battle"
+              ],
+              "where": [
+                "where ship.tonnage = '225' and ship.lost_in_battle = 0"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: battle"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/battle_death/battle_death.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(battle.id)"
+              ],
+              "tables": [
+                "battle",
+                "ship"
+              ],
+              "joins": [
+                "left join ship on battle.id = ship.lost_in_battle"
+              ],
+              "where": [
+                "where ship.tonnage = '225' and ship.lost_in_battle = 0"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: battle"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:45:42.155988",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/battle_death/battle_death.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(battle.id)"
+              ],
+              "tables": [
+                "battle",
+                "ship"
+              ],
+              "joins": [
+                "left join ship on battle.id = ship.lost_in_battle"
+              ],
+              "where": [
+                "where ship.tonnage = '225' and ship.lost_in_battle = 0"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: battle"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/battle_death/battle_death.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "count(battle.id)"
+              ],
+              "tables": [
+                "battle",
+                "ship"
+              ],
+              "joins": [
+                "left join ship on battle.id = ship.lost_in_battle"
+              ],
+              "where": [
+                "where ship.tonnage = '225' and ship.lost_in_battle = 0"
+              ],
+              "group_by": [],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "UNJUSTIFIED_LEFT_JOIN",
+                "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: battle"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 15.051,
+      "raw_response": "'225')` or `NOT EXISTS`.\nWait, using `NOT EXISTS` or `NOT IN (... WHERE ... AND lost_in_battle IS NOT NULL)` is completely standard.\n\nLet's write:\n`SELECT COUNT(*) FROM battle WHERE id NOT IN (SELECT lost_in_battle FROM ship WHERE tonnage = '225' AND lost_in",
+      "token_usage": {
+        "total_tokens": 4838,
+        "prompt_tokens": 2794,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 2044,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:45:57.225887",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/battle_death/battle_death.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(battle.id)"
+          ],
+          "tables": [
+            "battle",
+            "ship"
+          ],
+          "joins": [
+            "left join ship on battle.id = ship.lost_in_battle"
+          ],
+          "where": [
+            "where ship.tonnage = '225' and ship.lost_in_battle = 0"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "UNJUSTIFIED_LEFT_JOIN",
+            "message": "LEFT JOIN retains unmatched rows, but the question does not explicitly request zero/unmatched entities."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: battle"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 7.632,
+      "raw_response": "{\"sql\": \"SELECT COUNT(*) FROM battle WHERE id NOT IN (SELECT lost_in_battle FROM ship WHERE tonnage = '225')\", \"explain\": \"Corrected the logic to count battles whose ID is not associated with any ship having tonnage '225' using a NOT IN subquery.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3726,
+        "prompt_tokens": 2370,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 1356,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:46:04.884774",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/battle_death/battle_death.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*)"
+          ],
+          "tables": [
+            "battle",
+            "ship"
+          ],
+          "joins": [],
+          "where": [
+            "where not id in (select lost_in_battle from ship where tonnage = '225')",
+            "where tonnage = '225'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: battle"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/battle_death/battle_death.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "count(*)"
+          ],
+          "tables": [
+            "battle",
+            "ship"
+          ],
+          "joins": [],
+          "where": [
+            "where not id in (select lost_in_battle from ship where tonnage = '225')",
+            "where tonnage = '225'"
+          ],
+          "group_by": [],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: battle"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT COUNT(*) FROM battle WHERE NOT id IN (SELECT lost_in_battle FROM ship WHERE tonnage = '225')",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:46:04.897923"
+}

@@ -1,0 +1,265 @@
+{
+  "question_index": 650,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "poker_player",
+  "question": "What are the earnings of poker players, ordered descending by value?",
+  "gold_query": "SELECT Earnings FROM poker_player ORDER BY Earnings DESC",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"EASY\",\n  \"expected_output_fields\": [\"Earnings\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": true,\n  \"output_fields_detailed\": [\n    {\"table\": \"poker_player\", \"column\": \"Earnings\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0}\n  ],\n  \"filters\": [],\n  \"group_by\": [],\n  \"order_by\": [{\"table\": \"poker_player\", \"column\": \"Earnings\", \"direction\": \"DESC\"}],\n  \"join_hints\": [],\n  \"entities\": {\"tables\": [\"poker_player\"], \"columns\": [\"Earnings\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:17:36.949930"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "Thought: I need to filter the schema based on the given question and analysis.\n1.  **Identify relevant tables:** The analysis indicates `poker_player` is the only relevant table (`entities.tables: [\"poker_player\"]`, `single_table_ok: true`).\n2.  **Identify relevant columns:**\n    *   `poker_player.Earnings` is needed for output and ordering (`output_fields_detailed`, `order_by`).\n    *   `poker_player.Poker_Player_ID` is the primary key of the `poker_player` table, so it must be kept.\n3.  **Handle PK/FKs:**\n    *   `poker_player.Poker_Player_ID` (original index 1) is a PK and is kept. Its new index will be 1.\n    *   `poker_player.People_ID` (original index 2) is a foreign key pointing to `people.People_ID`. However, the `people` table is not required for this query based on the analysis (`single_table_ok: true` and `entities.tables` only lists `poker_player`). Therefore, `poker_player.People_ID` does not \"connect\" two *kept* tables and can be removed. Consequently, `people.People_ID` (original index 7) and the entire `people` table can be removed.\n4.  **Construct the filtered schema:**\n    *   `db_id`: \"poker_player\" (remains the same)\n    *   `table_names_original`: `[\"poker_player\"]`\n    *   `column_names_original`: Only `poker_player.Poker_Player_ID` and `poker_player.Earnings` are kept, in addition to the `[-1, \"*\"]` placeholder. Their table index will be `0` as `poker_player` is the first (and only) table.\n        Original index 1 (`poker_player.Poker_Player_ID`) -> New index 1 (`[0,\"Poker_Player_ID\"]`)\n        Original index 6 (`poker_player.Earnings`) -> New index 2 (`[0,\"Earnings\"]`)\n        So: `[[-1,\"*\"], [0,\"Poker_Player_ID\"], [0,\"Earnings\"]]`\n    *   `column_types`: Map the types for the new columns.\n        `*` -> `text` (original index 0)\n        `Poker_Player_ID` -> `number` (original index 1)\n        `Earnings` -> `number` (original index 6)\n        So: `[\"text\", \"number\", \"number\"]`\n    *   `foreign_keys`: No foreign keys connecting kept tables. So: `[]`\n    *   `primary_keys`: Only `Poker_Player_ID` remains as a PK. Its new index is `1`. So: `[1]`\n    *   `column_sample_values`: Retain `[]` for the kept columns.\n        So: `[[], [], []]` (for `*`, `Poker_Player_ID`, `Earnings`)\n\nThis process ensures that all columns tied to outputs/filters/group_by/order_by are preserved, along with necessary PKs, while adhering to the minimal schema principle and `single_table_ok` analysis hint.{\"db_id\": \"poker_player\", \"table_names_original\": [\"poker_player\"], \"column_names_original\": [[-1, \"*\"], [0, \"Poker_Player_ID\"], [0, \"Earnings\"]], \"column_types\": [\"text\", \"number\", \"number\"], \"foreign_keys\": [], \"primary_keys\": [1], \"column_sample_values\": [[], [], []]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T03:17:36.950966"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:17:36.951589"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT Earnings FROM poker_player ORDER BY Earnings DESC\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T03:17:36.952065",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/poker_player/poker_player.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "earnings"
+              ],
+              "tables": [
+                "poker_player"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by earnings desc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/poker_player/poker_player.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "earnings"
+              ],
+              "tables": [
+                "poker_player"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by earnings desc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:17:36.952070",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/poker_player/poker_player.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "earnings"
+              ],
+              "tables": [
+                "poker_player"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by earnings desc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/poker_player/poker_player.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "earnings"
+              ],
+              "tables": [
+                "poker_player"
+              ],
+              "joins": [],
+              "where": [],
+              "group_by": [],
+              "having": [],
+              "order_by": [
+                "order by earnings desc"
+              ],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": []
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Candidates are structurally equivalent and semantic audits pass; kept Direct.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:17:36.954034"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Deterministic and semantic audits both pass.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T03:17:36.954870",
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/poker_player/poker_player.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "earnings"
+          ],
+          "tables": [
+            "poker_player"
+          ],
+          "joins": [],
+          "where": [],
+          "group_by": [],
+          "having": [],
+          "order_by": [
+            "order by earnings desc"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": []
+      }
+    }
+  ],
+  "final_sql": "SELECT Earnings FROM poker_player ORDER BY Earnings DESC",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "policy": "agents.yaml",
+    "planner_refiner_validator": "gemini/gemini-flash-latest",
+    "planned_expert": "openai/gpt-4o",
+    "fallback": "openai/gpt-4o"
+  },
+  "timestamp": "2026-07-30T03:17:36.956713"
+}

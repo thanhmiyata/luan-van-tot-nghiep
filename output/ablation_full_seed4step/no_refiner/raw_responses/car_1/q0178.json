@@ -1,0 +1,391 @@
+{
+  "question_index": 178,
+  "pipeline": "ablation_full_no_refiner",
+  "db_id": "car_1",
+  "question": "What are the ids and names of all countries that either have more than 3 car makers or produce fiat model ?",
+  "gold_query": "select t1.countryid ,  t1.countryname from countries as t1 join car_makers as t2 on t1.countryid  =  t2.country group by t1.countryid having count(*)  >  3 union select t1.countryid ,  t1.countryname from countries as t1 join car_makers as t2 on t1.countryid  =  t2.country join model_list as t3 on t2.id  =  t3.maker where t3.model  =  'fiat';",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"LIST\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"CountryId\", \"CountryName\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"countries\", \"car_makers\", \"model_list\"],\n  \"required_columns\": [\n    {\"table\": \"countries\", \"column\": \"CountryId\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"purpose\": \"OUTPUT\"},\n    {\"table\": \"car_makers\", \"column\": \"Country\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"purpose\": \"JOIN\"},\n    {\"table\": \"model_list\", \"column\": \"Maker\", \"purpose\": \"JOIN\"},\n    {\"table\": \"car_makers\", \"column\": \"Maker\", \"purpose\": \"FILTER\"},\n    {\"table\": \"model_list\", \"column\": \"Model\", \"purpose\": \"FILTER\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"countries\", \"column\": \"CountryId\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [\n    {\n      \"scope_id\": \"s1\",\n      \"branch_id\": \"b1\",\n      \"table\": \"car_makers\",\n      \"column\": \"Country\",\n      \"operator\": \"IN\",\n      \"value\": {\"kind\": \"SCALAR_AGGREGATE\", \"agg\": \"COUNT\", \"table\": \"car_makers\", \"column\": \"Id\"},\n      \"value_type\": \"SUBQUERY\"\n    },\n    {\n      \"scope_id\": \"s2\",\n      \"branch_id\": \"b2\",\n      \"table\": \"model_list\",\n      \"column\": \"Model\",\n      \"operator\": \"=\",\n      \"value\": \"fiat\",\n      \"value_type\": \"STRING\"\n    }\n  ],\n  \"literal_bindings\": [\n    {\"literal\": \"fiat\", \"table\": \"model_list\", \"column\": \"Model\", \"evidence\": \"QUESTION\"}\n  ],\n  \"predicate_scope\": [\n    {\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"countries with more than 3 car makers\"},\n    {\"scope_id\": \"s2\", \"scope\": \"SAME_ROW\", \"logic\": \"OR\", \"branch_ids\": [\"b2\"], \"reason\": \"countries that produce fiat model\"}\n  ],\n  \"group_by\": [],\n  \"having\": [\n    {\"branch_id\": \"b1\", \"table\": \"car_makers\", \"column\": \"Id\", \"agg\": \"COUNT\", \"operator\": \">\", \"value\": 3}\n  ],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"countries\", \"to_table\": \"car_makers\", \"reason\": \"countries to car makers\"},\n    {\"from_table\": \"car_makers\", \"to_table\": \"model_list\", \"reason\": \"car makers to model list\"}\n  ],\n  \"entities\": {\"tables\": [\"countries\", \"car_makers\", \"model_list\"], \"columns\": [\"CountryId\", \"CountryName\", \"Country\", \"Id\", \"Maker\", \"Model\"], \"values\": [\"fiat\"]},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:42:48.873727"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"countries\", \"car_makers\", \"model_list\"], \"column_names_original\": [[\"countries\", \"CountryId\"], [\"countries\", \"CountryName\"], [\"car_makers\", \"Id\"], [\"car_makers\", \"Country\"], [\"model_list\", \"Maker\"], [\"model_list\", \"Model\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:42:48.877166"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 1,
+      "elapsed_seconds": 7.92,
+      "raw_response": "{\n  \"steps\": [\"Join countries and car_makers\", \"Join car_makers and model_list\", \"Filter branch for car makers >\", \"Filter branch for fiat model\", \"Combine branches\", \"Select required columns\"],\n  \"select\": [\n    {\"table\": \"countries\", \"column\": \"CountryId\", \"agg\": \"NONE\", \"order_index\": 0},\n    {\"table\": \"countries\", \"column\": \"CountryName\", \"agg\": \"NONE\", \"order_index\": 1}\n  ],\n  \"joins\": [\n    {\"from_table\": \"car_makers\", \"to_table\": \"countries\", \"condition\": \"car_makers.Country = countries.CountryId\"},\n    {\"from_table\": \"model_list\", \"to_table\": \"car_makers\", \"condition\": \"model_list.Maker = car_makers.Id\"}\n  ],\n  \"predicates\": [\n    {\"scope_id\": \"s1\", \"branch_id\": \"b1\", \"expression\": \"SELECT Country FROM car_makers GROUP BY Country HAVING COUNT(Id) > 3\"},\n    {\"scope_id\": \"s2\", \"branch_id\": \"b2\", \"expression\": \"model_list.Model = 'fiat'\"}\n  ],\n  \"group_by\": [],\n  \"having\": [],\n  \"order_by\": [],\n  \"set_operation\": {\"operator\": \"UNION\", \"branches\": [\"b1\", \"b2\"]},\n  \"limit\": null,\n  \"warnings\": [],\n  \"risk_flags\": []\n}",
+      "token_usage": {
+        "total_tokens": 3433,
+        "prompt_tokens": 2836,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 597,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:42:56.809250"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT countries.CountryId, countries.CountryName FROM countries WHERE countries.CountryId IN (SELECT car_makers.Country FROM car_makers GROUP BY car_makers.Country HAVING COUNT(*) > 3) OR countries.CountryId IN (SELECT car_makers.Country FROM car_makers JOIN model_list ON model_list.Maker = car_makers.Id WHERE model_list.Model = 'fiat')\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:42:56.811483",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countries.countryid",
+                "countries.countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries",
+                "model_list"
+              ],
+              "joins": [
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [
+                "where countries.countryid in (select car_makers.country from car_makers group by car_makers.country having count(*) > 3) or countries.countryid in (select car_makers.country from car_makers join model_list on model_list.maker = car_makers.id where model_list.model = 'fiat')",
+                "where model_list.model = 'fiat'"
+              ],
+              "group_by": [
+                "group by car_makers.country"
+              ],
+              "having": [
+                "having count(*) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countries.countryid",
+                "countries.countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries",
+                "model_list"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid",
+                "join car_makers on car_makers.country = countries.countryid",
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [
+                "where car_makers.country in (select car_makers.country from car_makers group by car_makers.country having count(car_makers.id) > 3)",
+                "where model_list.model = 'fiat'"
+              ],
+              "group_by": [
+                "group by car_makers.country"
+              ],
+              "having": [
+                "having count(car_makers.id) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "UNION"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 1,
+      "elapsed_seconds": 2.313,
+      "raw_response": "{\"direct_sql\": \"\", \"planned_sql\": \"SELECT countries.CountryId, countries.CountryName FROM countries JOIN car_makers ON car_makers.Country = countries.CountryId WHERE car_makers.Country IN (SELECT car_makers.Country FROM car_makers GROUP BY car_makers.Country HAVING COUNT(car_makers.Id) > 3) UNION SELECT countries.CountryId, countries.CountryName FROM countries JOIN car_makers ON car_makers.Country = countries.CountryId JOIN model_list ON model_list.Maker = car_makers.Id WHERE model_list.Model = 'fiat'\", \"disagreement_reason\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3324,
+        "prompt_tokens": 3193,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 131,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:42:59.143737",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countries.countryid",
+                "countries.countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries",
+                "model_list"
+              ],
+              "joins": [
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [
+                "where countries.countryid in (select car_makers.country from car_makers group by car_makers.country having count(*) > 3) or countries.countryid in (select car_makers.country from car_makers join model_list on model_list.maker = car_makers.id where model_list.model = 'fiat')",
+                "where model_list.model = 'fiat'"
+              ],
+              "group_by": [
+                "group by car_makers.country"
+              ],
+              "having": [
+                "having count(*) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": true,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "countries.countryid",
+                "countries.countryname"
+              ],
+              "tables": [
+                "car_makers",
+                "countries",
+                "model_list"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid",
+                "join car_makers on car_makers.country = countries.countryid",
+                "join model_list on model_list.maker = car_makers.id"
+              ],
+              "where": [
+                "where car_makers.country in (select car_makers.country from car_makers group by car_makers.country having count(car_makers.id) > 3)",
+                "where model_list.model = 'fiat'"
+              ],
+              "group_by": [
+                "group by car_makers.country"
+              ],
+              "having": [
+                "having count(car_makers.id) > 3"
+              ],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": [
+                "UNION"
+              ]
+            },
+            "violations": [],
+            "risk_reasons": [
+              "high-risk question pattern"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: SQL Refiner removed (NL2SQL_SKIP_REFINER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:42:59.158979"
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 2.17,
+      "raw_response": "{\"sql\": \"SELECT countries.CountryId, countries.CountryName FROM countries WHERE countries.CountryId IN (SELECT car_makers.Country FROM car_makers GROUP BY car_makers.Country HAVING COUNT(*) > 3) OR countries.CountryId IN (SELECT car_makers.Country FROM car_makers JOIN model_list ON model_list.Maker = car_makers.Id WHERE model_list.Model = 'fiat')\", \"explain\": \"The SQL is valid and correctly matches the question requirements. Both deterministic and semantic constraints are fulfilled with no violations.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 3625,
+        "prompt_tokens": 3459,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 166,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:43:01.349320",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "countries.countryid",
+            "countries.countryname"
+          ],
+          "tables": [
+            "car_makers",
+            "countries",
+            "model_list"
+          ],
+          "joins": [
+            "join model_list on model_list.maker = car_makers.id"
+          ],
+          "where": [
+            "where countries.countryid in (select car_makers.country from car_makers group by car_makers.country having count(*) > 3) or countries.countryid in (select car_makers.country from car_makers join model_list on model_list.maker = car_makers.id where model_list.model = 'fiat')",
+            "where model_list.model = 'fiat'"
+          ],
+          "group_by": [
+            "group by car_makers.country"
+          ],
+          "having": [
+            "having count(*) > 3"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "countries.countryid",
+            "countries.countryname"
+          ],
+          "tables": [
+            "car_makers",
+            "countries",
+            "model_list"
+          ],
+          "joins": [
+            "join model_list on model_list.maker = car_makers.id"
+          ],
+          "where": [
+            "where countries.countryid in (select car_makers.country from car_makers group by car_makers.country having count(*) > 3) or countries.countryid in (select car_makers.country from car_makers join model_list on model_list.maker = car_makers.id where model_list.model = 'fiat')",
+            "where model_list.model = 'fiat'"
+          ],
+          "group_by": [
+            "group by car_makers.country"
+          ],
+          "having": [
+            "having count(*) > 3"
+          ],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "high-risk question pattern"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT countries.CountryId, countries.CountryName FROM countries WHERE countries.CountryId IN (SELECT car_makers.Country FROM car_makers GROUP BY car_makers.Country HAVING COUNT(*) > 3) OR countries.CountryId IN (SELECT car_makers.Country FROM car_makers JOIN model_list ON model_list.Maker = car_makers.Id WHERE model_list.Model = 'fiat')",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:43:01.367295"
+}

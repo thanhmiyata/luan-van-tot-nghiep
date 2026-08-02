@@ -1,0 +1,420 @@
+{
+  "question_index": 105,
+  "pipeline": "ablation_full_no_planner",
+  "db_id": "car_1",
+  "question": "How many car makers are there in each continents? List the continent name and the count.",
+  "gold_query": "SELECT T1.Continent ,  count(*) FROM CONTINENTS AS T1 JOIN COUNTRIES AS T2 ON T1.ContId  =  T2.continent JOIN car_makers AS T3 ON T2.CountryId  =  T3.Country GROUP BY T1.Continent;",
+  "hardness": null,
+  "steps": [
+    {
+      "step_name": "question_analysis",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\n  \"intent\": \"COUNT\",\n  \"complexity\": \"MEDIUM\",\n  \"expected_output_fields\": [\"Continent\", \"COUNT\"],\n  \"field_order_critical\": true,\n  \"single_table_ok\": false,\n  \"required_tables\": [\"continents\", \"countries\", \"car_makers\"],\n  \"required_columns\": [\n    {\"table\": \"continents\", \"column\": \"Continent\", \"purpose\": \"OUTPUT|GROUP\"},\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"purpose\": \"OUTPUT|AGGREGATE\"},\n    {\"table\": \"car_makers\", \"column\": \"Country\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countries\", \"column\": \"Continent\", \"purpose\": \"JOIN\"},\n    {\"table\": \"countries\", \"column\": \"CountryId\", \"purpose\": \"JOIN\"}\n  ],\n  \"output_fields_detailed\": [\n    {\"table\": \"continents\", \"column\": \"Continent\", \"agg\": \"NONE\", \"alias\": null, \"order_index\": 0},\n    {\"table\": \"car_makers\", \"column\": \"Id\", \"agg\": \"COUNT\", \"alias\": null, \"order_index\": 1}\n  ],\n  \"distinct\": false,\n  \"filters\": [],\n  \"literal_bindings\": [],\n  \"predicate_scope\": [{\"scope_id\": \"s1\", \"scope\": \"RELATED_ROWS\", \"logic\": \"EXISTS\", \"branch_ids\": [\"b1\"], \"reason\": \"Need to count car makers per continent\"}],\n  \"group_by\": [{\"branch_id\": \"b1\", \"table\": \"continents\", \"column\": \"Continent\"}],\n  \"having\": [],\n  \"order_by\": [{\"table\": \"continents\", \"column\": \"Continent\", \"direction\": \"ASC\"}],\n  \"set_operation\": {\"operator\": \"NONE\", \"branches\": [], \"reason\": \"\"},\n  \"extreme_row\": null,\n  \"scalar_comparisons\": [],\n  \"join_hints\": [\n    {\"from_table\": \"car_makers\", \"to_table\": \"countries\", \"reason\": \"car makers are associated with countries via CountryId\"},\n    {\"from_table\": \"countries\", \"to_table\": \"continents\", \"reason\": \"countries belong to continents via continent ID\"}\n  ],\n  \"entities\": {\"tables\": [\"continents\", \"countries\", \"car_makers\"], \"columns\": [\"Continent\", \"CountryId\", \"Id\"], \"values\": []},\n  \"confidence\": 0.95\n}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "question_analysis",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:12.607068"
+    },
+    {
+      "step_name": "schema_selector",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"table_names_original\": [\"continents\", \"countries\", \"car_makers\"], \"column_names_original\": [[0, \"ContId\"], [0, \"Continent\"], [1, \"CountryId\"], [1, \"Continent\"], [2, \"Id\"], [2, \"Country\"]]}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "schema_selector",
+      "effective_model": "seed:4step/gemini/gemini-flash-latest",
+      "timestamp": "2026-07-30T01:29:12.611033"
+    },
+    {
+      "step_name": "query_planning",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Ablation: Query Planner removed (NL2SQL_SKIP_PLANNER).",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:29:12.612384"
+    },
+    {
+      "step_name": "generate_sql_direct",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "{\"sql\": \"SELECT continents.Continent, COUNT(*) FROM continents JOIN countries ON countries.Continent = continents.ContId JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY continents.Continent\"}",
+      "token_usage": null,
+      "success": true,
+      "seeded": true,
+      "seed_source_pipeline": "4step",
+      "seed_source_step": "generate_sql",
+      "effective_model": "seed:4step/openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:12.613475",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "continents.continent",
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "continents",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid",
+                "join countries on countries.continent = continents.contid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by continents.continent"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers, countries"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "continents.continent",
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "continents",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid",
+                "join countries on countries.continent = continents.contid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by continents.continent"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers, countries"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "generate_sql_planned",
+      "attempt": 0,
+      "elapsed_seconds": 0.0,
+      "raw_response": "",
+      "skipped": true,
+      "skip_reason": "Fast route: planned candidate is not required.",
+      "token_usage": null,
+      "timestamp": "2026-07-30T01:29:12.613484",
+      "candidate_audits": {
+        "direct": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "continents.continent",
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "continents",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid",
+                "join countries on countries.continent = continents.contid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by continents.continent"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers, countries"
+            ]
+          }
+        },
+        "planned": {
+          "deterministic": {
+            "valid": true,
+            "sqlite_explain_ok": true,
+            "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+            "fatal_errors": [],
+            "warnings": []
+          },
+          "semantic": {
+            "valid": false,
+            "parser": "sqlglot",
+            "signature": {
+              "projections": [
+                "continents.continent",
+                "count(*)"
+              ],
+              "tables": [
+                "car_makers",
+                "continents",
+                "countries"
+              ],
+              "joins": [
+                "join car_makers on car_makers.country = countries.countryid",
+                "join countries on countries.continent = continents.contid"
+              ],
+              "where": [],
+              "group_by": [
+                "group by continents.continent"
+              ],
+              "having": [],
+              "order_by": [],
+              "has_limit": false,
+              "set_operations": []
+            },
+            "violations": [
+              {
+                "code": "ORDER_BY_MISSING",
+                "message": "Contract requires ORDER BY."
+              }
+            ],
+            "risk_reasons": [
+              "JOIN_OVERGENERATION: car_makers, countries"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step_name": "refine_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.42,
+      "raw_response": "{\"sql\": \"SELECT continents.Continent, COUNT(*) FROM continents JOIN countries ON countries.Continent = continents.ContId JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY continents.Continent ORDER BY continents.Continent\", \"selected_candidate\": \"repaired\", \"notes\": \"Added ORDER BY clause to satisfy semantic requirement.\", \"diagnostics\": [\"ORDER_BY_MISSING resolved by adding ORDER BY continents.Continent.\"]}",
+      "token_usage": {
+        "total_tokens": 3160,
+        "prompt_tokens": 3055,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 105,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:14.056765",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "continents.continent",
+            "count(*)"
+          ],
+          "tables": [
+            "car_makers",
+            "continents",
+            "countries"
+          ],
+          "joins": [
+            "join car_makers on car_makers.country = countries.countryid",
+            "join countries on countries.continent = continents.contid"
+          ],
+          "where": [],
+          "group_by": [
+            "group by continents.continent"
+          ],
+          "having": [],
+          "order_by": [
+            "order by continents.continent"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_makers, countries"
+        ]
+      }
+    },
+    {
+      "step_name": "validate_sql",
+      "attempt": 1,
+      "elapsed_seconds": 1.948,
+      "raw_response": "{\"sql\": \"SELECT continents.Continent, COUNT(*) FROM continents JOIN countries ON countries.Continent = continents.ContId JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY continents.Continent\", \"explain\": \"Both deterministic and semantic checks have no violations. The analysis confirms the required fields and joins are correct. Preserving executable SQL meets the output requirements without violations.\", \"error\": \"\"}",
+      "token_usage": {
+        "total_tokens": 2801,
+        "prompt_tokens": 2703,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 98,
+        "successful_requests": 1
+      },
+      "success": true,
+      "effective_model": "openai/gpt-4o",
+      "timestamp": "2026-07-30T01:29:16.034057",
+      "deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "semantic_audit": {
+        "valid": false,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "continents.continent",
+            "count(*)"
+          ],
+          "tables": [
+            "car_makers",
+            "continents",
+            "countries"
+          ],
+          "joins": [
+            "join car_makers on car_makers.country = countries.countryid",
+            "join countries on countries.continent = continents.contid"
+          ],
+          "where": [],
+          "group_by": [
+            "group by continents.continent"
+          ],
+          "having": [],
+          "order_by": [],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [
+          {
+            "code": "ORDER_BY_MISSING",
+            "message": "Contract requires ORDER BY."
+          }
+        ],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_makers, countries"
+        ]
+      },
+      "final_deterministic_audit": {
+        "valid": true,
+        "sqlite_explain_ok": true,
+        "database_path": "/Users/Krizpham/Thac si/Luận văn tốt nghiệp/data/spider_data/database/car_1/car_1.sqlite",
+        "fatal_errors": [],
+        "warnings": []
+      },
+      "final_semantic_audit": {
+        "valid": true,
+        "parser": "sqlglot",
+        "signature": {
+          "projections": [
+            "continents.continent",
+            "count(*)"
+          ],
+          "tables": [
+            "car_makers",
+            "continents",
+            "countries"
+          ],
+          "joins": [
+            "join car_makers on car_makers.country = countries.countryid",
+            "join countries on countries.continent = continents.contid"
+          ],
+          "where": [],
+          "group_by": [
+            "group by continents.continent"
+          ],
+          "having": [],
+          "order_by": [
+            "order by continents.continent"
+          ],
+          "has_limit": false,
+          "set_operations": []
+        },
+        "violations": [],
+        "risk_reasons": [
+          "JOIN_OVERGENERATION: car_makers, countries"
+        ]
+      }
+    }
+  ],
+  "final_sql": "SELECT continents.Continent, COUNT(*) FROM continents JOIN countries ON countries.Continent = continents.ContId JOIN car_makers ON car_makers.Country = countries.CountryId GROUP BY continents.Continent ORDER BY continents.Continent",
+  "error": "",
+  "seeded_steps": [
+    "generate_sql_direct",
+    "question_analysis",
+    "schema_selector"
+  ],
+  "models": {
+    "primary": "openai/gpt-4o",
+    "fallback": "anthropic/claude-sonnet-4-20250514"
+  },
+  "timestamp": "2026-07-30T01:29:16.044764"
+}

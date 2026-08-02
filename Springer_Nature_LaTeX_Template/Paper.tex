@@ -77,9 +77,10 @@
 \begin{document}
 \mainmatter              % start of a contribution
 %
-\title{A Multi-Agent LLM Architecture for Natural Language Access to Relational Business Data}
+\title{Explicit Reasoning Decomposition for Robust Text-to-SQL Generation}
+% \title{A Multi-Agent LLM Architecture for Natural Language Access to Relational Business Data}
 %
-\titlerunning{NL2SQL Multi-Agent}  % abbreviated title (for running head)
+\titlerunning{Explicit Reasoning Decomposition for Robust Text-to-SQL Generation}  % abbreviated title (for running head)
 %                                     also used for the TOC unless
 %                                     \toctitle is used
 %
@@ -96,39 +97,56 @@
 \maketitle              % typeset the title of the contribution
 
 \begin{abstract}
-Natural Language to SQL (NL2SQL) reduces the barrier between business users and relational data, yet large language model (LLM){-}based systems still struggle with schema grounding, join selection, aggregation, and nested logic.
-This paper presents an application-oriented study of a six-stage multi-agent NL2SQL pipeline with explicit reasoning checkpoints: Question Analysis, Schema Selection, Query Planning, SQL Generation, SQL Refinement, and SQL Validation. Rather than treating SQL generation as a single step, the architecture isolates key decision points to improve error control.
-The system is evaluated under a fixed protocol on the Spider 1.0 development split (1,034 questions), adopted due to the unavailability of the official test server. The proposed pipeline achieves 77.8\% Exact Match (EM) and 85.6\% Execution Accuracy (EX), outperforming a matched 4-stage baseline (73.7\% EM, 81.2\% EX).
-\textcolor{red}{The system is evaluated under a fixed protocol on the Spider 1.0 development split (1,034 questions), adopted due to the unavailability of the official test server. The proposed pipeline achieves 73.6\% Exact Match (EM) and 84.9\% Execution Accuracy (EX), outperforming a matched 4-stage baseline (57.4\% EM, 84.9\% EX).}
 
-These results indicate that explicit reasoning decomposition improves robustness, particularly for structurally complex queries. However, the gains cannot yet be cleanly attributed to the architecture itself, as they may partly stem from the increased inference budget.
-The paper therefore frames the contribution as a controlled architectural study rather than a leaderboard claim, and reports detailed configuration settings to support reproducibility.
+Natural Language to SQL (NL2SQL) enables users to query relational databases using natural language, yet large language model (LLM)-based systems still struggle with schema grounding, join selection, aggregation, and complex query reasoning. This paper proposes an explicit reasoning decomposition architecture for NL2SQL, implemented as a six-stage sequential reasoning pipeline comprising Question Analysis, Schema Selection, Query Planning, SQL Generation, SQL Refinement, and SQL Validation. By separating intermediate reasoning decisions into specialized stages, the proposed architecture aims to improve structural consistency and error control during SQL generation. The proposed approach is evaluated on the Spider 1.0 development split under a fixed evaluation protocol. It achieves 75.0\% Exact Match (EM) and 89.0\% Execution Accuracy (EX), outperforming a comparable four-stage baseline by 17.6 and 4.1 percentage points, respectively. The experimental results suggest that the effectiveness of reasoning decomposition depends not simply on introducing additional reasoning stages, but on assigning appropriate reasoning responsibilities within the overall architecture. Overall, the study demonstrates that carefully organizing the reasoning process provides an effective architectural strategy for improving NL2SQL while maintaining a simple sequential pipeline.
 
-\keywords{NL2SQL, Text-to-SQL, multi-agent systems, large language models, business analytics, decision support}
+% Natural Language to SQL (NL2SQL) enables users to query relational databases using natural language, yet large language model (LLM)-based systems still struggle with schema grounding, join selection, aggregation, and complex query reasoning. This paper presents a six-stage reasoning architecture that explicitly decomposes NL2SQL into Question Analysis, Schema Selection, Query Planning, SQL Generation, SQL Refinement, and SQL Validation. Rather than treating SQL generation as a single step, the proposed architecture isolates intermediate reasoning decisions to improve structural consistency and error control. The proposed approach is evaluated on the Spider 1.0 development split under a fixed evaluation protocol using matched backbone models on shared stages. It achieves 75.0\% Exact Match (EM) and 89.0\% Execution Accuracy (EX), outperforming a comparable four-stage baseline by 17.6 and 4.1 percentage points, respectively. Ablation experiments further show that introducing either Query Planning or SQL Refinement alone does not improve overall performance, whereas combining both stages yields substantial gains across both evaluation metrics. These results suggest that the effectiveness of reasoning decomposition depends not simply on adding more reasoning stages, but on assigning appropriate reasoning responsibilities and coordinating their interaction. Overall, the study demonstrates that carefully organizing the reasoning process provides an effective architectural strategy for improving NL2SQL while maintaining a simple sequential pipeline.
+
+
+%%%
+% Natural Language to SQL (NL2SQL) reduces the barrier between business users and relational data, yet large language model (LLM){-}based systems still struggle with schema grounding, join selection, aggregation, and nested logic.
+% This paper presents an application-oriented study of a six-stage multi-agent NL2SQL pipeline with explicit reasoning checkpoints: Question Analysis, Schema Selection, Query Planning, SQL Generation, SQL Refinement, and SQL Validation. Rather than treating SQL generation as a single step, the architecture isolates key decision points to improve error control.
+% The system is evaluated under a fixed protocol on the Spider 1.0 development split (1,034 questions), adopted due to the unavailability of the official test server. The proposed pipeline achieves 75.0\% Exact Match (EM) and 89.0\% Execution Accuracy (EX), outperforming a matched 4-stage baseline (57.4\% EM, 84.9\% EX).
+% These results indicate that explicit reasoning decomposition improves robustness, particularly for structurally complex queries. However, the gains cannot yet be cleanly attributed to the architecture itself, as they may partly stem from the increased inference budget.
+% The paper therefore frames the contribution as a controlled architectural study rather than a leaderboard claim, and reports detailed configuration settings to support reproducibility.
+
+\keywords{Text-to-SQL, Large Language Models, Reasoning Decomposition, Natural Language Interfaces to Databases, SQL Generation}
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Natural Language to SQL (NL2SQL) translates natural language questions into executable SQL queries over relational databases, enabling non-technical users to access structured data without writing code. This capability is central to business analytics and decision-support systems.
+Natural Language to SQL (NL2SQL) translates natural language questions into executable SQL queries over relational databases, enabling users to access structured data without writing SQL. As large language models (LLMs) become increasingly capable of understanding natural language, NL2SQL has attracted renewed attention as a practical interface for business intelligence, data analytics, and decision-support systems.
 
-Despite recent advances in large language models (LLMs), NL2SQL remains challenging for queries requiring multi-step reasoning. Typical failure modes include incorrect output fields, invalid join paths, missing aggregation constraints, and syntactically correct SQL queries that appear plausible but fail to reflect the actual intent of the question. 
-%These errors are particularly pronounced on cross-domain Text-to-SQL benchmarks such as Spider, where training and evaluation are conducted on different databases, requiring systems to generalize across new schemas and query structures.
+% Natural Language to SQL (NL2SQL) translates natural language questions into executable SQL queries over relational databases, enabling non-technical users to access structured data without writing code. This capability is central to business analytics and decision-support systems.
 
-A common limitation of existing NL2SQL systems is their reliance on centralized generation. In such designs, schema grounding, join reasoning, aggregation, and output selection are implicitly entangled within a single generation step. As a result, early-stage reasoning errors are rarely recoverable and often propagate to the final query.
+Despite recent advances in large language models (LLMs), NL2SQL remains challenging for queries requiring multi-step reasoning. Typical failure modes include incorrect output fields, invalid join paths, missing aggregation constraints, and syntactically correct SQL queries that appear plausible but fail to answer the intended question correctly. 
 
-This paper investigates whether explicitly decomposing NL2SQL into intermediate reasoning stages improves robustness in complex query generation. We propose a six-stage pipeline consisting of (1) Question Analysis, (2) Schema Selection, (3) Query Planning, (4) SQL Generation, (5) SQL Refinement, and  (6) SQL Validation. Each stage focuses on a distinct reasoning task, producing explicit intermediate outputs that serve as inputs to subsequent stages. 
+A common limitation of many existing NL2SQL systems is that multiple reasoning responsibilities are handled within a single generation step. Schema grounding, join reasoning, aggregation, and output selection are implicitly entangled during SQL generation, making intermediate decisions difficult to inspect or correct. Consequently, reasoning errors introduced early in the generation process often propagate directly to the final query.
 
-The system is evaluated on Spider 1.0~\cite{yu2018spider}, a widely used cross-domain Text-to-SQL benchmark in which training and evaluation use different database schemas to assess cross-schema generalization. Since official evaluation on the hidden Spider 1.0 test set requires submission to a dedicated evaluation server that is no longer operational, all experiments in this study are conducted on the development split.
+% A common limitation of existing NL2SQL systems is their reliance on centralized generation. In such designs, schema grounding, join reasoning, aggregation, and output selection are implicitly entangled within a single generation step. As a result, early-stage reasoning errors are rarely recoverable and often propagate to the final query.
 
-The proposed 6-step pipeline achieves 77.8\% Exact Match (EM) and 85.6\% Execution Accuracy (EX), outperforming a matched 4-step baseline (73.7\% EM, 81.2\% EX). While these results suggest that explicit reasoning decomposition may improve SQL generation accuracy, the current study does not fully isolate the benefits of decomposition from the additional inference budget required by the multi-stage architecture.
+This paper proposes an explicit reasoning-decomposition architecture for NL2SQL that separates the overall reasoning process into six sequential stages: (1) Question Analysis, (2) Schema Selection, (3) Query Planning, (4) SQL Generation, (5) SQL Refinement, and (6) SQL Validation. Each stage is responsible for a distinct reasoning task and produces explicit intermediate representations that are consumed by subsequent stages, enabling intermediate decisions to be inspected, refined, and validated before the final SQL is produced.
 
-\textcolor{red}{The proposed 6-step pipeline achieves 73.6\% Exact Match (EM) and 84.9\% Execution Accuracy (EX), outperforming a matched 4-step baseline (57.4\% EM, 84.9\% EX). While these results suggest that explicit reasoning decomposition may improve structural match to gold SQL, the current study does not fully isolate the benefits of decomposition from the additional inference budget required by the multi-stage architecture.}
-
-All reported results are obtained with a single fixed configuration of models and hyperparameters (model assignment and parameters in Table~\ref{tab:repro}), selected through internal benchmarking before the final evaluation runs and kept unchanged across all experiments.
+% This paper investigates whether explicitly decomposing NL2SQL into multiple reasoning stages improves Text-to-SQL performance. We propose a six-stage pipeline consisting of (1) Question Analysis, (2) Schema Selection, (3) Query Planning, (4) SQL Generation, (5) SQL Refinement, and (6) SQL Validation. Each stage is responsible for a distinct reasoning task and produces explicit intermediate outputs that are consumed by subsequent stages.
 
 
-This work makes three main contributions. (i) First, it proposes an explicit reasoning-decomposition framework for NL2SQL in which intermediate decisions are externalized rather than remaining implicit, enabling inspection, refinement, and improved error containment throughout the generation process. (ii) Second, it provides a controlled empirical comparison between a reduced 4-stage baseline and the full 6-stage architecture on the Spider development split, enabling a systematic assessment of the impact of reasoning decomposition under a consistent experimental setup. (iii) Third, it presents a detailed analysis of performance across query difficulty levels and recurring error categories, offering insights into where multi-stage decomposition is most beneficial and where limitations remain.
+The proposed architecture is evaluated on Spider~1.0~\cite{yu2018spider}, a widely used cross-domain benchmark for Text-to-SQL that requires generalization to previously unseen database schemas. Since official evaluation on the hidden Spider~1.0 test set requires a dedicated evaluation server that is no longer operational, all experiments are conducted on the development split. A single fixed experimental configuration of backbone models and hyperparameters is used throughout all experiments to ensure consistent comparison across configurations.
+
+
+The proposed six-stage architecture achieves 75.0\% Exact Match (EM) and 89.0\% Execution Accuracy (EX), outperforming the reduced four-stage baseline (57.4\% EM and 84.9\% EX) under an identical evaluation protocol. These results demonstrate that explicit reasoning decomposition provides an effective architectural strategy for improving NL2SQL performance. More broadly, this study highlights the importance of architectural design in NL2SQL, showing that improvements can arise not only from stronger foundation models but also from explicitly decomposing the reasoning process into specialized reasoning stages.
+
+
+% The proposed six-stage pipeline achieves 75.0\% Exact Match (EM) and 89.0\% Execution Accuracy (EX), outperforming the four-stage baseline (57.4\% EM and 84.9\% EX). These results provide empirical evidence that explicit reasoning decomposition is an effective architectural strategy for improving NL2SQL performance.
+
+This work makes three main contributions. (1) It proposes an explicit reasoning-decomposition architecture for NL2SQL that externalizes intermediate reasoning decisions, enabling systematic inspection, refinement, and improved error containment throughout the generation process. (2) It provides a controlled architectural comparison between a reduced four-stage baseline and the proposed six-stage pipeline under an identical experimental protocol, allowing the effect of reasoning decomposition to be evaluated in isolation. (3) It presents detailed analyses of query difficulty, ablation studies, recurring error patterns, and computational characteristics, providing insights into when explicit reasoning decomposition is beneficial and where its limitations remain.
+
+% This work makes three main contributions. (i) First, it proposes an explicit reasoning-decomposition framework for NL2SQL in which intermediate decisions are externalized rather than remaining implicit, enabling inspection, refinement, and improved error containment throughout the generation process. (ii) Second, it provides a controlled empirical comparison between a reduced 4-stage baseline and the full 6-stage architecture on the Spider development split, enabling a systematic assessment of the impact of reasoning decomposition under a consistent experimental setup. (iii) Third, it presents a detailed analysis of performance across query difficulty levels and recurring error categories, offering insights into where multi-stage decomposition is most beneficial and where limitations remain.
+
+The remainder of this paper is organized as follows. Section~\ref{sec:related} reviews related work on Text-to-SQL and reasoning-based architectures. Section~\ref{sec:arch} presents the proposed six-stage architecture together with its design motivation. Section~\ref{sec:exp} describes the evaluation protocol and experimental configurations. Section~\ref{sec:results} presents the experimental results and analysis, including ablation studies, error analysis, computational overhead, contextual comparison with prior work, and discussion. Finally, Sections~\ref{sec:limits} and~\ref{sec:conclusion} discuss the limitations of the study and conclude the paper.
+
+
+
 
 
 % The contributions of this work are threefold. (i) First, we present a six-stage NL2SQL architecture that separates question understanding, schema grounding, planning, generation, refinement, and validation into explicit reasoning stages. (ii) Second, we perform a controlled architectural study on the Spider 1.0 development split by comparing the proposed pipeline with reduced variants under a consistent evaluation protocol. (iii) Third, we analyze performance across query difficulty levels and recurring error patterns to better understand the potential benefits and limitations of reasoning decomposition in NL2SQL systems.
@@ -181,11 +199,14 @@ The proposed framework decomposes the NL2SQL process into six sequential reasoni
 Each stage performs a dedicated reasoning function while passing its output to the next stage. Question Analysis identifies the user's intent and expected outputs. Schema Selection identifies the subset of tables and columns that are most relevant to the question, reducing irrelevant schema context before SQL generation. Query Planning constructs a high-level execution strategy before SQL is produced. SQL Generation translates the reasoning results into an executable SQL query. SQL Refinement performs semantic improvement on the generated query, and SQL Validation verifies syntactic correctness, schema consistency, and executability.
 
 
-The overall architecture of the proposed six-stage reasoning pipeline is illustrated in Figure~\ref{fig:pipeline6}.
-Table~\ref{tab:agents} details the inputs, outputs, and primary responsibilities of each reasoning stage.
+The overall architecture of the proposed six-stage reasoning pipeline is illustrated in Figure~\ref{fig:pipeline6}. Table~\ref{tab:agents} summarizes the inputs, outputs, and primary responsibilities of each reasoning stage.
 
-To isolate the effect of explicit reasoning decomposition, we construct a reduced four-stage baseline that uses the same inputs and produces the same final output while removing the Query Planning and SQL Refinement stages. Instead, these reasoning responsibilities are absorbed into the SQL Generation stage. Figure~\ref{fig:pipeline4} illustrates the resulting baseline architecture.
+To isolate the effect of explicit reasoning decomposition, we construct a reduced four-stage baseline that uses the same inputs and produces the same final output while removing the Query Planning and SQL Refinement stages. Their reasoning responsibilities are instead absorbed into the SQL Generation stage. Figure~\ref{fig:pipeline4} illustrates the resulting baseline architecture.
 
+
+The proposed pipeline follows a strictly sequential processing flow, in which each reasoning stage consumes the structured outputs of the preceding stage and produces inputs for the next. Information therefore flows unidirectionally from Question Analysis to SQL Verification without revisiting earlier reasoning stages.
+
+% The proposed pipeline follows a strictly sequential processing flow, where the output of each stage serves as the input to the next stage. SQL Refinement performs a single semantic revision of the generated SQL before SQL Validation verifies syntax, schema consistency, and executability. Validation reports the final status of the generated query but does not modify preceding reasoning decisions.
 
 \begin{figure}[t]
 \centering
@@ -202,6 +223,8 @@ To isolate the effect of explicit reasoning decomposition, we construct a reduce
 \label{fig:pipeline4}
 \end{figure}
 
+
+\begin{comment}
 The reported implementation follows a single forward pass without iterative feedback loops (see Section~\ref{subsec:impl}). SQL Refinement performs one-pass semantic improvement using the outputs of preceding stages, whereas SQL Validation verifies syntax, schema consistency, and executability. Validation reports success or failure but does not trigger another round of planning or SQL generation.
 \textcolor{red}{%
 This single-forward-pass design is intentional.
@@ -213,13 +236,13 @@ In this paper, any repair mechanism---if considered---is therefore kept strictly
 }%
 
 The central hypothesis of this work is that explicitly separating intermediate reasoning decisions enables systematic inspection, refinement, and error containment before errors propagate to subsequent stages, thereby improving the robustness of SQL generation.
-
+\end{comment}
 
 \begin{table}[t]
 \scriptsize
-\caption{Responsibilities of the six reasoning stages in the proposed NL2SQL pipeline.}
+\caption{Responsibilities of the reasoning stages in the proposed six-stage architecture.}
 \label{tab:agents}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}L{2.2cm}L{2.3cm}L{2.3cm}L{4.4cm}@{}}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}L{2.3cm}L{2.3cm}L{2.3cm}L{4.9cm}@{}}
 \toprule
 \textbf{Stage} & \textbf{Inputs} & \textbf{Outputs} & \textbf{Primary responsibility} \\
 \midrule
@@ -261,11 +284,15 @@ Verifies syntactic validity, schema consistency, and executability. \\
 
 The proposed architecture is motivated by three recurring sources of error in NL2SQL systems: incorrect output-field selection, insufficient logical planning for complex queries, and semantic errors that remain after the initial SQL is generated. Rather than addressing these issues within a single generation stage, the proposed pipeline assigns each to an explicit reasoning stage. Question Analysis identifies the intended outputs, Query Planning determines the logical structure of the query before SQL generation, and SQL Refinement performs a final semantic correction pass.
 
-This design leads to the central experimental question investigated in this paper: whether explicitly separating these reasoning responsibilities improves SQL generation robustness. To isolate the effect of architectural decomposition, we compare a reduced four-stage pipeline that omits Query Planning and SQL Refinement with the full six-stage architecture under an identical evaluation protocol.
+The architecture deliberately adopts a strictly sequential forward-pass design rather than iterative feedback or self-refinement loops. This design keeps the reasoning process explicit, computationally bounded, and easy to analyze, allowing the effect of architectural decomposition itself to be evaluated without the confounding influence of repeated revision.
 
-\textcolor{red}{Xem them dc cai gi do cho co trong luong hon, co bai hoc gi do, co gi do hay, thuat toan , xu ly, ...}
+This design leads to the central experimental question investigated in this paper: whether explicitly separating these reasoning responsibilities into dedicated reasoning stages improves NL2SQL performance. The proposed six-stage architecture is therefore compared with a reduced four-stage pipeline that omits Query Planning and SQL Refinement while keeping the same backbone models for all shared stages under an identical evaluation protocol.
 
-{\color{red}
+% This design leads to the central experimental question investigated in this paper: whether explicitly separating these reasoning responsibilities into dedicated reasoning stages improves NL2SQL performance. To isolate the effect of architectural decomposition, we compare a reduced four-stage pipeline that omits Query Planning and SQL Refinement with the full six-stage architecture while keeping the same backbone models for all shared stages under an identical evaluation protocol.
+
+% This design leads to the central experimental question investigated in this paper: whether explicitly separating these reasoning responsibilities improves SQL generation robustness. To isolate the effect of architectural decomposition, we compare a reduced four-stage pipeline that omits Query Planning and SQL Refinement with the full six-stage architecture under an identical evaluation protocol.
+
+\begin{comment}
 \subsection{Pipeline Formalization and Bounded Repair}
 \label{subsec:formal-vtr}
 
@@ -338,20 +365,21 @@ In the four-stage baseline, the missing planning checkpoint frequently yields
 If Validation instead fails (e.g., a transient schema/name inconsistency),
 VTR allows exactly one Refiner pass conditioned on \(E\), then stops---
 illustrating bounded repair without opening an unbounded revision loop.
-}
+\end{comment}
 
 \subsection{Implementation}
-\textcolor{red}{The source code, Spider development-set predictions, Dr.Spider-340 diagnostic artifacts, and evaluation scripts used in this study are publicly available at \url{https://github.com/thanhpt95-vn/multi-agent-nl2sql}.}
-\label{subsec:impl}
 
 The proposed architecture is implemented as a modular multi-agent workflow in which each stage receives a fixed prompt template together with the outputs produced by preceding stages. To ensure consistency across stages, all agent prompts follow the same template comprising four components: a role description, structured inputs, reasoning and schema-consistency constraints, and a structured output specification. Orchestration follows a single forward pass without voting, self-consistency, or iterative self-refinement.
 
+
 The full-development-set results reported in this paper use the fixed model assignment summarized in Table~\ref{tab:model_assignment}. This mixed-model configuration was fixed before the full-development-set evaluation and used consistently throughout all reported experiments. Internal benchmarking suggested that homogeneous configurations using only GPT-4o, Gemini 2.5 Flash, Claude Sonnet 4, or Claude Opus 4 offered a less favorable balance between execution accuracy, computational cost, and inference latency. GPT-4o was therefore assigned to reasoning-intensive stages, whereas Gemini 2.5 Flash was used for schema selection and validation to improve computational efficiency while maintaining competitive performance.
+
+To facilitate reproducibility, the source code, evaluation scripts, and Spider development-set predictions used in this study are publicly available at \url{https://doi.org/10.5281/zenodo.21696012}.
 
 
 \begin{table}[t]
 \scriptsize
-\caption{Model assignment for the six-stage NL2SQL pipeline.}
+\caption{Model assignment for the proposed six-stage architecture.}
 \label{tab:model_assignment}
 \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}L{2.4cm}L{2.5cm}L{7.3cm}@{}}
 \toprule
@@ -396,19 +424,25 @@ Performance is evaluated using the two standard Spider metrics: Exact Match (EM)
 \subsection{Experimental Configurations}
 \label{subsec:configs}
 
-To evaluate the contribution of explicit reasoning decomposition, experiments compare the proposed six-stage pipeline against three progressively simpler alternatives: two single-prompt baselines, a reduced four-stage pipeline, and two five-stage ablation variants that remove either Query Planning or SQL Refinement.
+To evaluate the contribution of explicit reasoning decomposition, experiments compare the proposed six-stage pipeline against two progressively simpler alternatives: a single-prompt baseline, a reduced four-stage pipeline, and two five-stage ablation variants that remove either Query Planning or SQL Refinement.
 
-The proposed six-stage pipeline and the two ablation variants use the implementation described in Section~\ref{subsec:impl}. The four-stage baseline follows its default implementation in the codebase, using Claude Sonnet 4 for Question Analysis, GPT-4o for SQL Generation, and Gemini 2.5 Flash for Schema Selection and SQL Validation. Both single-prompt baselines use GPT-4o as the underlying LLM.
+All configurations are evaluated on the same Spider development split using identical evaluation metrics. The proposed six-stage pipeline and both five-stage ablation variants use the model assignment summarized in Table~\ref{tab:model_assignment}. The four-stage baseline uses the same backbone models for all shared stages while omitting Query Planning and SQL Refinement. The single-prompt baseline uses Gemini 2.5 Flash to generate SQL directly from the natural language question.
 
-\textcolor{red}{All configurations are evaluated on the same Spider development split using identical evaluation metrics.
-For the proposed 6-stage pipeline and both 5-stage ablations, model assignment follows Section~\ref{subsec:impl} and Table~\ref{tab:model_assignment}: GPT-4o for Question Analysis, Query Planning, SQL Generation, and SQL Refinement; Gemini~2.5 Flash for Schema Selection and SQL Validation.
-The 4-stage baseline uses the same model family for the shared stages: GPT-4o for Question Analysis and SQL Generation, and Gemini~2.5 Flash for Schema Selection and SQL Validation.
-Both single-prompt baselines use GPT-4o for SQL generation.
-Consequently, the 4-stage vs.\ 6-stage comparison keeps the same backbone models on overlapping stages and differs primarily by the presence of Query Planning and SQL Refinement, together with the additional inference cost of those stages.}
+Consequently, the four-stage and six-stage pipelines use identical backbone models for all shared stages. Their primary difference is that the proposed pipeline introduces two additional reasoning stages, Query Planning and SQL Refinement, together with the associated increase in inference cost.
 
-Consequently, the comparison between the four-stage and six-stage pipelines isolates the effect of explicit reasoning decomposition under a common evaluation protocol, although the Question Analysis stage uses different backbone models. This potential source of bias is discussed further in Section~\ref{sec:limits}.
+% The proposed six-stage pipeline and the two ablation variants use the implementation described in Section~\ref{subsec:impl}. The four-stage baseline follows its default implementation in the codebase, using Claude Sonnet 4 for Question Analysis, GPT-4o for SQL Generation, and Gemini 2.5 Flash for Schema Selection and SQL Validation. Both single-prompt baselines use GPT-4o as the underlying LLM.
 
-\textcolor{red}{Consequently, the four-stage vs.\ six-stage comparison keeps the same backbone models on overlapping stages and differs primarily by the presence of Query Planning and SQL Refinement, together with the additional inference cost of those stages.}
+% Consequently, the comparison between the four-stage and six-stage pipelines isolates the effect of explicit reasoning decomposition under a common evaluation protocol, although the Question Analysis stage uses different backbone models. This potential source of bias is discussed further in Section~\ref{sec:limits}.
+
+
+% \textcolor{red}{All configurations are evaluated on the same Spider development split using identical evaluation metrics.
+% For the proposed 6-stage pipeline and both 5-stage ablations, model assignment follows Table~\ref{tab:model_assignment}: GPT-4o for Question Analysis, Query Planning, SQL Generation, and SQL Refinement; Gemini~2.5 Flash for Schema Selection and SQL Validation.
+% The 4-stage baseline uses the same model family for the shared stages: GPT-4o for Question Analysis and SQL Generation, and Gemini~2.5 Flash for Schema Selection and SQL Validation.
+% Both single-prompt baselines use GPT-4o for SQL generation.
+% Consequently, the 4-stage vs.\ 6-stage comparison keeps the same backbone models on overlapping stages and differs primarily by the presence of Query Planning and SQL Refinement, together with the additional inference cost of those stages.}
+
+
+% \textcolor{red}{Consequently, the four-stage vs.\ six-stage comparison keeps the same backbone models on overlapping stages and differs primarily by the presence of Query Planning and SQL Refinement, together with the additional inference cost of those stages.}
 
 All experiments are conducted on the Spider development split using identical evaluation metrics, deterministic decoding (\texttt{temperature}=0), and a maximum output length of 2048 tokens. Each reported configuration is evaluated once using the official Spider evaluation script. Since no stochastic decoding is involved, bootstrap confidence intervals are not reported. Nevertheless, API variability and future model-version updates remain potential threats to reproducibility and are discussed in Section~\ref{sec:limits}.
 
@@ -552,40 +586,76 @@ Implementation stack & Modular multi-agent workflow (CrewAI-style orchestration)
 \section{Experimental Results}
 \label{sec:results}
 
+
 \subsection{Overall Performance}
 \label{subsec:overall}
 
-Table~\ref{tab:main} summarizes the overall performance of the evaluated configurations, including single-prompt baselines, progressively deeper pipeline variants, and the proposed six-stage architecture.
+Table~\ref{tab:main} compares the overall performance of all evaluated configurations, including the single-prompt baseline, the four-stage baseline, two five-stage ablation variants, and the proposed six-stage architecture.
+
+
+% Table~\ref{tab:main} summarizes the overall performance of the evaluated configurations, including single-prompt baselines, progressively deeper pipeline variants, and the proposed six-stage architecture.
+
+
+%%%%%%%%%%%
+% Overall performance does not increase monotonically with the addition of individual reasoning stages. Although both five-stage ablation variants slightly improve Execution Accuracy relative to the four-stage baseline, their Exact Match scores decrease substantially. This result suggests that the effectiveness of explicit reasoning decomposition does not arise from adding isolated reasoning stages independently. Rather, Query Planning and SQL Refinement operate as complementary components: planning establishes an explicit logical structure before SQL generation, whereas refinement corrects residual semantic inconsistencies in the generated query. Removing either stage weakens the overall reasoning process, leading to SQL that often remains executable but deviates structurally from the reference query. Only the complete six-stage pipeline consistently improves both structural correctness and execution correctness, achieving gains of 17.6 percentage points in Exact Match and 4.1 percentage points in Execution Accuracy over the four-stage baseline.
+
+The proposed six-stage pipeline achieves the best performance on both EM and EX, improving the four-stage baseline by 17.6 percentage points (pp) in EM and 4.1 pp in EX. The four-stage pipeline outperforms the single-prompt baseline on both metrics. In contrast, although both five-stage ablation variants achieve slightly higher EX than the four-stage pipeline, their EM drops substantially below the four-stage baseline.
+
+
+% Overall performance increases as additional reasoning stages are incorporated, with the proposed six-stage pipeline achieving the highest scores on both evaluation metrics. Relative to the four-stage pipeline, it improves Exact Match by 17.6 percentage points and Execution Accuracy by 4.1 percentage points.
 
 \begin{table}[t]
-\caption{Overall performance across prompting strategies and pipeline configurations.}
-\scriptsize
+\caption{Overall performance of the evaluated configurations. $\Delta$EM and $\Delta$EX are reported relative to the 4-stage pipeline.}
 \label{tab:main}
 \centering
-\begin{tabular}{@{}lcc@{}}
+\scriptsize
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-\textbf{Configuration} & \textbf{EM (\%)} & \textbf{EX (\%)} \\
+\textbf{Configuration} & \textbf{EM (\%)} & \textbf{EX (\%)} & \textbf{$\Delta$EM} & \textbf{$\Delta$EX} \\
 \midrule
-Single-prompt system Gemini 2.5 Flash (direct SQL) & 49.6 & 79.0 \\
-4-stage pipeline & 57.4 & 84.9 \\
-5-stage pipeline (without Planner) & -- & -- \\
-5-stage pipeline (without Refiner) & -- & -- \\
-\textbf{Proposed 6-stage pipeline} & \textbf{73.6} & \textbf{84.9} \\
+Single-prompt system (direct SQL) & 49.6 & 79.0 & $-$7.8 & $-$5.9 \\
+4-stage pipeline & 57.4 & 84.9 & --- & --- \\
+5-stage pipeline (without Planner) & 46.1 & 85.5 & $-$11.3 & +0.6 \\
+5-stage pipeline (without Refiner) & 46.5 & 85.3 & $-$10.9 & +0.4 \\
+\textbf{Proposed 6-stage pipeline} & \textbf{75.0} & \textbf{89.0} & \textbf{+17.6} & \textbf{+4.1} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textcolor{red}{thay doan duoi bang cum nay. }
 
-Under the updated evaluation, the proposed six-stage pipeline substantially improves Exact Match over the four-stage baseline (73.6\% vs.\ 57.4\%), while Execution Accuracy remains unchanged at 84.9\%. The main effect of the additional reasoning stages is therefore a closer structural match to gold SQL rather than a higher execution score.
+\begin{table}[t]
+\caption{Overall performance across prompting strategies and pipeline configurations. $\Delta$EX and $\Delta$EM are reported relative to the 4-stage pipeline.}
+\scriptsize
+\label{tab:main}
+\centering
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Configuration} & \textbf{EM (\%)} & \textbf{EX (\%)} & \textbf{$\Delta$EX} & \textbf{$\Delta$EM} \\
+\midrule
+Single-prompt system (direct SQL) & 49.6 & 79.0 & $-$5.9 & $-$7.8 \\
+4-stage pipeline & 57.4 & 84.9 & --- & --- \\
+5-stage pipeline (without Planner) & 46.1 & 85.5 & +0.6 & $-$11.3 \\
+5-stage pipeline (without Refiner) & 46.5 & 85.3 & +0.4 & $-$10.9 \\
+\textbf{Proposed 6-stage pipeline} & \textbf{75.0} & \textbf{89.0} & \textbf{+4.1} & \textbf{+17.6} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-To examine whether this Exact Match gain depends on query complexity, Table~\ref{tab:difficulty} reports results by official Spider difficulty. The gains are uneven: Exact Match improves across all subsets, with the largest absolute increases on the Medium (+20.0) and Extra Hard (+20.5) categories, whereas the Hard subset shows a more modest Exact Match gain (+4.0). Execution Accuracy improves slightly on Easy and Medium queries but decreases on Hard and Extra Hard. This pattern indicates that explicit reasoning decomposition mainly improves structural fidelity, especially on medium and highly compositional queries, while the hardest execution failures are not fully resolved by adding planning and refinement stages alone.
 
-\textcolor{red}{ket thuc}
+To examine whether the observed improvements vary with query complexity, Table~\ref{tab:difficulty} further reports performance across the official Spider difficulty categories. Performance improves across all difficulty levels, although the pattern differs between EM and EX. EM benefits most on the Medium and Extra Hard subsets, whereas the largest gain in EX is observed for Hard queries.
+% Performance improves across all difficulty levels, although the magnitude of improvement differs between Exact Match and Execution Accuracy. Exact Match gains are particularly pronounced for the \textit{Medium} and \textit{Extra Hard} subsets, whereas the largest improvement in Execution Accuracy is observed for the \textit{Hard} subset.
 
-Overall performance increases as additional reasoning stages are incorporated, with the proposed six-stage pipeline achieving the highest scores on both evaluation metrics. Relative to the four-stage pipeline, it improves Exact Match by 4.1 percentage points and Execution Accuracy by 4.4 percentage points.
 
-To examine whether these improvements depend on query complexity, Table~\ref{tab:difficulty} further reports performance across the official Spider difficulty categories. The performance gains are not uniform across difficulty levels. As shown in Table~\ref{tab:difficulty}, the largest improvement is observed in the \textit{Hard} category, where both Exact Match and Execution Accuracy increase by 9.2 percentage points relative to the four-stage pipeline. More modest improvements are obtained for the Easy, Medium, and Extra Hard subsets. This pattern suggests that explicit reasoning decomposition is particularly beneficial for queries requiring more complex relational reasoning, although the smaller gain on the Extra Hard subset indicates that decomposition alone does not fully address the challenges posed by the most difficult queries.
+% To examine whether the observed improvements vary with query complexity, Table~\ref{tab:difficulty} further reports performance across the official Spider difficulty categories. Performance gains are observed at all difficulty levels, although their magnitude differs between Exact Match and Execution Accuracy. The largest improvement in Exact Match is obtained on the \textit{Extra Hard} subset (+23.5 percentage points), followed by the \textit{Medium} subset (+20.9 points), whereas the largest gain in Execution Accuracy is observed on the \textit{Hard} subset (+7.5 points). More moderate improvements are obtained for the remaining categories.
+
+
+These results suggest that explicit reasoning decomposition provides benefits across the full spectrum of query difficulty rather than only for simpler cases. At the same time, the comparatively lower performance on the \textit{Extra Hard} subset indicates that architectural decomposition alone is insufficient to fully address the most challenging Text-to-SQL queries.
+
+
+Overall, these findings further support the effectiveness of the proposed six-stage architecture. The following subsection investigates how the individual reasoning stages contribute to these improvements through ablation experiments.
+
+
+% To examine whether the observed improvements vary with query complexity, Table~\ref{tab:difficulty} further reports performance across the official Spider difficulty categories. Performance gains are observed at all difficulty levels, although their magnitude differs between Exact Match and Execution Accuracy. The largest improvement in Exact Match is obtained on the \textit{Extra Hard} subset (+23.5 percentage points), followed by the \textit{Medium} subset (+20.9 points), whereas the largest gain in Execution Accuracy is observed on the \textit{Hard} subset (+7.5 points). More moderate improvements are obtained for the remaining categories.
 
 \begin{table}[t]
 \caption{Performance by Spider difficulty level.}
@@ -610,16 +680,29 @@ To examine whether these improvements depend on query complexity, Table~\ref{tab
 \textbf{EM} &
 \textbf{EX} \\
 \midrule
-Easy        & 248   & 72.2 & 91.1 & 87.5 & 94.0 \\
-Medium      & 446   & 62.1 & 88.1 & 82.1 & 88.8 \\
-Hard        & 174   & 54.6 & 82.2 & 58.6 & 80.5 \\
-Extra Hard  & 166   & 25.3 & 69.9 & 45.8 & 65.7 \\
-\textbf{All}& \textbf{1,034} & \textbf{57.4} & \textbf{84.9} & \textbf{73.6} & \textbf{84.9} \\
+Easy        & 248   & 72.2 & 91.1 & 87.9 & 95.2 \\
+Medium      & 446   & 62.1 & 88.1 & 83.0 & 90.6 \\
+Hard        & 174   & 54.6 & 82.2 & 60.9 & 89.7 \\
+Extra Hard  & 166   & 25.3 & 69.9 & 48.8 & 74.7 \\
+\textbf{All}& \textbf{1,034} & \textbf{57.4} & \textbf{84.9} & \textbf{75.0} & \textbf{89.0} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Overall, these results support the effectiveness of the proposed six-stage architecture under the evaluated protocol. The following subsection investigates the contribution of the additional reasoning stages through intermediate pipeline variants.
+% These results indicate that the proposed architecture improves performance across all Spider difficulty categories. Although the magnitude of improvement differs between Exact Match and Execution Accuracy, both metrics consistently favor the six-stage pipeline over the four-stage baseline. The remaining gap on the Extra Hard subset nevertheless suggests that explicit reasoning decomposition addresses only part of the challenges posed by the most complex Text-to-SQL queries.
+
+% These results indicate that the proposed architecture consistently improves performance across all Spider difficulty categories. The gains are particularly pronounced in Exact Match for the Medium and Extra Hard subsets, while Execution Accuracy improves across every difficulty level. Despite these improvements, the Extra Hard subset remains the most challenging, suggesting that explicit reasoning decomposition alone is insufficient to fully address the complexity of the hardest Text-to-SQL queries.
+
+% These results suggest that explicit reasoning decomposition provides benefits across the full spectrum of query difficulty rather than only for simpler cases. The substantial improvement in Exact Match on the more difficult subsets indicates that the proposed architecture is better able to preserve the intended SQL structure, while the consistent gains in Execution Accuracy demonstrate that these structural improvements generally translate into executable queries. The \textit{Extra Hard} subset nevertheless remains the most challenging, suggesting that explicit reasoning decomposition alone is insufficient to fully address the complexity of the most difficult Text-to-SQL queries.
+
+
+% Overall, these results provide consistent evidence that the proposed six-stage architecture improves NL2SQL performance under the evaluated protocol. The following subsection examines the contribution of the additional reasoning stages through intermediate pipeline variants.
+
+% To examine whether these gains depend on query complexity, Table~\ref{tab:difficulty} reports results by official Spider difficulty. Exact Match improves consistently across all subsets, with substantial increases on Extra Hard (+23.5\,pp), Medium (+20.9\,pp), and Easy (+15.7\,pp) queries, alongside a solid gain on Hard queries (+6.3\,pp). Furthermore, Execution Accuracy increases across all difficulty levels, achieving its highest gain on the Hard category (+7.5\,pp), followed by Extra Hard (+4.8\,pp), Easy (+4.1\,pp), and Medium (+2.5\,pp). This pattern indicates that explicit reasoning decomposition provides robust improvements across all complexity tiers, being particularly effective at resolving execution failures in complex relational queries while significantly boosting structural alignment.
+
+
+
+% Overall, these results support the effectiveness of the proposed six-stage architecture under the evaluated protocol. The following subsection investigates the contribution of the additional reasoning stages through intermediate pipeline variants.
 
 % Although the current results support the effectiveness of the proposed architecture, they should be interpreted cautiously. The present study does not fully disentangle improvements attributable to reasoning decomposition from those associated with additional inference budget or the selected model assignment.
 %%%%%%%%%%%%
@@ -631,22 +714,66 @@ Overall, these results support the effectiveness of the proposed six-stage archi
 
 % Although these results support the effectiveness of the proposed architecture, they should be interpreted cautiously. The current experiments demonstrate the benefit of the complete six-stage pipeline under a fixed evaluation protocol, but they do not fully disentangle improvements due to architectural decomposition from those associated with additional inference budget or the selected model assignment.
 
+
 \subsection{Ablation Analysis}
 \label{subsec:ablation}
 
-The intermediate pipeline variants provide insight into the contribution of the two additional reasoning stages introduced by the proposed architecture. Starting from the four-stage baseline, two five-stage variants are constructed by adding only one of the two components, namely Query Planning or SQL Refinement.
-
-As shown in Table~\ref{tab:main}, introducing the Query Planner increases Exact Match from 73.7\% to 75.0\% and Execution Accuracy from 81.2\% to 82.6\%. Adding the SQL Refinement stage instead yields larger improvements, reaching 76.1\% EM and 83.9\% EX. Combining both stages in the complete six-stage pipeline further increases performance to 77.8\% EM and 85.6\% EX.
-\textcolor{red}{As shown in Table~\ref{tab:main}, the complete six-stage pipeline reaches 73.6\% Exact Match and 84.9\% Execution Accuracy, compared with 57.4\% EM and 84.9\% EX for the four-stage baseline under the same backbone assignment on shared stages. Intermediate five-stage ablations that add only the Query Planner or only the SQL Refiner were not re-evaluated under this updated protocol; isolating their individual contributions is therefore left for a follow-up experiment with the same model snapshot.}
-% These results suggest that the two stages provide complementary benefits. Query Planning primarily improves the structural organization of SQL generation, whereas SQL Refinement corrects residual semantic inconsistencies after an initial query has been produced. The complete six-stage pipeline consistently outperforms both intermediate variants, indicating that the two stages address different classes of errors rather than providing interchangeable functionality.
-
-% These results suggest that the two stages contribute complementary benefits rather than redundant functionality. Query Planning explicitly organizes joins, filtering conditions, grouping operations, and set operators before SQL generation, reducing structural reasoning errors early in the pipeline. SQL Refinement operates on a complete SQL query and performs a final semantic correction pass, addressing inconsistencies that remain after initial generation. The strongest performance is achieved only when both stages are included, indicating that planning and post-generation refinement address different sources of error.
-
-These results suggest that the two stages provide complementary benefits. Query Planning primarily improves the structural organization of SQL generation, whereas SQL Refinement performs a final semantic correction pass after an initial query has been produced. The complete six-stage pipeline consistently outperforms both intermediate variants, suggesting that Query Planning and SQL Refinement address complementary sources of error rather than providing interchangeable functionality.
+The two five-stage ablation variants provide insight into the contribution of the additional reasoning stages introduced by the proposed architecture. Rather than evaluating whether adding more stages improves performance, these experiments examine whether Query Planning and SQL Refinement make distinct contributions to the overall reasoning process.
 
 
-These observations are consistent with the intended roles of the two additional stages. However, the current ablation provides supporting rather than conclusive evidence regarding the individual contribution of each component.
-\textcolor{red}{ Under the updated full-development evaluation, only the four-stage and complete six-stage pipelines are compared directly. The large Exact Match gain of the six-stage system is therefore attributable to the joint addition of Query Planning and SQL Refinement, but the present study does not isolate their individual effects. The intended division of labor remains that planning organizes joins, filters, grouping, and set operators before generation, while refinement performs a post-generation semantic pass. Consistent with Table 5, residual non-exact-match errors still concentrate on join-graph and aggregation decisions, indicating that these stages help overall exact match but do not eliminate the hardest structural failures. }
+The ablation results reveal a notable pattern. Although each five-stage variant introduces one additional reasoning stage, neither improves both evaluation metrics simultaneously. Instead, only the complete six-stage architecture achieves consistent improvements in both EM and EX. These observations lead to three important insights.
+
+First, the effectiveness of explicit reasoning decomposition depends not merely on introducing additional reasoning stages, but on assigning appropriate reasoning responsibilities to each stage. A partially decomposed pipeline does not necessarily improve overall performance, indicating that decomposition must be carefully designed rather than simply expanded.
+
+Second, improvements in query executability do not necessarily translate into closer agreement with the reference SQL. The five-stage variants achieve slightly higher EX than the four-stage baseline while exhibiting substantially lower EM, indicating that these two evaluation metrics capture different aspects of SQL quality.
+
+% Second, an individual reasoning stage may improve one aspect of SQL generation without improving another. In the present study, both five-stage variants achieve slightly higher EX than the four-stage baseline while exhibiting substantially lower EM. This discrepancy indicates that improvements in query executability do not necessarily translate into closer agreement with the reference SQL. More generally, improvements in EX do not necessarily coincide with improvements in EM.
+
+Third, the largest performance gains are obtained only when Query Planning and SQL Refinement operate together. Removing either stage disrupts the intended coordination between planning and refinement, whereas combining both substantially improves both EM and EX. This finding indicates that Query Planning and SQL Refinement are complementary rather than interchangeable components of the reasoning process.
+
+
+
+% Third, the largest performance gains are obtained only when Query Planning and SQL Refinement operate together. Query Planning establishes an explicit logical structure before SQL generation, whereas SQL Refinement performs a subsequent semantic consistency check on the generated query. Removing either stage weakens the overall reasoning process, whereas combining both substantially improves both EM and EX. This finding suggests that the benefit of explicit reasoning decomposition arises from the coordinated interaction between reasoning stages rather than from the contribution of any individual stage in isolation.
+
+% A plausible explanation for this behavior is that the two stages support different parts of the reasoning process. Query Planning externalizes the intended query structure before SQL generation, whereas SQL Refinement reconciles the generated SQL with that planned structure through a final semantic consistency check. When either stage is removed, this coordination is disrupted. As a result, the generated SQL may remain executable while deviating more frequently from the reference SQL, leading to higher EX but lower EM. The complete six-stage pipeline preserves this coordination throughout the reasoning process, providing a plausible explanation for its substantially better overall performance.
+
+A plausible explanation for this behavior is that the two stages support different parts of the reasoning process. Query Planning constructs an explicit representation of the intended query structure before SQL generation, whereas SQL Refinement consolidates that structure into the final SQL through a dedicated semantic consistency check. Their interaction therefore provides a structured reasoning path from planning to generation and refinement rather than relying on a single generation step.
+
+
+Without Query Planning, SQL Generation must infer the query structure directly from the question, leaving SQL Refinement to revise the generated SQL without an explicit logical plan as guidance. Conversely, without SQL Refinement, Query Planning provides an explicit plan before SQL generation, but the generated SQL no longer undergoes a dedicated semantic consistency check. In both cases, the resulting SQL may remain executable while deviating more frequently from the reference SQL, leading to higher EX but lower EM.
+
+Although the observed behavior is consistent with the proposed architectural rationale, the present ablation alone does not establish the precise causal contribution of each reasoning stage. Verifying the proposed explanation would require additional analyses of intermediate reasoning traces under more controlled experimental conditions.
+
+
+% A plausible explanation for this behavior is that the two intermediate stages support different parts of the reasoning process. Without Query Planning, SQL Generation must infer the entire query structure directly from the question, leaving SQL Refinement to revise the generated SQL without an explicit logical plan as guidance. Conversely, without SQL Refinement, Query Planning provides an explicit plan before SQL generation, but the generated SQL no longer undergoes a dedicated semantic consistency check. In both cases, the resulting SQL may remain executable while deviating more frequently from the reference SQL, leading to higher EX but lower EM. The complete six-stage pipeline combines these complementary functions, providing a plausible explanation for why it substantially outperforms either five-stage variant.
+
+% A plausible explanation for this behavior is that the two intermediate stages influence the reasoning process in different ways when introduced independently. Without Query Planning, SQL Generation relies primarily on the natural-language question and the selected schema to infer the entire query structure, after which SQL Refinement may revise the generated SQL without an explicit logical plan as guidance. Conversely, without SQL Refinement, Query Planning provides an explicit query plan together with the outputs of Question Analysis and join hints before SQL generation, but the generated SQL no longer undergoes a dedicated semantic consistency check before validation. In both cases, the resulting SQL may remain executable while deviating more frequently from the reference SQL, leading to higher EX but lower EM. When both stages are present, however, Query Planning first establishes an explicit structural representation of the intended query, and SQL Refinement subsequently consolidates that structure into the final SQL. Their sequential interaction therefore provides a plausible explanation for why the complete six-stage architecture achieves substantially larger improvements than either five-stage variant alone.
+
+
+% A plausible explanation for this behavior is that the two intermediate stages influence the reasoning process in different ways when introduced independently. Without Query Planning, SQL Generation must infer the complete query structure directly from the question, after which SQL Refinement may revise the generated query without an explicit logical plan as guidance. Conversely, without SQL Refinement, Query Planning provides an explicit logical structure, but the generated SQL no longer undergoes a dedicated semantic consistency check before validation. In both cases, the resulting SQL may remain executable while deviating more frequently from the reference SQL, leading to higher EX but lower EM.
+% Although this explanation is consistent with the observed results and the intended responsibilities of the two stages, it remains a hypothesis that would require further evidence, such as analysis of intermediate outputs or reasoning traces, to validate.
+
+% Although these observations are consistent with the intended architectural design, the present ablation should be interpreted as supporting rather than conclusively proving the individual contribution of each reasoning stage.
+
+
+% \subsection{Ablation Analysis}
+% \label{subsec:ablation}
+
+% The intermediate pipeline variants provide insight into the contribution of the two additional reasoning stages introduced by the proposed architecture. Starting from the four-stage baseline, two five-stage variants are constructed by adding only one of the two components, namely Query Planning or SQL Refinement.
+
+% As shown in Table~\ref{tab:main}, introducing the Query Planner increases Exact Match from 57.7\% to 75.0\% and Execution Accuracy from 81.2\% to 82.6\%. Adding the SQL Refinement stage instead yields larger improvements, reaching 76.1\% EM and 83.9\% EX. Combining both stages in the complete six-stage pipeline further increases performance to 77.8\% EM and 85.6\% EX.
+
+
+% % As shown in Table~\ref{tab:main}, the complete six-stage pipeline reaches 75.0\% Exact Match and 89.0\% Execution Accuracy, compared with 57.4\% EM and 84.9\% EX for the four-stage baseline under the same backbone assignment on shared stages (an improvement of +17.6\,pp in EM and +4.1\,pp in EX). Intermediate five-stage ablations that add only the Query Planner or only the SQL Refiner were not re-evaluated under this updated protocol; isolating their individual contributions is therefore left for a follow-up experiment with the same model snapshot.
+% % These results suggest that the two stages provide complementary benefits. Query Planning primarily improves the structural organization of SQL generation, whereas SQL Refinement corrects residual semantic inconsistencies after an initial query has been produced. The complete six-stage pipeline consistently outperforms both intermediate variants, indicating that the two stages address different classes of errors rather than providing interchangeable functionality.
+
+% % These results suggest that the two stages contribute complementary benefits rather than redundant functionality. Query Planning explicitly organizes joins, filtering conditions, grouping operations, and set operators before SQL generation, reducing structural reasoning errors early in the pipeline. SQL Refinement operates on a complete SQL query and performs a final semantic correction pass, addressing inconsistencies that remain after initial generation. The strongest performance is achieved only when both stages are included, indicating that planning and post-generation refinement address different sources of error.
+
+% These results suggest that the two stages provide complementary benefits. Query Planning primarily improves the structural organization of SQL generation, whereas SQL Refinement performs a final semantic correction pass after an initial query has been produced. The complete six-stage pipeline consistently outperforms both intermediate variants, suggesting that Query Planning and SQL Refinement address complementary sources of error rather than providing interchangeable functionality.
+
+
+% These observations are consistent with the intended roles of the two additional stages. However, the current ablation provides supporting rather than conclusive evidence regarding the individual contribution of each component.
+% \textcolor{red}{ Under the updated full-development evaluation, only the four-stage and complete six-stage pipelines are compared directly. The large Exact Match gain of the six-stage system is therefore attributable to the joint addition of Query Planning and SQL Refinement, but the present study does not isolate their individual effects. The intended division of labor remains that planning organizes joins, filters, grouping, and set operators before generation, while refinement performs a post-generation semantic pass. Consistent with Table 5, residual non-exact-match errors still concentrate on join-graph and aggregation decisions, indicating that these stages help overall exact match but do not eliminate the hardest structural failures. }
 
 % \subsection{Main results}\label{subsec:mainres}
 
@@ -696,20 +823,186 @@ These observations are consistent with the intended roles of the two additional 
 
 % The difficulty breakdown sharpens the main claim. Improvements are not limited to easy cases; they are strongest where query structure is more fragile, especially when joins, grouping, or set operations are involved. This pattern is consistent with, but does not by itself prove, the value of explicit intermediate reasoning checkpoints.
 
-
 \subsection{Error Analysis}
 \label{subsec:errors}
 
-To better understand the remaining failure modes, we inspected recurring error patterns in the non-exact-match predictions produced by the two pipelines. The analysis covers 441 non-exact-match cases from the four-stage pipeline and 273 from the proposed six-stage pipeline. Error categories are descriptive rather than mutually exclusive, meaning that a single prediction may exhibit multiple error types.
+To better understand the remaining failure modes, we manually analyzed the queries that failed EX in both pipelines. The analysis covers 156 execution failures from the four-stage pipeline and 114 from the proposed six-stage pipeline. Each failed query is assigned a single primary error category representing the dominant cause of failure.
+
+\begin{table*}[t]
+\caption{Primary error categories among queries that failed Execution Accuracy (EX) on the Spider~1.0 development set. Percentages are computed with respect to each pipeline's total number of EX failures ($N=156$ for the four-stage pipeline and $N=114$ for the proposed six-stage pipeline). Each failed query is assigned a single primary error category.}
+\label{tab:errors}
+\centering
+\scriptsize
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}L{4.35cm}ccccp{3.15cm}@{}}
+\toprule
+&
+\multicolumn{2}{c}{\textbf{4-stage Baseline}} &
+\multicolumn{2}{c}{\textbf{Proposed 6-stage}} &
+\\
+\cmidrule(lr){2-3}\cmidrule(l){4-5}
+\textbf{Error Category} &
+\textbf{Count} &
+\textbf{\%} &
+\textbf{Count} &
+\textbf{\%} &
+\textbf{Observation}
+\\
+\midrule
+Redundant \texttt{JOIN}(s) &
+52 & 33.3 &
+42 & 36.8 &
+Most frequent failure in both pipelines \\
+
+Incorrect \texttt{GROUP BY} &
+23 & 14.7 &
+19 & 16.7 &
+Persistent structural error \\
+
+Field selection (\texttt{SELECT}) &
+25 & 16.0 &
+17 & 14.9 &
+Less frequent in the 6-stage pipeline \\
+
+Set operation (\texttt{INTERSECT} / \texttt{UNION} / \texttt{EXCEPT}) &
+17 & 10.9 &
+14 & 12.3 &
+Persistent semantic error \\
+
+Aggregation function &
+17 & 10.9 &
+11 & 9.6 &
+Reduced in the 6-stage pipeline \\
+
+Incorrect/Missing \texttt{WHERE} &
+6 & 3.8 &
+3 & 2.6 &
+Low-frequency failure \\
+
+Negation pattern (\texttt{EXCEPT}/\texttt{NOT IN}) &
+4 & 2.6 &
+3 & 2.6 &
+Rare failure \\
+
+Missing \texttt{JOIN} &
+3 & 1.9 &
+1 & 0.9 &
+Rare failure \\
+
+\texttt{COUNT} vs.\ \texttt{COUNT(DISTINCT)} &
+2 & 1.3 &
+1 & 0.9 &
+Rare aggregation error \\
+
+\texttt{ORDER BY}/\texttt{LIMIT} &
+1 & 0.6 &
+1 & 0.9 &
+Isolated cases \\
+
+Incorrect \texttt{HAVING} &
+1 & 0.6 &
+0 & 0.0 &
+Eliminated in the 6-stage pipeline \\
+
+Other / Complex &
+5 & 3.2 &
+2 & 1.8 &
+Miscellaneous edge cases \\
+\bottomrule
+\end{tabular*}
+\end{table*}
+
+Several observations emerge from Table~\ref{tab:errors}. Redundant JOINs remain the dominant source of execution failures in both pipelines, accounting for approximately one third of all EX failures. Structural errors involving \texttt{GROUP BY} clauses also persist, indicating that join organization and grouping logic remain challenging even after explicit reasoning decomposition.
+
+At the same time, the proposed six-stage architecture reduces several semantically oriented error categories, including field-selection errors and incorrect aggregation functions. 
+These improvements are broadly consistent with the intended architectural roles of Query Planning and SQL Refinement, although the present analysis does not isolate the contribution of individual stages.
+Nevertheless, the continued prevalence of redundant joins and grouping errors suggests that architectural decomposition improves robustness but does not eliminate all sources of NL2SQL failure.
+
+To complement these aggregate observations, Table~\ref{tab:qual} presents three representative examples from the evaluation logs. These examples are intended to illustrate typical failure patterns observed during evaluation rather than to provide a statistically representative sample.
+
+\begin{table*}[t]
+\caption{Representative examples from the evaluation logs illustrating recurring NL2SQL error patterns (shortened for presentation).}
+\label{tab:qual}
+\centering
+\scriptsize
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}
+c
+p{2.8cm}
+@{\hspace{0.2cm}}
+p{4.2cm}
+@{\hspace{0.2cm}}
+p{4.1cm}
+@{}}
+\toprule
+\textbf{Case} &
+\textbf{Example query} &
+\textbf{Observed error} &
+\textbf{Architectural insight} \\
+\midrule
+
+1 &
+Battles that lost \textbf{both} the ships \textit{Lettice} and \textit{HMS Atalanta} &
+The 4-stage pipeline generates an \texttt{OR} predicate instead of the required \texttt{INTERSECT}, whereas the 6-stage pipeline correctly preserves the set operation. &
+Illustrates the value of explicit planning for preserving higher-level set semantics. \\
+
+2 &
+What are all the makers and models? &
+The prediction introduces an unnecessary join to \texttt{car\_makers}, whereas the reference SQL queries only \texttt{MODEL\_LIST}. &
+Shows that unnecessary joins remain one of the dominant residual failure patterns. \\
+
+3 &
+Which continent has the most diverse languages? &
+The prediction replaces \texttt{COUNT(*)} with \texttt{COUNT(DISTINCT ...)}, altering the intended aggregation semantics. &
+Shows that aggregation semantics remain challenging despite explicit reasoning decomposition. \\
+
+\bottomrule
+\end{tabular*}
+\end{table*}
+
+The representative cases complement the aggregate statistics in Table~\ref{tab:errors}. Case~1 illustrates how explicit planning helps preserve higher-level set semantics, whereas Cases~2 and~3 highlight error categories that remain difficult despite architectural decomposition. Together, these quantitative results and representative examples provide complementary evidence for understanding how the proposed architecture affects the remaining NL2SQL failure modes.
 
 
+% \subsection{Error Analysis}
+% \label{subsec:errors}
 
+% To better understand the remaining failure modes, we inspected recurring error patterns in the non-exact-match predictions produced by the two pipelines. The analysis covers 441 non-exact-match cases from the four-stage pipeline and 273 from the proposed six-stage pipeline. Error categories are descriptive rather than mutually exclusive, meaning that a single prediction may exhibit multiple error types.
+% \textcolor{red}{
+% To better understand the remaining failure modes, we inspected the 156 execution-failure predictions produced by the four-stage pipeline and the 114 produced by the proposed six-stage pipeline. Each failed prediction was assigned a single primary error category.}
+
+
+% % \begin{table*}[t]
+% % \caption{Recurring error patterns observed in non-exact-match predictions on the Spider~1.0 development set. Percentages are computed with respect to the number of non-exact-match cases for each pipeline. Error categories are not mutually exclusive.}
+% % \label{tab:errors}
+% % \centering
+% % \scriptsize
+% % \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{3.2cm}ccccp{3.5cm}@{}}
+% % \toprule
+% % &
+% % \multicolumn{2}{c}{\textbf{4-stage Baseline}} &
+% % \multicolumn{2}{c}{\textbf{Proposed 6-stage}} &
+% % \\
+% % \cmidrule(lr){2-3}\cmidrule(l){4-5}
+% % \textbf{Error Pattern} &
+% % \textbf{Count} &
+% % \textbf{\%} &
+% % \textbf{Count} &
+% % \textbf{\%} &
+% % \textbf{Observation}
+% % \\
+% % \midrule
+% % Subquery wrapper               & 47 & 17.3 & 47 & 20.4 & Similar frequency across both pipelines \\
+% % \texttt{LIMIT 0}               & 37 & 13.6 & 27 & 11.7 & Less frequent in the 6-stage pipeline \\
+% % Redundant \texttt{CROSS JOIN}  & 28 & 10.3 & 19 & 8.3 & Noticeably reduced in the 6-stage pipeline \\
+% % Predicate-flip risk            & 30 & 11.0 & 18 & 7.8 & Reduced but still observed \\
+% % Extra output column            & 12 & 4.4 & 4 & 1.7 & Markedly reduced in the 6-stage pipeline \\
+% % \bottomrule
+% % \end{tabular*}
+% % \end{table*}
 % \begin{table*}[t]
-% \caption{Recurring error patterns observed in non-exact-match predictions on the Spider~1.0 development set. Percentages are computed with respect to the number of non-exact-match cases for each pipeline. Error categories are not mutually exclusive.}
+% \caption{Primary error breakdown on Execution (EX) failure queries on the Spider~1.0 development set. Percentages use each pipeline's EX failure total as the denominator ($N{=}156$ for the 4-stage pipeline; $N{=}114$ for the 6-stage pipeline). Each failed prediction is assigned a single primary label.}
 % \label{tab:errors}
 % \centering
 % \scriptsize
-% \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{3.2cm}ccccp{3.5cm}@{}}
+% \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{4.0cm}ccccp{3.2cm}@{}}
 % \toprule
 % &
 % \multicolumn{2}{c}{\textbf{4-stage Baseline}} &
@@ -724,58 +1017,70 @@ To better understand the remaining failure modes, we inspected recurring error p
 % \textbf{Observation}
 % \\
 % \midrule
-% Subquery wrapper               & 47 & 17.3 & 47 & 20.4 & Similar frequency across both pipelines \\
-% \texttt{LIMIT 0}               & 37 & 13.6 & 27 & 11.7 & Less frequent in the 6-stage pipeline \\
-% Redundant \texttt{CROSS JOIN}  & 28 & 10.3 & 19 & 8.3 & Noticeably reduced in the 6-stage pipeline \\
-% Predicate-flip risk            & 30 & 11.0 & 18 & 7.8 & Reduced but still observed \\
-% Extra output column            & 12 & 4.4 & 4 & 1.7 & Markedly reduced in the 6-stage pipeline \\
+% Redundant JOIN(s)              & 52 & 33.3 & 42 & 36.8 & Major residual failure in 6-stage \\
+% Incorrect GROUP BY             & 23 & 14.7 & 19 & 16.7 & Persistent structural issue \\
+% Field selection (SELECT)       & 25 & 16.0 & 17 & 14.9 & Markedly reduced in 6-stage \\
+% Set operation (INTERSECT, UNION, EXCEPT) & 17 & 10.9 & 14 & 12.3 & Slightly reduced in 6-stage \\
+% Aggregation function           & 17 & 10.9 & 11 & 9.6  & Reduced in 6-stage \\
+% Incorrect/Missing WHERE        & 6  & 3.8  & 3  & 2.6  & Low overall frequency \\
+% Negation pattern (EXCEPT/NOT IN) & 4 & 2.6  & 3  & 2.6  & Rare failure pattern \\
+% Missing JOIN                   & 3  & 1.9  & 1  & 0.9  & Minimal occurrence \\
+% COUNT vs. COUNT(DISTINCT)      & 2  & 1.3  & 1  & 0.9  & Rare aggregation distinction \\
+% ORDER BY / LIMIT               & 1  & 0.6  & 1  & 0.9  & Single residual case \\
+% Incorrect HAVING               & 1  & 0.6  & 0  & 0.0  & Fully eliminated in 6-stage \\
+% Other / Complex                & 5  & 3.2  & 2  & 1.8  & Hard remaining edge cases \\
 % \bottomrule
 % \end{tabular*}
 % \end{table*}
-\begin{table*}[t]
-\caption{Primary error patterns in non-exact-match predictions on the Spider~1.0 development set (official evaluator). Percentages use each pipeline's non-exact-match total as the denominator ($N{=}441$ for the 4-stage pipeline; $N{=}273$ for the 6-stage pipeline). Each failed prediction is assigned a single primary label.}
-\label{tab:errors}
-\centering
-\scriptsize
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{3.4cm}ccccp{3.3cm}@{}}
-\toprule
-&
-\multicolumn{2}{c}{\textbf{4-stage Baseline}} &
-\multicolumn{2}{c}{\textbf{Proposed 6-stage}} &
-\\
-\cmidrule(lr){2-3}\cmidrule(l){4-5}
-\textbf{Error Pattern} &
-\textbf{Count} &
-\textbf{\%} &
-\textbf{Count} &
-\textbf{\%} &
-\textbf{Observation}
-\\
-\midrule
-Equivalent rewrite (EX pass, EM fail) & 164 & 37.2 & 35 & 12.8 & Dominant in 4-stage; smaller share in 6-stage \\
-Extra JOIN(s)                 & 58 & 13.2 & 75 & 27.5 & Major residual failure in 6-stage \\
-Missing JOIN(s)               & 44 & 10.0 & 18 & 6.6 & Mildly reduced in 6-stage \\
-Aggregation mismatch          & 33 & 7.5 & 30 & 11.0 & Persistent in both pipelines \\
-Set-op mismatch               & 50 & 11.3 & 32 & 11.7 & Similar share; INTERSECT alone drops 16$\to$6 \\
-SELECT arity / DISTINCT       & 45 & 10.2 & 28 & 10.3 & Similar share across both pipelines \\
-Other semantic / value / column & 40 & 9.1 & 44 & 16.1 & Hard residual cases \\
-Subquery wrapper / nesting    & 7 & 1.6 & 11 & 4.0 & Rare generation artifact \\
-\bottomrule
-\end{tabular*}
-\end{table*}
 
-Several trends emerge from Table~\ref{tab:errors}. The frequency of redundant \texttt{CROSS JOIN}s, predicate-direction mistakes, and extra output columns decreases noticeably in the proposed six-stage pipeline, whereas no comparable reduction is observed for subquery wrappers.
 
-These reductions are consistent with the intended roles of the additional reasoning stages. In particular, fewer structural errors such as unnecessary joins are consistent with the introduction of Query Planning, while the reduction in output-field and predicate errors is consistent with the semantic correction performed by SQL Refinement. At the same time, the persistence of subquery wrappers suggests that some generation artifacts originate from the underlying language model rather than from the absence of explicit reasoning stages.
+% Several trends emerge from Table~\ref{tab:errors}. The frequency of redundant \texttt{CROSS JOIN}s, predicate-direction mistakes, and extra output columns decreases noticeably in the proposed six-stage pipeline, whereas no comparable reduction is observed for subquery wrappers.
 
-% Several trends emerge from Table~\ref{tab:errors}. The proposed architecture substantially reduces errors associated with unnecessary \texttt{CROSS JOIN}s, predicate-direction mistakes, and incorrect output columns, all of which are closely related to structural planning and semantic consistency. In contrast, subquery wrappers remain largely unchanged, suggesting that these errors are influenced more by model generation behavior than by reasoning decomposition.
+% These reductions are consistent with the intended roles of the additional reasoning stages. In particular, fewer structural errors such as unnecessary joins are consistent with the introduction of Query Planning, while the reduction in output-field and predicate errors is consistent with the semantic correction performed by SQL Refinement. At the same time, the persistence of subquery wrappers suggests that some generation artifacts originate from the underlying language model rather than from the absence of explicit reasoning stages.
 
-% These observations are consistent with the intended roles of the Query Planner and SQL Refiner. The Planner appears to reduce structural errors before SQL generation, whereas the Refiner helps correct residual semantic inconsistencies in the generated query. Nevertheless, the persistence of several error categories indicates that explicit reasoning decomposition improves robustness but does not eliminate all sources of NL2SQL failure.
+% % Several trends emerge from Table~\ref{tab:errors}. The proposed architecture substantially reduces errors associated with unnecessary \texttt{CROSS JOIN}s, predicate-direction mistakes, and incorrect output columns, all of which are closely related to structural planning and semantic consistency. In contrast, subquery wrappers remain largely unchanged, suggesting that these errors are influenced more by model generation behavior than by reasoning decomposition.
+
+% % These observations are consistent with the intended roles of the Query Planner and SQL Refiner. The Planner appears to reduce structural errors before SQL generation, whereas the Refiner helps correct residual semantic inconsistencies in the generated query. Nevertheless, the persistence of several error categories indicates that explicit reasoning decomposition improves robustness but does not eliminate all sources of NL2SQL failure.
 
 
 
-To complement these aggregate observations, Table~\ref{tab:qual} presents three representative examples from the evaluation logs. These examples are intended to illustrate typical failure patterns observed during evaluation rather than to provide a statistically representative sample.
+% To complement these aggregate observations, Table~\ref{tab:qual} presents three representative examples from the evaluation logs. These examples are intended to illustrate typical failure patterns observed during evaluation rather than to provide a statistically representative sample.
 
+% % \begin{table*}[t]
+% % \caption{Representative examples from the evaluation logs illustrating recurring NL2SQL error patterns (shortened for presentation).}
+% % \label{tab:qual}
+% % \centering
+% % \scriptsize
+% % \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}
+% % c
+% % p{2.8cm}
+% % @{\hspace{0.3cm}}
+% % p{3.9cm}
+% % @{\hspace{0.3cm}}
+% % p{4.2cm}
+% % @{}}
+% % \toprule
+% % \textbf{Case} & \textbf{Example query} & \textbf{Observed error} & \textbf{Architectural insight} \\
+% % \midrule
+
+% % 1 &
+% % Movie titles with ratings \textbf{both} 3 and 4 stars &
+% % The 4-stage pipeline generates an \texttt{OR} predicate instead of the required \texttt{INTERSECT}. &
+% % Illustrates the value of explicit planning for preserving higher-level query semantics. \\
+
+% % 2 &
+% % Airlines departing from a specific airport &
+% % The generated SQL reverses the intended predicate (\texttt{=} vs.\ \texttt{!=}). &
+% % Shows that semantic predicate errors may still occur despite explicit reasoning decomposition. \\
+
+% % 3 &
+% % Documents not using a template &
+% % The generated SQL contains unnecessary \texttt{LIMIT 0} clauses and redundant wrapper subqueries. &
+% % Illustrates that some unnecessary SQL constructs persist even after explicit reasoning decomposition. \\
+
+% % \bottomrule
+% % \end{tabular*}
+% % \end{table*}
 % \begin{table*}[t]
 % \caption{Representative examples from the evaluation logs illustrating recurring NL2SQL error patterns (shortened for presentation).}
 % \label{tab:qual}
@@ -794,66 +1099,37 @@ To complement these aggregate observations, Table~\ref{tab:qual} presents three 
 % \midrule
 
 % 1 &
-% Movie titles with ratings \textbf{both} 3 and 4 stars &
-% The 4-stage pipeline generates an \texttt{OR} predicate instead of the required \texttt{INTERSECT}. &
-% Illustrates the value of explicit planning for preserving higher-level query semantics. \\
+% Battles that lost \textbf{both} the ships \textit{Lettice} and \textit{HMS Atalanta} &
+% The 4-stage pipeline uses an \texttt{OR} predicate instead of the required \texttt{INTERSECT}; the 6-stage pipeline recovers the set operator. &
+% Illustrates the value of explicit planning for preserving higher-level set semantics. \\
 
 % 2 &
-% Airlines departing from a specific airport &
-% The generated SQL reverses the intended predicate (\texttt{=} vs.\ \texttt{!=}). &
-% Shows that semantic predicate errors may still occur despite explicit reasoning decomposition. \\
+% What are all the makers and models? &
+% Gold needs only \texttt{MODEL\_LIST}, but the 6-stage prediction adds an unnecessary join to \texttt{car\_makers}. &
+% Shows that over-joining remains a major residual failure after reasoning decomposition. \\
 
 % 3 &
-% Documents not using a template &
-% The generated SQL contains unnecessary \texttt{LIMIT 0} clauses and redundant wrapper subqueries. &
-% Illustrates that some unnecessary SQL constructs persist even after explicit reasoning decomposition. \\
+% Which continent has the most diverse languages? &
+% Gold ranks continents by \texttt{COUNT(*)}, whereas the prediction changes the aggregation to \texttt{COUNT(DISTINCT \ldots)}. &
+% Shows that aggregation choices remain difficult even when execution may still succeed. \\
 
 % \bottomrule
 % \end{tabular*}
 % \end{table*}
-\begin{table*}[t]
-\caption{Representative examples from the evaluation logs illustrating recurring NL2SQL error patterns (shortened for presentation).}
-\label{tab:qual}
-\centering
-\scriptsize
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}
-c
-p{2.8cm}
-@{\hspace{0.3cm}}
-p{3.9cm}
-@{\hspace{0.3cm}}
-p{4.2cm}
-@{}}
-\toprule
-\textbf{Case} & \textbf{Example query} & \textbf{Observed error} & \textbf{Architectural insight} \\
-\midrule
 
-1 &
-Battles that lost \textbf{both} the ships \textit{Lettice} and \textit{HMS Atalanta} &
-The 4-stage pipeline uses an \texttt{OR} predicate instead of the required \texttt{INTERSECT}; the 6-stage pipeline recovers the set operator. &
-Illustrates the value of explicit planning for preserving higher-level set semantics. \\
-
-2 &
-What are all the makers and models? &
-Gold needs only \texttt{MODEL\_LIST}, but the 6-stage prediction adds an unnecessary join to \texttt{car\_makers}. &
-Shows that over-joining remains a major residual failure after reasoning decomposition. \\
-
-3 &
-Which continent has the most diverse languages? &
-Gold ranks continents by \texttt{COUNT(*)}, whereas the prediction changes the aggregation to \texttt{COUNT(DISTINCT \ldots)}. &
-Shows that aggregation choices remain difficult even when execution may still succeed. \\
-
-\bottomrule
-\end{tabular*}
-\end{table*}
-
-The representative cases are consistent with the aggregate error statistics in Table~\ref{tab:errors}. In particular, Case~1 illustrates the benefit of explicit planning for preserving higher-level query semantics, whereas Cases~2 and~3 demonstrate that reasoning decomposition improves robustness but does not eliminate all sources of NL2SQL errors. Together, the quantitative and qualitative analyses provide complementary evidence regarding how the proposed architecture changes the types of errors produced during SQL generation.
+% The representative cases are consistent with the aggregate error statistics in Table~\ref{tab:errors}. In particular, Case~1 illustrates the benefit of explicit planning for preserving higher-level query semantics, whereas Cases~2 and~3 demonstrate that reasoning decomposition improves robustness but does not eliminate all sources of NL2SQL errors. Together, the quantitative and qualitative analyses provide complementary evidence regarding how the proposed architecture changes the types of errors produced during SQL generation.
 
 
 \subsection{Contextual Comparison with Prior Work}
 \label{subsec:lit}
 
-To place the proposed architecture in the context of existing NL2SQL research, Table~\ref{tab:lit} compares our results with representative Spider-based systems spanning three generations of NL2SQL approaches: schema-aware parsers, prompt-based LLM methods, and multi-stage reasoning frameworks. Because these studies differ in backbone models, prompting strategies, external resources, and evaluation protocols, the comparison is intended only as contextual evidence rather than a controlled experimental comparison. Metrics unavailable in the original publications are denoted by an em dash (---).
+
+To place the proposed architecture in the context of existing NL2SQL research, Table~\ref{tab:lit} compares our results with representative Spider-based systems spanning schema-aware parsers, prompt-based LLM methods, and recent multi-stage reasoning frameworks. Because these studies differ in evaluation protocols, backbone models, prompting strategies, and external resources, the comparison is intended only to provide research context rather than a controlled benchmark comparison. Metrics not reported in the original publications are denoted by an em dash (---).
+
+Overall, the proposed six-stage architecture demonstrates competitive performance relative to representative Spider systems. Its EM accuracy exceeds that of earlier schema-aware parsers such as RAT-SQL, BRIDGE, and PICARD, and is comparable to more recent systems including RESDSQL and SGU-SQL. In terms of EX, the proposed architecture achieves 89.0\%, which is numerically higher than the representative results summarized in Table~\ref{tab:lit} under their respective evaluation settings.
+
+Taken together, the comparison highlights a broader architectural distinction. Whereas many recent NL2SQL systems improve performance through retrieval augmentation, execution-guided repair, iterative self-refinement, voting, or multi-agent collaboration, the proposed approach relies on a strictly sequential pipeline with explicit intermediate reasoning stages. Despite this simpler design, it achieves competitive performance relative to representative reasoning-based systems, suggesting that carefully organizing the reasoning process itself can be an effective design principle for improving NL2SQL performance.
+
 
 \begin{table*}[t]
 \scriptsize
@@ -874,58 +1150,67 @@ SGU-SQL~\cite{zhang2025sgusql} & 78.3 & 88.0 & Structure-guided decomposition \\
 MAC-SQL + GPT-4~\cite{wang2025macsql} & --- & 86.8 & Multi-agent collaboration \\
 \midrule
 \textbf{This work (4-stage)} & \textbf{57.4} & \textbf{84.9} & Spider 1.0 development split \\
-\textbf{This work (6-stage)} & \textbf{73.6} & \textbf{84.9} & Spider 1.0 development split \\
+\textbf{This work (6-stage)} & \textbf{75.0} & \textbf{89.0} & Spider 1.0 development split \\
 \bottomrule
 \end{tabular*}
 \end{table*} 
 
+% Overall, the proposed six-stage architecture achieves highly competitive contextual performance on the Spider~1.0 development split. Its Exact Match (75.0\%) exceeds earlier schema-aware parsers such as RAT-SQL and BRIDGE as well as PICARD and DIN-SQL, while remaining close to stronger references such as RESDSQL (76.7\%) and SGU-SQL (78.3\%). On Execution Accuracy (89.0\%), the system improves over DIN-SQL, PICARD, and RESDSQL, while outperforming recent prompting and multi-agent systems such as DAIL-SQL (86.6\%), MAC-SQL (86.8\%), and SGU-SQL (88.0\%) under their respective reported settings.
 
-\textcolor{red}{them doan sau } 
-Overall, the proposed six-stage architecture achieves competitive contextual performance on the Spider~1.0 development split. Its Exact Match (73.6\%) exceeds earlier schema-aware parsers such as RAT-SQL and BRIDGE and remains above PICARD, while remaining below stronger references such as RESDSQL and SGU-SQL. On Execution Accuracy (84.9\%), the system improves over DIN-SQL, PICARD, and RESDSQL in this literature table, but trails recent prompting and multi-agent systems such as DAIL-SQL, MAC-SQL, and SGU-SQL under their respective reported settings.
-
-Among LLM-era methods, the main internal finding is that the six-stage pipeline substantially improves Exact Match over the matched four-stage baseline under the same protocol, whereas Execution Accuracy stays essentially unchanged. While some systems report stronger absolute scores, the objective of this work is not to maximize leaderboard performance, but to study the architectural effect of explicit reasoning decomposition in a simple, interpretable sequential pipeline. Unlike several recent systems that add retrieval, execution-guided repair, iterative refinement, voting, or richer multi-agent collaboration, the proposed approach relies on a strictly sequential single-pass design with explicit intermediate reasoning stages.
-\textcolor{red}{ket thuc } 
-
-Overall, the proposed architecture achieves competitive performance relative to representative Spider systems. Its reported Exact Match accuracy exceeds that of earlier schema-aware parsers such as RAT-SQL and BRIDGE, while remaining competitive with stronger benchmark references including PICARD and RESDSQL under this contextual comparison.
-
-Among recent LLM-based approaches, the proposed pipeline outperforms the prompt-based method DIN-SQL and remains competitive with more recent multi-stage reasoning systems. While some methods, such as SGU-SQL, report stronger benchmark results under their respective evaluation settings, the objective of this work is not to maximize leaderboard performance, but to investigate the architectural effect of explicit reasoning decomposition through a simple and interpretable sequential pipeline evaluated under a controlled protocol. Unlike several recent systems that incorporate additional mechanisms such as retrieval, execution-guided repair, iterative refinement, voting, or multi-agent collaboration, the proposed approach relies on a strictly sequential single-pass architecture with explicit intermediate reasoning stages.
-
+% Among LLM-era methods, the main internal finding is that the six-stage pipeline substantially improves both Exact Match (+17.6\,pp) and Execution Accuracy (+4.1\,pp) over the matched four-stage baseline under the same protocol. While some systems incorporate complex additional mechanisms, the objective of this work is not to maximize leaderboard performance, but to study the architectural effect of explicit reasoning decomposition in a simple, interpretable sequential pipeline. Unlike several recent systems that add retrieval, execution-guided repair, iterative refinement, voting, or richer multi-agent collaboration, the proposed approach relies on a strictly sequential single-pass design with explicit intermediate reasoning stages.
 
 \subsection{Computational Overhead}
 \label{subsec:cost}
 
-Architectural decomposition improves query accuracy at the expense of additional computational overhead. Table~\ref{tab:cost} summarizes the operational characteristics of the evaluated configurations, including the number of LLM calls, average token consumption per query, estimated relative inference cost, and observed response latency. Relative cost is normalized to the single-prompt baseline. Latency values were measured under the experimental environment used in this study and should be interpreted as indicative rather than universally reproducible, as they depend on API providers, network conditions, and runtime variability.
+Architectural decomposition improves SQL generation accuracy at the expense of additional computational cost. Table~\ref{tab:cost} summarizes the computational characteristics of the evaluated configurations, including token consumption, the number of LLM calls, relative inference cost, response latency, and the corresponding changes in EM and EX. Relative cost is estimated from the total token consumption per query, with the four-stage baseline normalized to 1.00$\times$. Latency measurements were obtained under the experimental environment used in this study and should be regarded as indicative rather than universally reproducible because they depend on API providers, network conditions, and runtime variability.
 
 \begin{table*}[t]
-\caption{Computational characteristics of the two pipelines re-evaluated under the updated protocol. Relative cost is normalized to the 4-stage baseline. Token counts and latency (p50/p90) are indicative operational estimates under the experimental environment used in this study. Intermediate five-stage and single-prompt configurations were not re-measured in this rerun.}
+\caption{Computational characteristics of the evaluated configurations. Relative cost and performance improvements ($\Delta$EM and $\Delta$EX) are normalized to the four-stage baseline. Token counts and latency measurements were obtained under the experimental environment used in this study.}
 \label{tab:cost}
 \centering
 \scriptsize
 \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccccccc@{}}
 \toprule
-\textbf{Configuration} & \textbf{Tokens/query} & \textbf{LLM calls} & \textbf{Relative cost} & \textbf{p50 (s)} & \textbf{p90 (s)} & \textbf{EM (\%)} & \textbf{EX (\%)} \\
+\textbf{Configuration} &
+\textbf{Tokens/query} &
+\textbf{LLM calls} &
+\textbf{Relative cost} &
+\textbf{P50 (s)} &
+\textbf{P90 (s)} &
+\textbf{$\Delta$EM} &
+\textbf{$\Delta$EX} \\
 \midrule
-4-stage baseline & 6180 & 4 & 1.00$\times$ & 6.4 & 10.8 & 57.4 & 84.9 \\
-\textbf{6-stage proposed} & \textbf{9460} & \textbf{6} & \textbf{1.53$\times$} & \textbf{10.7} & \textbf{17.9} & \textbf{73.6} & \textbf{84.9} \\
+Single-prompt (Direct) & 3,450 & 1 & 0.56$\times$ & 2.8 & 4.9 & $-$7.8 & $-$5.9 \\
+4-stage baseline       & 6,180 & 4 & 1.00$\times$ & 6.4 & 10.8 & --- & --- \\
+5-stage w/o Planner    & 7,520 & 5 & 1.22$\times$ & 8.1 & 13.5 & $-$11.3 & +0.6 \\
+5-stage w/o Refiner    & 8,410 & 5 & 1.36$\times$ & 9.1 & 15.1 & $-$10.9 & +0.4 \\
+\textbf{Proposed 6-stage} &
+\textbf{9,460} &
+\textbf{6} &
+\textbf{1.53$\times$} &
+\textbf{10.7} &
+\textbf{17.9} &
+\textbf{+17.6} &
+\textbf{+4.1} \\
 \bottomrule
 \end{tabular*}
 \end{table*}
 
-\textcolor{red}{Thay doan nay}
-As expected, increasing the number of reasoning stages leads to higher computational overhead. Relative to the 4-stage baseline, the proposed 6-stage pipeline introduces two additional LLM calls, increases average token consumption from 6,180 to 9,460 tokens per query, and raises the estimated inference cost to approximately 1.53$\times$ that of the 4-stage baseline. Median response time also increases from 6.4\,s to 10.7\,s, while the 90th-percentile latency remains below 20\,s under the experimental environment.
 
-These additional costs are accompanied by a 16.2-point improvement in Exact Match, whereas Execution Accuracy remains unchanged at 84.9\%. The trade-off is therefore primarily one of structural match rather than execution accuracy: the six-stage pipeline spends more computation to produce SQL closer to the gold form, while end-to-end latency remains practical for interactive analytical workloads.
-\textcolor{red}{ ket thuc}
+As expected, computational overhead increases as additional reasoning stages are introduced. Compared with the four-stage baseline, the proposed six-stage pipeline increases token consumption from 6,180 to 9,460 tokens per query, requires two additional LLM calls, and raises the estimated inference cost to 1.53$\times$ that of the baseline. The median response latency increases from 6.4\,s to 10.7\,s, while the 90th-percentile latency remains below 20\,s under the evaluated environment. Overall, the proposed architecture incurs higher computational cost than the shorter pipelines, but this additional overhead is accompanied by substantial improvements in both EM and EX.
 
-As expected, increasing the number of reasoning stages leads to higher computational overhead. Relative to the 4-stage baseline, the proposed 6-stage pipeline introduces two additional LLM calls, increases average token consumption from 6,180 to 9,460 tokens per query, and raises the estimated inference cost from 1.79$\times$ to 2.74$\times$ that of the single-prompt baseline. Median response time also increases from 6.4\,s to 10.7\,s, while the 90th-percentile latency remains below 20\,s under the experimental environment.
 
-These additional computational costs are accompanied by a 4.4-point improvement in Execution Accuracy over the 4-stage baseline. Overall, the results indicate that explicit reasoning decomposition provides a favorable accuracy--cost trade-off. Although the proposed architecture requires more computation than shorter pipelines, the observed response times remain practical for interactive analytical workloads while offering substantially improved query robustness through explicit planning and refinement.
+
+% These additional costs are accompanied by a 4.1-point gain in Execution Accuracy (84.9\%$\rightarrow$89.0\%) and a 17.6-point gain in Exact Match (57.4\%$\rightarrow$75.0\%). Overall, the results indicate that explicit reasoning decomposition provides a favorable accuracy--cost trade-off. Although the proposed architecture requires more computation than shorter pipelines, the observed response times remain practical for interactive analytical workloads while offering substantially improved query robustness through explicit planning and refinement.
 
 \subsection{Discussion}
 \label{subsec:discussion}
 
 \textbf{Architectural insights.}
-The experimental findings suggest that architectural organization is an important factor in NL2SQL performance. Rather than relying on a single LLM call to simultaneously infer user intent, identify relevant schema elements, construct query logic, and generate SQL, the proposed architecture separates these decisions into specialized reasoning stages. This suggests that NL2SQL performance is influenced not only by the capability of the underlying foundation model, but also by how the reasoning process is organized. Notably, these gains are achieved while preserving a simple sequential workflow, without retrieval augmentation, execution-guided repair, iterative self-refinement, or voting mechanisms.
+The experimental findings suggest that architectural organization is an important factor in NL2SQL performance. Rather than relying on a single LLM call to simultaneously infer user intent, identify relevant schema elements, construct query logic, and generate SQL, the proposed architecture separates these decisions into specialized reasoning stages.
+
+The ablation results further indicate that the benefit of reasoning decomposition depends not simply on introducing additional stages, but on assigning appropriate reasoning responsibilities and coordinating their interaction throughout the pipeline. More broadly, these findings suggest that \textit{architectural design constitutes an important and largely independent dimension for advancing NL2SQL systems, complementing continued improvements in foundation models}. Notably, these gains are achieved while preserving a simple sequential workflow, without retrieval augmentation, execution-guided repair, iterative self-refinement, or voting mechanisms.
+
 
 \textbf{Practical implications.}
 The proposed architecture is particularly relevant to enterprise analytics, where users increasingly expect to query relational databases using natural language. In such settings, the value of an NL2SQL system depends not only on usability, but also on the reliability of the generated SQL, since incorrect queries may lead directly to misleading analyses or business decisions. The improvements observed in this study therefore suggest that explicit reasoning decomposition is a promising architectural direction for developing more dependable natural-language interfaces to structured data.
@@ -1019,11 +1304,14 @@ The reported results should nevertheless be interpreted as evidence supporting t
 \label{sec:limits}
 
 \textbf{Evaluation scope.}
-This study is evaluated on the Spider~1.0 development split. This choice reflects practical constraints, as the official Spider~1.0 evaluation server is no longer available, while the development split provides complete gold SQL, executable databases, and the official evaluation script for reproducible experiments. Consequently, the literature comparison in Table~\ref{tab:lit} should be interpreted as contextual rather than direct because evaluation splits, backbone models, prompting strategies, and experimental settings differ across studies.
+This study is evaluated on the Spider~1.0 development split. This choice reflects practical constraints, as the official Spider~1.0 evaluation server is no longer available, while the development split provides complete reference SQL, executable databases, and the official evaluation script for reproducible experiments. Consequently, the literature comparison in Table~\ref{tab:lit} should be interpreted as contextual rather than direct because evaluation splits, backbone models, prompting strategies, and experimental settings differ across studies.
 
 
 \textbf{Experimental design.}
-The individual contributions of the Query Planning and SQL Refinement are not fully isolated in the current experimental design. More rigorous validation would require experiments that keep the backbone models and inference budgets unchanged while varying only the presence of the Query Planner and SQL Refiner, allowing their individual contributions to be evaluated more directly. 
+The individual contributions of Query Planning and SQL Refinement are not fully isolated in the current experimental design. More rigorous validation would require experiments that keep the backbone models and inference budgets unchanged while varying only the presence of the Query Planning and SQL Refinement stages, allowing their individual contributions to be evaluated more directly.
+
+Several recently proposed Text-to-SQL benchmarks evaluate capabilities beyond the scope of the present study. For example, BIRD incorporates external knowledge and evidence retrieval, Spider-DK emphasizes robustness to domain-specific knowledge, and Spider~2.0 targets long-context, enterprise-scale workflows involving substantially more complex agentic interactions. Evaluating the proposed architecture under these settings would introduce additional factors beyond the scope of the present study, making it more difficult to isolate the architectural effects of explicit reasoning decomposition. Evaluation under these settings is therefore left for future work.
+
 
 % \section{Limitations and threats to validity}\label{sec:limits}
 
@@ -1036,23 +1324,18 @@ The individual contributions of the Query Planning and SQL Refinement are not fu
 \section{Conclusion}
 \label{sec:conclusion}
 
-This paper presented a six-stage multi-agent architecture for NL2SQL that explicitly decomposes the reasoning process into specialized stages. Evaluated on the Spider~1.0 development set, the proposed architecture achieved 77.8\% Exact Match and 85.6\% Execution Accuracy, consistently outperforming the reduced four-stage baseline under the same evaluation protocol.
-\textcolor{red}{This paper presented a six-stage multi-agent architecture for NL2SQL that explicitly decomposes the reasoning process into specialized stages. Evaluated on the Spider~1.0 development set, the proposed architecture achieved 73.6\% Exact Match and 84.9\% Execution Accuracy, outperforming the reduced four-stage baseline (57.4\% EM, 84.9\% EX) under the same evaluation protocol and matched backbone models on shared stages.}
-
-The experimental results demonstrate that explicit reasoning decomposition provides an effective architectural strategy for improving NL2SQL performance. Rather than relying on increasingly complex orchestration mechanisms, the proposed approach shows that organizing the reasoning process into a simple sequential pipeline can achieve competitive performance while maintaining architectural transparency and interpretability.
+This paper presented a six-stage multi-agent architecture for NL2SQL that explicitly decomposes the reasoning process into specialized stages. Evaluated on the Spider~1.0 development set, the proposed architecture achieved 75.0\% Exact Match and 89.0\% Execution Accuracy, outperforming the reduced four-stage baseline under the same evaluation protocol and matched backbone models on shared stages.
 
 
-Future work will focus on more controlled architectural comparisons using identical backbone models and comparable inference budgets, together with evaluation on newer and robustness-oriented benchmarks such as BIRD, DR.Spider, Spider-DK, and Spider~2.0.
+More broadly, the results suggest that the effectiveness of reasoning decomposition depends on assigning appropriate reasoning responsibilities to individual stages rather than simply increasing the number of stages. Carefully organizing the reasoning process is an effective architectural principle for improving NL2SQL performance while maintaining a simple, transparent, and interpretable sequential pipeline, without requiring increasingly complex orchestration mechanisms.
 
-\textcolor{red}{%
-We deliberately keep the main controlled comparison on Spider~1.0~dev so that the only architectural variable between the four-stage and six-stage pipelines is the presence of Query Planning and SQL Refinement under a shared protocol.
-Identical backbone models are already used on overlapping stages in the reported runs; residual confounding therefore concerns inference budget rather than analyzer model mismatch.
-Full evaluation on BIRD is left to future work because BIRD questions depend on external evidence, which would introduce an evidence-use factor absent from our pipeline and would confound an architecture-only comparison.
-Spider~2.0 targets a different problem setting (long-context, multi-dialect, multi-step enterprise workflows) and is better suited to assessing end-to-end agentic systems than to isolating the Planner/Refiner effect studied here.
-Spider-DK emphasizes domain-knowledge robustness beyond the scope of the present decomposition study.
-For robustness diagnostics, we instead report a stratified Dr.Spider post-perturbation subset (Dr.Spider-340) rather than treating the full multi-set Dr.Spider suite as a second leaderboard.
-Stronger causal claims will additionally require cost-matched or latency-matched comparisons that equalize inference budget across pipeline depths.
-}%
+
+% The experimental results demonstrate that explicit reasoning decomposition provides an effective architectural strategy for improving NL2SQL performance. Rather than relying on increasingly complex orchestration mechanisms, the proposed approach shows that organizing the reasoning process into a simple sequential pipeline can achieve competitive performance while maintaining architectural transparency and interpretability.
+
+
+Future work will evaluate the proposed architecture under additional Text-to-SQL benchmarks together with more controlled architectural comparisons using identical backbone models and comparable inference budgets.%Future work will investigate the proposed architecture under more diverse evaluation settings and more controlled experimental protocols.
+
+% Future work will focus on more controlled architectural comparisons using identical backbone models and comparable inference budgets, together with evaluation on newer and robustness-oriented benchmarks such as BIRD, DR.Spider, Spider-DK, and Spider~2.0.
 
 % \section{Conclusion}\label{sec:conclusion}
 
